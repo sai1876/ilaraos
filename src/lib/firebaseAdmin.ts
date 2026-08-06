@@ -6,7 +6,10 @@ if (!admin.apps.length) {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
     if (privateKey) {
-      privateKey = privateKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+      privateKey = privateKey.replace(/\\n/g, '\n').replace(/^["']|["']$/g, '');
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+         console.warn('FIREBASE_PRIVATE_KEY is missing -----BEGIN PRIVATE KEY-----');
+      }
     }
 
     if (!projectId || !clientEmail || !privateKey) {

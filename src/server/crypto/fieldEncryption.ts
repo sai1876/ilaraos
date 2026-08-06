@@ -33,7 +33,7 @@ export interface PasscodeHashEnvelope {
 }
 
 export function decodeFieldEncryptionKey(encodedKey: string): Buffer {
-  const normalized = encodedKey.trim();
+  const normalized = encodedKey.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
   if (!normalized || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
     throw new Error('STAFF_PRIVATE_ENCRYPTION_KEY must be a base64-encoded 32-byte key');
   }
