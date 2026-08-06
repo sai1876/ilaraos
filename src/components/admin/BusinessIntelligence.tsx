@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, PieChart, TrendingUp, TrendingDown, Users, DollarSign, BrainCircuit, Activity, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BarChart3, PieChart, TrendingUp, TrendingDown, Users, DollarSign, BrainCircuit, Activity } from 'lucide-react';
 
 const BI_TABS = [
   { id: 'overview', label: 'Overview' },
