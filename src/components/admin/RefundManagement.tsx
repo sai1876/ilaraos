@@ -333,9 +333,9 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-[#120a06]/60 rounded-xl border border-[#302117]/60 flex-wrap max-w-full overflow-x-auto">
         {[
-          { id: 'pending_review', label: 'Pending Review' },
+          { id: 'pending_review', label: 'Review Pending' },
           { id: 'payment_pending', label: 'Payment Pending' },
-          { id: 'paid', label: 'Paid Refunds' },
+          { id: 'paid', label: 'Completed' },
           { id: 'rejected', label: 'Rejected' }
         ].map(tab => {
           const count = requests.filter(r => {

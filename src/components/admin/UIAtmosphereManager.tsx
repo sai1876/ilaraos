@@ -31,7 +31,7 @@ import {
 import { generateSlideDetails } from '@/lib/geminiService';
 import { MenuItem, UIConfig, SliderItem, GridCard, SummerDrinkItem, SummerCategoryItem } from '@/lib/types';
 import { getCalendarEventConfig, DynamicCalendarEvent, defaultCalendarEvents } from '@/lib/calendarEvents';
-import { uploadImageToFirebase } from '@/lib/imageUpload';
+import { uploadFileViaIntent } from '@/lib/fileUpload';
 
 
 export default function UIAtmosphereManager() {
@@ -437,7 +437,7 @@ export default function UIAtmosphereManager() {
     }
   };
 
-  // Upload image to Firebase Storage
+  // Upload image to Supabase Storage via intent
   const handleImageUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
@@ -445,35 +445,37 @@ export default function UIAtmosphereManager() {
     setUploading(true);
 
     try {
-      const folder = imageTab === 'storefront' ? 'hero-section' : 'menu-catalog';
-      const ext = uploadFile.name.split('.').pop() || 'jpg';
-      const storagePath = `${folder}/${Date.now()}.${ext}`;
+      const document = await uploadFileViaIntent(uploadFile, {
+        category: 'atmosphere',
+        relatedEntityType: 'config',
+        relatedEntityId: 'restaurant',
+        originalFilename: uploadFile.name,
+        mimeType: uploadFile.type,
+        sizeBytes: uploadFile.size,
+        accessLevel: 'public'
+      });
 
-      const result = await uploadImageToFirebase(uploadFile, storagePath);
+      const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const uploadedUrl = `${NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${document.bucket}/${document.object_path}`;
+      
+      setUploadSuccess(true);
+      setUploadFile(null);
 
-      if (result.ok) {
-        const uploadedUrl = result.url;
-        setUploadSuccess(true);
-        setUploadFile(null);
-
-        if (imageTab === 'storefront') {
-          setHeroImageUrl(uploadedUrl);
-        } else if (imageTab === 'slide') {
-          setSlideImageUrl(uploadedUrl);
-        } else if (imageTab === 'grid_card') {
-          setCardImageUrl(uploadedUrl);
-        } else if (imageTab === 'salad_sprite') {
-          setSaladIngredientsSprite(uploadedUrl);
-        }
-      } else {
-        alert(result.message);
+      if (imageTab === 'storefront') {
+        setHeroImageUrl(uploadedUrl);
+      } else if (imageTab === 'slide') {
+        setSlideImageUrl(uploadedUrl);
+      } else if (imageTab === 'grid_card') {
+        setCardImageUrl(uploadedUrl);
+      } else if (imageTab === 'salad_sprite') {
+        setSaladIngredientsSprite(uploadedUrl);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network upload error.');
-    } finally {
-      setUploading(false);
+    } catch (error: any) {
+      alert(error.message || 'Upload failed');
     }
+
+    setUploading(false);
+    setTimeout(() => setUploadSuccess(false), 3000);
   };
 
   // Remove storefront background image URL

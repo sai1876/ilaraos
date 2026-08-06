@@ -1,7 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -30,8 +29,6 @@ export const db = typeof window !== "undefined"
       })
     })
   : getFirestore(app);
-
-export const storage = getStorage(app);
 
 // Initialize Analytics conditionally
 export let analytics: Analytics | null = null;

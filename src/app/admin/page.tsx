@@ -54,8 +54,9 @@ const RefundManagement = dynamic(() => import('@/components/admin/RefundManageme
 const WastageManagement = dynamic(() => import('@/components/admin/WastageManagement'), { ssr: false });
 const DailyClosingManagement = dynamic(() => import('@/components/admin/DailyClosingManagement'), { ssr: false });
 const CricketManagement = dynamic(() => import('@/components/admin/CricketManagement'), { ssr: false });
+const DocumentVault = dynamic(() => import('@/components/admin/DocumentVault'), { ssr: false });
 
-type TabType = 'dashboard' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket';
+type TabType = 'dashboard' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket' | 'documents';
 
 export default function AdminPortalPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -205,7 +206,8 @@ export default function AdminPortalPage() {
     { id: 'wastage',        label: 'Wastage & Remakes',  icon: Trash2,      subtitle: 'Food loss log' },
     { id: 'outlets',        label: 'Hatch Queues',       icon: LayoutGrid,  subtitle: 'Morning HUD & Mood' },
     { id: 'atmosphere',     label: 'UI Atmosphere',      icon: Sunset,      subtitle: 'Weather dynamic prompt' },
-    { id: 'cricket',        label: 'Box Cricket',        icon: Trophy,      subtitle: 'Slots & pricing' },
+    { id: 'cricket',        label: 'IPL Telemetry',      icon: Trophy,      subtitle: 'Live match traffic' },
+    { id: 'documents',      label: 'Document Vault',     icon: Save,        subtitle: 'Secure storage' },
   ];
 
   if (!isAuthenticated) {
@@ -451,7 +453,8 @@ export default function AdminPortalPage() {
               {activeTab === 'refunds'        && <RefundManagement />}
               {activeTab === 'wastage'        && <WastageManagement userRole={userRole} />}
               {activeTab === 'daily_closings' && <DailyClosingManagement outletId="main" userRole={userRole as any} />}
-              {activeTab === 'cricket'        && <CricketManagement />}
+              { activeTab === 'cricket'        && <CricketManagement />}
+              { activeTab === 'documents'      && <DocumentVault userRole={userRole} />}
             </motion.div>
           </div>
         </div>

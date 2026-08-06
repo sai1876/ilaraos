@@ -16,7 +16,8 @@
     "sync-chats": "powershell -ExecutionPolicy Bypass -File scripts/Sync-ChatsToObsidian.ps1",
     "storage:setup": "tsx scripts/setup-supabase-storage.ts",
     "storage:cleanup": "tsx scripts/cleanup-abandoned-uploads.ts",
-    "storage:cleanup:dry": "tsx scripts/cleanup-abandoned-uploads.ts --dry-run"
+    "storage:cleanup:dry": "tsx scripts/cleanup-abandoned-uploads.ts --dry-run",
+    "demo:reset": "tsx scripts/reset-demo.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

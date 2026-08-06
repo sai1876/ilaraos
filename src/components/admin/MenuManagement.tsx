@@ -33,7 +33,6 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
   const [category, setCategory] = useState<'Biryani' | 'Momos' | 'Burgers' | 'Waffles' | 'Snacks' | 'Beverages'>('Biryani');
   const [station, setStation] = useState<MenuItem['station']>('GRILLED OR STEAMED');
   const [imageUrl, setImageUrl] = useState('');
-  const [imageDocumentId, setImageDocumentId] = useState('');
   const [ingredientsInput, setIngredientsInput] = useState('');
   
   // Recipes HUD State
@@ -163,8 +162,6 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
           accessLevel: 'public'
         });
 
-        setImageDocumentId(document.document_id);
-        
         // For immediate preview, use object URL or Public URL
         if (document.bucket && document.object_path) {
           const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;

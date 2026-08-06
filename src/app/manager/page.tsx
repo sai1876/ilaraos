@@ -41,8 +41,9 @@ const RefundManagement = dynamic(() => import('@/components/admin/RefundManageme
 const WastageManagement = dynamic(() => import('@/components/admin/WastageManagement'), { ssr: false });
 const DailyClosingManagement = dynamic(() => import('@/components/admin/DailyClosingManagement'), { ssr: false });
 const CRMManagement = dynamic(() => import('@/components/admin/CRMManagement'), { ssr: false });
+const DocumentVault = dynamic(() => import('@/components/admin/DocumentVault'), { ssr: false });
 
-type TabType = 'dashboard' | 'active_orders' | 'orders' | 'dispatch' | 'menu' | 'inventory' | 'staff' | 'outlets' | 'schedule' | 'refunds' | 'wastage' | 'daily_closings' | 'crm';
+type TabType = 'dashboard' | 'active_orders' | 'orders' | 'dispatch' | 'menu' | 'inventory' | 'staff' | 'outlets' | 'schedule' | 'refunds' | 'wastage' | 'daily_closings' | 'crm' | 'documents';
 
 export default function ManagerPortalPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -174,6 +175,7 @@ export default function ManagerPortalPage() {
     { id: 'wastage', label: 'Wastage & Remakes', icon: Trash2, subtitle: 'Food loss log' },
     { id: 'outlets', label: 'Hatch queues', icon: LayoutGrid, subtitle: 'Morning HUD & Mood' },
     { id: 'crm', label: 'Loyalty Patrons', icon: Users, subtitle: 'Patron Profiles' },
+    { id: 'documents', label: 'Document Vault', icon: ClipboardList, subtitle: 'Secure storage' },
   ];
 
   if (!isAuthenticated) {
@@ -358,6 +360,7 @@ export default function ManagerPortalPage() {
               {activeTab === 'wastage' && <WastageManagement userRole={managerRole} />}
               {activeTab === 'daily_closings' && <DailyClosingManagement outletId={managerOutletId} userRole={managerRole} />}
               {activeTab === 'crm' && <CRMManagement initialFilter={crmFilter} userRole={managerRole} />}
+              {activeTab === 'documents' && <DocumentVault userRole={managerRole} />}
             </motion.div>
           </div>
         </div>
