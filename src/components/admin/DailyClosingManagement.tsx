@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
 import { DailyClosingDocument } from '@/lib/types';
 import { getBusinessDateContext } from '@/lib/businessDate';
-import { Loader2, CheckCircle2, Lock, FileText, Send, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Lock, FileText, Send, XCircle, Camera, Upload } from 'lucide-react';
+import { uploadFileViaIntent } from '@/lib/fileUpload';
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════
@@ -49,6 +50,9 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
   const [countedCash, setCountedCash] = useState<Record<string, number>>({});
   const [verifiedUpi, setVerifiedUpi] = useState<Record<string, number>>({});
   const [managerNotes, setManagerNotes] = useState<Record<string, string>>({});
+  const [cashProofs, setCashProofs] = useState<Record<string, string[]>>({});
+  const [paymentProofs, setPaymentProofs] = useState<Record<string, string[]>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   
   // Form states for review
   const [founderNotes, setFounderNotes] = useState<Record<string, string>>({});
@@ -125,10 +129,45 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
     }
   };
 
+  const handleProofUpload = async (closingId: string, e: React.ChangeEvent<HTMLInputElement>, type: 'cash' | 'payment') => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setUploading(prev => ({ ...prev, [`${closingId}-${type}`]: true }));
+    try {
+      const document = await uploadFileViaIntent(file, {
+        category: 'evidence',
+        relatedEntityType: 'daily_closing',
+        relatedEntityId: closingId,
+        originalFilename: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        accessLevel: 'private'
+      });
+      
+      let url = document.document_id;
+      if (document.bucket && document.object_path) {
+        url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${document.bucket}/${document.object_path}`;
+      }
+
+      if (type === 'cash') {
+        setCashProofs(prev => ({ ...prev, [closingId]: [...(prev[closingId] || []), url] }));
+      } else {
+        setPaymentProofs(prev => ({ ...prev, [closingId]: [...(prev[closingId] || []), document.document_id] }));
+      }
+      toast.success('Proof uploaded successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload proof');
+    } finally {
+      setUploading(prev => ({ ...prev, [`${closingId}-${type}`]: false }));
+    }
+  };
+
   const handleSubmit = async (closing: DailyClosingDocument) => {
     const cashRaw = countedCash[closing.closing_id];
     const upiRaw = verifiedUpi[closing.closing_id];
     const note = managerNotes[closing.closing_id] || '';
+    const currentCashProofs = cashProofs[closing.closing_id] || [];
+    const currentPaymentProofs = paymentProofs[closing.closing_id] || [];
 
     const cash = (cashRaw === undefined || isNaN(cashRaw)) ? 0 : cashRaw;
     const upi = (upiRaw === undefined || isNaN(upiRaw)) ? 0 : upiRaw;
@@ -150,7 +189,9 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
           counted_cash: Number(cash),
           verified_upi: Number(upi),
           manager_cash_note: note,
-          manager_notes: note
+          manager_notes: note,
+          ...(currentCashProofs.length > 0 ? { cash_proof_photo_urls: currentCashProofs } : {}),
+          ...(currentPaymentProofs.length > 0 ? { payment_proof_refs: currentPaymentProofs } : {})
         })
       });
 
@@ -378,6 +419,46 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
                         placeholder="Explain any differences, wastage issues, or operational notes."
                       />
                     </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#66554A] mb-1">Upload Cash Proofs</label>
+                      <label className="flex items-center justify-center gap-2 w-full bg-[#FFFDFC] border border-[#E8DFD3] border-dashed rounded-xl p-3 cursor-pointer hover:bg-[#F3ECE3]/40 transition-colors">
+                        {uploading[`${closing.closing_id}-cash`] ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#9A642C]" />
+                        ) : (
+                          <Camera className="w-4 h-4 text-[#9A642C]" />
+                        )}
+                        <span className="text-xs font-bold text-[#66554A]">
+                          {(cashProofs[closing.closing_id]?.length || 0)} Uploaded
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => handleProofUpload(closing.closing_id, e, 'cash')}
+                          disabled={uploading[`${closing.closing_id}-cash`]}
+                        />
+                      </label>
+                    </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#66554A] mb-1">Upload UPI Proofs</label>
+                      <label className="flex items-center justify-center gap-2 w-full bg-[#FFFDFC] border border-[#E8DFD3] border-dashed rounded-xl p-3 cursor-pointer hover:bg-[#F3ECE3]/40 transition-colors">
+                        {uploading[`${closing.closing_id}-payment`] ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#9A642C]" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-[#9A642C]" />
+                        )}
+                        <span className="text-xs font-bold text-[#66554A]">
+                          {(paymentProofs[closing.closing_id]?.length || 0)} Uploaded
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={e => handleProofUpload(closing.closing_id, e, 'payment')}
+                          disabled={uploading[`${closing.closing_id}-payment`]}
+                        />
+                      </label>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleSubmit(closing)}
@@ -426,8 +507,8 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
                 </div>
               )}
 
-              {(closing.founder_review_note || closing.manager_notes) && (
-                <div className="mt-4 p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3] space-y-2">
+              {(closing.founder_review_note || closing.manager_notes || closing.cash_reconciliation?.cash_proof_photo_urls?.length || closing.payment_reconciliation?.payment_proof_refs?.length) && (
+                <div className="mt-4 p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3] space-y-4">
                   {closing.manager_notes && (
                     <div>
                       <span className="font-bold text-xs uppercase tracking-wider text-[#66554A]">Manager Note:</span>
@@ -438,6 +519,24 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
                     <div>
                       <span className="font-bold text-xs uppercase tracking-wider text-[#9A642C]">Reviewer Note:</span>
                       <p className="text-sm text-[#241A15] mt-0.5">{closing.founder_review_note}</p>
+                    </div>
+                  )}
+                  {((closing.cash_reconciliation?.cash_proof_photo_urls && closing.cash_reconciliation.cash_proof_photo_urls.length > 0) || 
+                    (closing.payment_reconciliation?.payment_proof_refs && closing.payment_reconciliation.payment_proof_refs.length > 0)) && (
+                    <div className="pt-2 border-t border-[#E8DFD3]/50">
+                      <span className="font-bold text-xs uppercase tracking-wider text-[#66554A]">Attached Evidence:</span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {closing.cash_reconciliation?.cash_proof_photo_urls?.map((url, i) => (
+                          <a key={`cash-${i}`} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-3 py-1.5 bg-[#FFFDFC] border border-[#E8DFD3] rounded-lg text-xs font-mono text-[#9A642C] hover:bg-[#F3ECE3] transition-colors">
+                            <Camera className="w-3 h-3" /> Cash Proof {i + 1}
+                          </a>
+                        ))}
+                        {closing.payment_reconciliation?.payment_proof_refs?.map((ref, i) => (
+                          <span key={`payment-${i}`} className="flex items-center gap-1 px-3 py-1.5 bg-[#FFFDFC] border border-[#E8DFD3] rounded-lg text-xs font-mono text-[#9A642C]">
+                            <FileText className="w-3 h-3" /> Payment Proof Ref: {ref.substring(0, 8)}...
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
