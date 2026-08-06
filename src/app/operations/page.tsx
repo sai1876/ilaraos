@@ -24,7 +24,8 @@ import {
   Trash2,
   X,
   Save,
-  Trophy
+  Trophy,
+  BrainCircuit
 } from 'lucide-react';
 import Link from 'next/link';
 import { useStore } from '@/store/useStore';
@@ -55,8 +56,9 @@ const WastageManagement = dynamic(() => import('@/components/admin/WastageManage
 const DailyClosingManagement = dynamic(() => import('@/components/admin/DailyClosingManagement'), { ssr: false });
 const CricketManagement = dynamic(() => import('@/components/admin/CricketManagement'), { ssr: false });
 const DocumentVault = dynamic(() => import('@/components/admin/DocumentVault'), { ssr: false });
+const BusinessIntelligence = dynamic(() => import('@/components/admin/BusinessIntelligence'), { ssr: false });
 
-type TabType = 'dashboard' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket' | 'documents';
+type TabType = 'dashboard' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket' | 'documents' | 'bi';
 
 export default function OperationsPortalPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -208,6 +210,7 @@ export default function OperationsPortalPage() {
     { id: 'atmosphere',     label: 'UI Atmosphere',      icon: Sunset,      subtitle: 'Weather dynamic prompt' },
     { id: 'cricket',        label: 'IPL Telemetry',      icon: Trophy,      subtitle: 'Live match traffic' },
     { id: 'documents',      label: 'Document Vault',     icon: Save,        subtitle: 'Secure storage' },
+    { id: 'bi',             label: 'Business Intel',     icon: BrainCircuit,subtitle: 'IlaraOS Insight' },
   ];
 
   if (!isAuthenticated) {
@@ -453,8 +456,9 @@ export default function OperationsPortalPage() {
               {activeTab === 'refunds'        && <RefundManagement />}
               {activeTab === 'wastage'        && <WastageManagement userRole={userRole} />}
               {activeTab === 'daily_closings' && <DailyClosingManagement outletId="main" userRole={userRole as any} />}
-              { activeTab === 'cricket'        && <CricketManagement />}
-              { activeTab === 'documents'      && <DocumentVault userRole={userRole} />}
+              {activeTab === 'cricket'        && <CricketManagement />}
+              {activeTab === 'documents'      && <DocumentVault userRole={userRole} />}
+              {activeTab === 'bi'             && <BusinessIntelligence />}
             </motion.div>
           </div>
         </div>

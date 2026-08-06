@@ -60,6 +60,20 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/admin',
+        destination: '/operations',
+        permanent: true,
+      },
+      {
+        source: '/manager',
+        destination: '/operations',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
