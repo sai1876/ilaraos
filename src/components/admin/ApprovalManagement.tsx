@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, CheckCircle, XCircle, Clock, FileText, Settings,  Box } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, FileText, Settings,  Box } from 'lucide-react';
 import { streamApprovals, updateApprovalStatus } from '@/lib/dbService';
 import { ApprovalRequest } from '@/lib/types';
 
 export default function ApprovalManagement() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending_review' | 'action_pending' | 'completed' | 'rejected'>('pending_review');
 
   useEffect(() => {
     const unsubscribe = streamApprovals((data) => {
@@ -18,7 +19,7 @@ export default function ApprovalManagement() {
     return () => unsubscribe();
   }, []);
 
-  const handleAction = async (requestId: string, status: 'approved' | 'rejected') => {
+  const handleAction = async (requestId: string, status: 'approved' | 'rejected' | 'completed') => {
     try {
       await updateApprovalStatus(requestId, status);
     } catch (err) {
@@ -27,8 +28,13 @@ export default function ApprovalManagement() {
     }
   };
 
-  const pendingRequests = requests.filter(r => r.status === 'pending');
-  const pastRequests = requests.filter(r => r.status !== 'pending');
+  const filteredRequests = requests.filter(r => {
+    if (activeTab === 'pending_review') return r.status === 'pending';
+    if (activeTab === 'action_pending') return r.status === 'approved';
+    if (activeTab === 'completed') return r.status === 'completed';
+    if (activeTab === 'rejected') return r.status === 'rejected';
+    return false;
+  });
 
   const getActionIcon = (action_type: string) => {
     switch(action_type) {
@@ -55,110 +61,127 @@ export default function ApprovalManagement() {
         <p className="text-xs font-mono text-[#d4c4b0]/50 uppercase tracking-widest mt-1">Review Manager Requests</p>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 p-1 bg-[#120a06]/60 rounded-xl border border-[#302117]/60 flex-wrap max-w-full overflow-x-auto">
+        {[
+          { id: 'pending_review', label: 'Review Pending' },
+          { id: 'action_pending', label: 'Action Pending' },
+          { id: 'completed', label: 'Completed' },
+          { id: 'rejected', label: 'Rejected' }
+        ].map(tab => {
+          const count = requests.filter(r => {
+            if (tab.id === 'pending_review') return r.status === 'pending';
+            if (tab.id === 'action_pending') return r.status === 'approved';
+            if (tab.id === 'completed') return r.status === 'completed';
+            if (tab.id === 'rejected') return r.status === 'rejected';
+            return false;
+          }).length;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-widest transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-[#f8bc51] text-[#0A0604] shadow-[0_0_15px_rgba(248,188,81,0.2)]' 
+                  : 'text-[#d4c4b0]/60 hover:text-[#d4c4b0] hover:bg-[#302117]/40'
+              }`}
+            >
+              {tab.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="text-sm font-mono text-[#f8bc51] animate-pulse">Loading queue...</div>
       ) : (
-        <div className="flex flex-col gap-8">
-          
-          {/* Pending Section */}
-          <section>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Clock size={18} className="text-[#f8bc51]" /> 
-              Pending Review ({pendingRequests.length})
-            </h3>
-            
-            {pendingRequests.length === 0 ? (
+        <div className="grid grid-cols-1 gap-4">
+          <AnimatePresence>
+            {filteredRequests.length === 0 ? (
               <div className="bg-[#120a06]/40 backdrop-blur-xl border border-[#302117]/60 rounded-xl p-8 text-center text-[#d4c4b0]/50 font-mono text-xs uppercase tracking-widest">
-                No pending requests
+                No requests found
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                <AnimatePresence>
-                  {pendingRequests.map(req => (
-                    <motion.div
-                      key={req.request_id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      className="bg-[#120a06]/60 backdrop-blur-xl border border-[#f8bc51]/30 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden"
-                    >
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#f8bc51]/50 shadow-[0_0_10px_rgba(248,188,81,0.5)]" />
-                      
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-[#302117]/40 p-2 rounded-lg border border-[#302117]/60">
-                            {getActionIcon(req.action_type)}
-                          </div>
-                          <div>
-                            <h4 className="text-base font-bold text-white">{getActionLabel(req.action_type)}</h4>
-                            <p className="text-[10px] font-mono text-[#d4c4b0]/60 uppercase tracking-widest">Requested by {req.requested_by} • {new Date(req.timestamp).toLocaleString()}</p>
-                          </div>
+              filteredRequests.map(req => (
+                <motion.div
+                  key={req.request_id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="bg-[#120a06]/60 backdrop-blur-xl border border-[#302117]/80 rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden w-full max-w-full"
+                >
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                    req.status === 'pending' ? 'bg-[#f8bc51]/50 shadow-[0_0_10px_rgba(248,188,81,0.5)]' :
+                    (req.status === 'approved' || req.status === 'completed') ? 'bg-[#10B981]/50 shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
+                    'bg-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                  }`} />
+                  
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-[#302117]/40 p-2 rounded-lg border border-[#302117]/60">
+                          {getActionIcon(req.action_type)}
                         </div>
-                        {req.reason && (
-                          <div className="mt-2 pl-12">
-                            <p className="text-sm text-[#d4c4b0]/80 italic">"{req.reason}"</p>
-                          </div>
-                        )}
+                        <div>
+                          <h4 className="text-base font-bold text-white">{getActionLabel(req.action_type)}</h4>
+                          <p className="text-[10px] font-mono text-[#d4c4b0]/60 uppercase tracking-widest">Requested by {req.requested_by} • {new Date(req.timestamp).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      {req.reason && (
                         <div className="mt-2 pl-12">
-                          <div className="bg-[#070402] border border-[#302117] rounded-lg p-3 text-xs font-mono text-[#d4c4b0]/70 overflow-x-auto max-w-full">
-                            {JSON.stringify(req.payload)}
-                          </div>
+                          <p className="text-sm text-[#d4c4b0]/80 italic">"{req.reason}"</p>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-4 md:mt-0 self-end md:self-auto">
-                        <button 
-                          onClick={() => handleAction(req.request_id, 'rejected')}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors"
-                        >
-                          <XCircle size={14} /> Reject
-                        </button>
-                        <button 
-                          onClick={() => handleAction(req.request_id, 'approved')}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-[#0A0604] bg-[#f8bc51] hover:bg-[#ffce7b] transition-colors shadow-[0_0_15px_rgba(248,188,81,0.2)]"
-                        >
-                          <CheckCircle size={14} /> Approve
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </section>
-
-          {/* Past History */}
-          {pastRequests.length > 0 && (
-            <section>
-              <h3 className="text-lg font-bold text-white mb-4 opacity-80">History</h3>
-              <div className="grid grid-cols-1 gap-3">
-                {pastRequests.map(req => (
-                  <div
-                    key={req.request_id}
-                    className="bg-[#120a06]/30 backdrop-blur-xl border border-[#302117]/40 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 opacity-80 hover:opacity-100 transition-opacity"
-                  >
-                    <div className="flex items-center gap-3">
-                       <div className="bg-[#302117]/20 p-2 rounded-lg border border-[#302117]/40">
-                         {getActionIcon(req.action_type)}
-                       </div>
-                       <div>
-                         <h4 className="text-sm font-bold text-[#d4c4b0]">{getActionLabel(req.action_type)}</h4>
-                         <p className="text-[9px] font-mono text-[#d4c4b0]/40 uppercase tracking-widest">{new Date(req.timestamp).toLocaleString()}</p>
-                       </div>
+                      )}
                     </div>
-                    <div className="flex items-center">
+
+                    <div className="flex flex-col items-end gap-2">
                       <span className={`text-[10px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded-full ${
-                        req.status === 'approved' ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        req.status === 'pending' ? 'bg-[#f8bc51]/10 text-[#f8bc51] border border-[#f8bc51]/20' :
+                        (req.status === 'approved' || req.status === 'completed') ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20' : 
+                        'bg-red-500/10 text-red-400 border border-red-500/20'
                       }`}>
                         {req.status}
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                  
+                  <div className="pl-12">
+                    <div className="bg-[#070402] border border-[#302117] rounded-lg p-3 text-xs font-mono text-[#d4c4b0]/70 overflow-x-auto max-w-full">
+                      {JSON.stringify(req.payload)}
+                    </div>
+                  </div>
 
+                  {activeTab === 'pending_review' && (
+                    <div className="flex items-center gap-3 mt-4 self-end border-t border-[#302117]/50 pt-4 w-full justify-end">
+                      <button 
+                        onClick={() => handleAction(req.request_id, 'rejected')}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors"
+                      >
+                        <XCircle size={14} /> Reject
+                      </button>
+                      <button 
+                        onClick={() => handleAction(req.request_id, 'approved')}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-[#0A0604] bg-[#f8bc51] hover:bg-[#ffce7b] transition-colors shadow-[0_0_15px_rgba(248,188,81,0.2)]"
+                      >
+                        <CheckCircle size={14} /> Approve
+                      </button>
+                    </div>
+                  )}
+
+                  {activeTab === 'action_pending' && (
+                    <div className="flex items-center gap-3 mt-4 self-end border-t border-[#302117]/50 pt-4 w-full justify-end">
+                      <button 
+                        onClick={() => handleAction(req.request_id, 'completed')}
+                        className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                      >
+                        <CheckCircle size={14} /> Mark Action Executed
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       )}
     </div>

@@ -466,7 +466,7 @@ export interface ApprovalRequest {
   requested_by: string;
   timestamp: number;
   action_type: 'menu_edit' | 'staff_edit' | 'stock_adjustment' | 'security_alert';
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
   reason?: string;
   payload: any;
 }

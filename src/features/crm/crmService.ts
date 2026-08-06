@@ -50,7 +50,7 @@ export const streamApprovals = (callback: (data: ApprovalRequest[]) => void) => 
   });
 };
 
-export const updateApprovalStatus = async (requestId: string, status: 'approved' | 'rejected') => {
+export const updateApprovalStatus = async (requestId: string, status: 'approved' | 'rejected' | 'completed') => {
   const ref = doc(db, APPROVALS_COL, requestId);
   await updateDoc(ref, { status });
 };
