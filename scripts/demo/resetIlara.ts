@@ -20,7 +20,7 @@ const collectionsToClean = [
   'staff',
   'menu',
   'inventory',
-  // add others as needed
+  'outlets'
 ];
 
 async function reset() {

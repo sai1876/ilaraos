@@ -9,12 +9,13 @@ import { useStore } from '@/store/useStore';
 import { mockMenuItems } from '@/lib/mockData';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { fetchOutlets, streamSliderItems, streamUIConfig, streamCalendarEvents } from '@/lib/dbService';
+import { restaurantConfig } from '@/config/restaurant';
+import { streamSliderItems, streamUIConfig, streamCalendarEvents } from '@/lib/dbService';
 
 import CustomizationModal from './CustomizationModal';
 import SummerCampaignHero from './SummerCampaignHero';
 import PremiumSaladHero from './PremiumSaladHero';
-import { MenuItem, Outlet, UIConfig, SliderItem, GridCard } from '@/lib/types';
+import { MenuItem, SliderItem, UIConfig, GridCard } from '@/lib/types';
 import { getCalendarEventConfig, DynamicCalendarEvent } from '@/lib/calendarEvents';
 import './DynamicSliderHero.css';
 
@@ -303,9 +304,8 @@ function ThemeParticles({ theme, customParticles, pCount = 15, pSize = 10, pSpee
 }
 
 export default function DynamicSliderHero() {
-  const {  userProfile, addToCart, customerOutlet, setCustomerOutlet, setActiveCategory } = useStore();
+  const {  userProfile, setActiveCategory, addToCart } = useStore();
   
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [sliderItems, setSliderItems] = useState<SliderItem[]>(items as SliderItem[]);
   const [dbMenuItems, setDbMenuItems] = useState<MenuItem[]>([]);
   const [isMenuLoaded, setIsMenuLoaded] = useState(false);
@@ -321,7 +321,7 @@ export default function DynamicSliderHero() {
   }, []);
 
   useEffect(() => {
-    fetchOutlets().then(setOutlets);
+    // fetchOutlets().then(setOutlets); // Fixed comment or logic if needed
   }, []);
 
   // Load UIConfig in real-time
@@ -687,21 +687,11 @@ export default function DynamicSliderHero() {
                 />
                 <span className="showcase-brand-logo font-serif">Ilara.</span>
               </div>
-              <div className="showcase-location-badge flex items-center gap-1">
+                <div className="showcase-location-badge flex items-center gap-1">
                   <span className="location-pulse" />
-                  <select 
-                    value={customerOutlet} 
-                    onChange={(e) => setCustomerOutlet(e.target.value)}
-                    className="bg-transparent text-[#e8621a] font-mono text-xs font-bold uppercase tracking-widest outline-none cursor-pointer appearance-none"
-                    style={{ width: '100px' }}
-                  >
-                    <option value="HYD CAMPUS" className="bg-card text-foreground">HYD CAMPUS</option>
-                    {outlets.filter(o => o.name !== 'HYD CAMPUS').map(o => (
-                      <option key={o.id} value={o.name} className="bg-card text-foreground">
-                        {o.name.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
+                  <span className="bg-transparent text-[#e8621a] font-mono text-xs font-bold uppercase tracking-widest px-1">
+                    {restaurantConfig.restaurantName}
+                  </span>
                 </div>
             </div>
 

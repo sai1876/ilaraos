@@ -62,6 +62,7 @@ export interface MenuItem {
   category: 'Biryani' | 'Momos' | 'Burgers' | 'Waffles' | 'Snacks' | 'Beverages';
   station: 'FRYER' | 'BREWER' | 'FASTFOOD' | 'BIRYANI' | 'GRILLED OR STEAMED' | 'FASTFOOD & BIRYANI';
   image_url?: string;
+  image_document_id?: string;
   is_available: boolean;
   is_featured: boolean;
   sort_order: number;

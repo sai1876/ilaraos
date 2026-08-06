@@ -14,10 +14,15 @@ For each new restaurant customer, the company replicates the codebase, connects 
    Enable Email/Password, Phone, and Google authentication methods in Firebase Auth.
 
 4. **Create Firestore and Storage**
-   Initialize Cloud Firestore and Firebase Storage in the new project.
+   Initialize Cloud Firestore in the new project.
+   For file storage, create a new Supabase project for the customer.
 
-5. **Copy Server and Client Firebase Environment Variables**
-   Use `.env.customer.example` as a template to create `.env` or `.env.local`. Fill in the client and server Firebase Admin SDK credentials.
+5. **Copy Server and Client Environment Variables**
+   Use `.env.customer.example` as a template to create `.env` or `.env.local`. Fill in the client and server Firebase Admin SDK credentials and Supabase credentials.
+
+6. **Set up Supabase Storage Buckets**
+   Run the setup script to initialize the public and private buckets in Supabase:
+   `npm run storage:setup`
 
 6. **Set Restaurant Branding and Information**
    Edit `src/config/restaurant.ts` and set the new customer's details (e.g., `restaurantName`, `contactPhone`, `currency`, `timezone`). All operations and data belong to this single restaurant.

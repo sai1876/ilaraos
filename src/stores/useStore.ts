@@ -131,7 +131,7 @@ export const useStore = create<AppState>()(
       setUserProfile: (userProfile) => set({ userProfile }),
       setAuthLoading: (authLoading) => set({ authLoading }),
       
-      customerOutlet: 'HYD CAMPUS', // Default
+      customerOutlet: 'Main Outlet', // Default
       setCustomerOutlet: (customerOutlet) => set({ customerOutlet }),
       
       theme: 'default',

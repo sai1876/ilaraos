@@ -69,5 +69,14 @@ export const demoDataset = {
       critical_level: 5,
       ...commonDemoFields
     }
+  ],
+  outlets: [
+    {
+      outlet_id: 'main',
+      name: 'Main Outlet',
+      status: 'active',
+      hatches: [],
+      ...commonDemoFields
+    }
   ]
 };

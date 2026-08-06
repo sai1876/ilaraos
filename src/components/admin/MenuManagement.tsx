@@ -9,7 +9,7 @@ import { generateMenuDescription } from '@/lib/geminiService';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { uploadImageToFirebase } from '@/lib/imageUpload';
+import { uploadFileViaIntent } from '@/lib/fileUpload';
 
 interface MenuManagementProps {
   userRole?: string;
@@ -33,6 +33,7 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
   const [category, setCategory] = useState<'Biryani' | 'Momos' | 'Burgers' | 'Waffles' | 'Snacks' | 'Beverages'>('Biryani');
   const [station, setStation] = useState<MenuItem['station']>('GRILLED OR STEAMED');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageDocumentId, setImageDocumentId] = useState('');
   const [ingredientsInput, setIngredientsInput] = useState('');
   
   // Recipes HUD State
@@ -150,15 +151,27 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
       setUploading(true);
 
       const itemId = editingItem?.item_id || `menu-${Date.now()}`;
-      const ext = file.name.split('.').pop() || 'jpg';
-      const storagePath = `menu-catalog/${itemId}.${ext}`;
 
-      const result = await uploadImageToFirebase(file, storagePath);
+      try {
+        const document = await uploadFileViaIntent(file, {
+          category: 'menu',
+          relatedEntityType: 'menu',
+          relatedEntityId: itemId,
+          originalFilename: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          accessLevel: 'public'
+        });
 
-      if (result.ok) {
-        setImageUrl(result.url);
-      } else {
-        alert(result.message);
+        setImageDocumentId(document.document_id);
+        
+        // For immediate preview, use object URL or Public URL
+        if (document.bucket && document.object_path) {
+          const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          setImageUrl(`${NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${document.bucket}/${document.object_path}`);
+        }
+      } catch (error: any) {
+        alert(error.message || 'Upload failed');
       }
 
       setUploading(false);

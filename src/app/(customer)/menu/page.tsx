@@ -4,9 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, MapPin, X, Star,
-  Check, Tag, SlidersHorizontal, Coffee, RotateCw
+  Check, Tag, SlidersHorizontal, Coffee
 } from 'lucide-react';
-import { fetchMenuItems, fetchOffers, fetchPincodeDetails } from '@/lib/dbService';
+import { fetchMenuItems, fetchOffers } from '@/lib/dbService';
+import { restaurantConfig } from '@/config/restaurant';
 import { useStore } from '@/store/useStore';
 import { MenuItem, Offer } from '@/lib/types';
 import CustomizationModal from '@/components/customer/CustomizationModal';
@@ -193,52 +194,8 @@ export default function MenuPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Hero Location Modal States
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [modalPincode, setModalPincode] = useState('');
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState('');
-  const [modalPostOffices, setModalPostOffices] = useState<any[]>([]);
-  const [modalSelectedOffice, setModalSelectedOffice] = useState<any>(null);
-  const [isLocationVerified, setIsLocationVerified] = useState(false);
-
-  const { addToCart, customerOutlet, setCustomerOutlet, activeOrders } = useStore();
+  const { addToCart, activeOrders } = useStore();
   const activeOrdersCount = activeOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
-
-  // Debounced Indian PIN code lookup effect for Hero Location Modal
-  useEffect(() => {
-    // Check if exactly 6 numeric digits are present
-    if (!/^\d{6}$/.test(modalPincode)) {
-      setModalPostOffices([]);
-      setModalSelectedOffice(null);
-      setModalError('');
-      return;
-    }
-
-    const delayDebounce = setTimeout(async () => {
-      setModalLoading(true);
-      setModalError('');
-      setModalPostOffices([]);
-      setModalSelectedOffice(null);
-
-      try {
-        const details = await fetchPincodeDetails(modalPincode);
-        if (details && details.length > 0) {
-          setModalPostOffices(details);
-          setModalSelectedOffice(details[0]);
-        } else {
-          setModalError('We could not find this PIN code. Please enter details manually.');
-        }
-      } catch (err: any) {
-        console.error('Modal PIN lookup error:', err);
-        setModalError('We could not find this PIN code. Please enter details manually.');
-      } finally {
-        setModalLoading(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(delayDebounce);
-  }, [modalPincode]);
 
 
   useEffect(() => { setMounted(true); }, []);
@@ -291,16 +248,14 @@ export default function MenuPage() {
             </p>
           </div>
           <div className="relative">
-            <button
-              onClick={() => setIsLocationModalOpen(true)}
-              className="flex items-center gap-1.5 bg-[#241A15]/75 hover:bg-[#241A15]/90 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 w-fit shadow-lg transition-all duration-200 active:scale-95 text-left"
+            <div
+              className="flex items-center gap-1.5 bg-[#241A15]/75 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 w-fit shadow-lg"
             >
               <MapPin size={12} className="text-[#C3924F]" />
               <span className="text-[#FFFDFC] text-[10px] font-black uppercase tracking-[0.2em] font-mono leading-none flex items-center gap-1">
-                {mounted ? customerOutlet : 'HYD CAMPUS'} · STUDENT PRICING
-                <span className="text-[#C3924F] text-[8px] font-sans lowercase tracking-normal font-normal">▼</span>
+                {restaurantConfig.restaurantName}
               </span>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -557,177 +512,6 @@ export default function MenuPage() {
         onClose={() => setSelectedItem(null)}
         onConfirm={customizedItem => { addToCart(customizedItem); setSelectedItem(null); }}
       />
-
-      {/* Location PIN Modal */}
-      <AnimatePresence>
-        {isLocationModalOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsLocationModalOpen(false);
-                setModalPincode('');
-                setModalError('');
-                setModalPostOffices([]);
-                setModalSelectedOffice(null);
-                setIsLocationVerified(false);
-              }}
-              className="fixed inset-0 bg-[#241A15]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            >
-              {/* Modal Container */}
-              <motion.div
-                initial={{ scale: 0.95, y: 15, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 15, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-[#FFFDFC] border border-[#E8DFD3] rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden flex flex-col gap-5"
-              >
-                {/* Noise overlay */}
-                <div className="absolute inset-0 pointer-events-none opacity-[0.015] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-black via-transparent to-transparent" />
-                
-                {/* Header */}
-                <div className="flex justify-between items-center relative z-10">
-                  <span className="text-[#241A15] font-serif text-lg font-bold">Select Delivery Location</span>
-                  <button
-                    onClick={() => {
-                      setIsLocationModalOpen(false);
-                      setModalPincode('');
-                      setModalError('');
-                      setModalPostOffices([]);
-                      setModalSelectedOffice(null);
-                      setIsLocationVerified(false);
-                    }}
-                    className="w-7 h-7 rounded-full bg-[#FAF7F2] border border-[#E8DFD3] flex items-center justify-center hover:bg-[#FAF7F2]/80 transition-colors"
-                  >
-                    <X size={14} className="text-[#241A15]" />
-                  </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-col gap-4 relative z-10 font-sans">
-                  <p className="text-[#66554A] text-xs leading-relaxed">
-                    Enter your 6-digit PIN code to locate the nearest kitchen outlet or verify delivery support at your address.
-                  </p>
-
-                  {/* PIN code input wrapper */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] uppercase font-bold tracking-widest text-[#8c7460] font-mono">
-                      Enter 6-Digit PIN Code
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        value={modalPincode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          setModalPincode(val);
-                          setModalError('');
-                        }}
-                        placeholder="e.g. 500032"
-                        className="w-full h-11 bg-[#FAF7F2] border border-[#E8DFD3] rounded-xl px-4 text-[#241A15] text-sm font-semibold outline-none focus:border-[#9A642C] transition-all"
-                      />
-                      {modalLoading && (
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center">
-                          <RotateCw size={14} className="animate-spin text-[#9A642C]" />
-                        </div>
-                      )}
-                    </div>
-                    {modalError && (
-                      <p className="text-[#ef4444] text-[11px] font-medium mt-1">
-                        ⚠️ {modalError}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Multiple Post Offices Selection dropdown */}
-                  {modalPostOffices.length > 1 && !isLocationVerified && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[10px] uppercase font-bold tracking-widest text-[#8c7460] font-mono">
-                        Select Your Locality / Post Office
-                      </label>
-                      <select
-                        onChange={(e) => {
-                          const selected = modalPostOffices.find(po => po.Name === e.target.value);
-                          setModalSelectedOffice(selected || null);
-                        }}
-                        className="w-full h-11 bg-[#FAF7F2] border border-[#E8DFD3]/80 rounded-xl px-3 text-[#241A15] text-xs font-semibold outline-none focus:border-[#9A642C] transition-all"
-                      >
-                        {modalPostOffices.map(po => (
-                          <option key={po.Name} value={po.Name} className="text-[#000]">
-                            {po.Name} ({po.BranchType})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Location Verification Prompt */}
-                  {modalSelectedOffice && (
-                    <div className="bg-[#FAF7F2] border border-[#E8DFD3] rounded-xl p-4 flex flex-col gap-3">
-                      <div className="flex items-start gap-2.5">
-                        <MapPin size={16} className="text-[#9A642C] shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-[#241A15] text-xs font-bold font-serif leading-tight">
-                            {modalSelectedOffice.Name}
-                          </p>
-                          <p className="text-[#66554A] text-[10px] mt-0.5 leading-snug">
-                            {modalSelectedOffice.District}, {modalSelectedOffice.State} - {modalSelectedOffice.Pincode}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <p className="text-[10px] text-[#66554A]">
-                        Please verify: Is this your correct address location?
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer actions */}
-                <div className="flex justify-end gap-3 mt-2 relative z-10 font-sans">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLocationModalOpen(false);
-                      setModalPincode('');
-                      setModalError('');
-                      setModalPostOffices([]);
-                      setModalSelectedOffice(null);
-                      setIsLocationVerified(false);
-                    }}
-                    className="px-5 py-2.5 rounded-xl border border-[#E8DFD3] text-[#66554A] text-xs font-bold hover:bg-[#FAF7F2] transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  {modalSelectedOffice && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Update location in Zustand store
-                        setCustomerOutlet(modalSelectedOffice.Name);
-                        setIsLocationModalOpen(false);
-                        // Clear states
-                        setModalPincode('');
-                        setModalError('');
-                        setModalPostOffices([]);
-                        setModalSelectedOffice(null);
-                        setIsLocationVerified(false);
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-[#9A642C] hover:bg-[#805020] text-[#FFFDFC] text-xs font-bold shadow-md hover:shadow-lg transition-all"
-                    >
-                      Yes, Verify & Select
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
     </div>
   );

@@ -21,8 +21,8 @@ export default async function KDSPage() {
     ? await adminDb.collection('staff_directory').doc(actor.staffId).get()
     : null;
   const staffDetails = staffSnapshot?.exists
-    ? { id: staffSnapshot.id, ...staffSnapshot.data() }
-    : { id: actor.staffId || actor.uid, name: 'Staff member', role: actor.role };
+    ? { id: staffSnapshot.id, outletId: actor.outletId || 'main', ...staffSnapshot.data() }
+    : { id: actor.staffId || actor.uid, name: 'Staff member', role: actor.role, outletId: actor.outletId || 'main' };
 
   return <KDSClient role={actor.role} staffDetails={staffDetails} />;
 }

@@ -34,6 +34,11 @@ async function seed() {
   }
   console.log("Inventory seeded.");
 
+  for (const outlet of demoDataset.outlets) {
+    await db.collection('outlets').doc(outlet.outlet_id).set(outlet);
+  }
+  console.log("Outlets seeded.");
+
   console.log("Seed complete.");
 }
 
