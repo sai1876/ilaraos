@@ -1,0 +1,279 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function accessPath() {
+      return /databases/$(database)/documents/staff_access/$(request.auth.uid);
+    }
+
+    function hasStaffAccess() {
+      return signedIn() && exists(accessPath());
+    }
+
+    function staffAccess() {
+      return get(accessPath()).data;
+    }
+
+    function isCurrentStaff() {
+      return hasStaffAccess()
+        && (staffAccess().status == 'active' || staffAccess().status == 'offline')
+        && request.auth.token.token_version == staffAccess().token_version;
+    }
+
+    function staffRole() {
+      return staffAccess().role;
+    }
+
+    function staffOutlet() {
+      return staffAccess().outlet_id;
+    }
+
+    function isOwner() {
+      return isCurrentStaff() && staffRole() == 'owner';
+    }
+
+    function isAdminOrOwner() {
+      return isCurrentStaff() && (staffRole() == 'admin' || staffRole() == 'owner');
+    }
+
+    function isManagerOrAbove() {
+      return isCurrentStaff()
+        && (staffRole() == 'manager' || staffRole() == 'admin' || staffRole() == 'owner');
+    }
+
+    function isGlobalStaff() {
+      return isAdminOrOwner();
+    }
+
+    function sameOutlet(data) {
+      return isGlobalStaff() || (isCurrentStaff() && data.outlet_id == staffOutlet());
+    }
+
+    function owns(data) {
+      return signedIn() && data.user_id == request.auth.uid;
+    }
+
+    function safeSelfProfileUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 160;
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && (request.auth.uid == userId || isCurrentStaff());
+      allow list: if isAdminOrOwner();
+      allow update: if signedIn() && request.auth.uid == userId && safeSelfProfileUpdate();
+      allow create, delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow get, list: if owns(resource.data) || sameOutlet(resource.data);
+      allow create, update, delete: if false;
+
+      match /refunds/{refundId} {
+        allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /payment_ledger/{paymentId} {
+      allow get, list: if (isManagerOrAbove() && sameOutlet(resource.data)) || owns(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /refund_requests/{requestId} {
+      allow get, list: if owns(resource.data) || (isManagerOrAbove() && sameOutlet(resource.data));
+      allow create, update, delete: if false;
+    }
+
+    match /point_ledger/{entryId} {
+      allow get, list: if owns(resource.data) || isAdminOrOwner();
+      allow create, update, delete: if false;
+    }
+
+    match /vouchers/{voucherId} {
+      allow get, list: if owns(resource.data) || isAdminOrOwner();
+      allow create, update, delete: if false;
+    }
+
+    match /business_events/{eventId} {
+      allow get, list: if isAdminOrOwner();
+      allow create, update, delete: if false;
+    }
+
+    match /migration_runs/{runId} {
+      allow read, write: if false;
+    }
+
+    match /migration_locks/{lockId} {
+      allow read, write: if false;
+    }
+
+    match /auth_claim_locks/{uid} {
+      allow read, write: if false;
+    }
+
+    match /inventory/{stockId} {
+      allow get, list: if isCurrentStaff() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /stock_movements/{movementId} {
+      allow get, list: if isCurrentStaff() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /wastage_events/{eventId} {
+      allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /daily_closings/{closingId} {
+      allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /cash_sessions/{sessionId} {
+      allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /attendance/{attendanceId} {
+      allow get, list: if isManagerOrAbove() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /shifts/{shiftId} {
+      allow get, list: if isCurrentStaff() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    // Sensitive staff records, biometric templates and scan decisions are Admin-SDK only.
+    match /staff/{staffId} {
+      allow read, write: if false;
+    }
+
+    match /staff_access/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /staff_directory/{staffId} {
+      allow get, list: if isCurrentStaff() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /scan_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    // Live delivery coordinates are server-managed and only exposed through
+    // assignment-scoped API projections. Never expose the raw collection.
+    match /delivery_locations/{riderId} {
+      allow read, write: if false;
+    }
+
+    match /active_cash_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /active_attendance/{staffId} {
+      allow read, write: if false;
+    }
+
+    match /staff_private/{staffId} {
+      allow read, write: if false;
+    }
+
+    match /admin_secrets/{secretId} {
+      allow read, write: if false;
+    }
+
+    match /device_registry/{deviceId} {
+      allow read, write: if false;
+    }
+
+    match /approvals/{approvalId} {
+      allow get, list: if isAdminOrOwner();
+      allow create, update, delete: if false;
+    }
+
+    match /conversion_recipes/{recipeId} {
+      allow get, list: if isCurrentStaff();
+      allow create, update, delete: if false;
+    }
+
+    match /dough_batches/{batchId} {
+      allow get, list: if isCurrentStaff() && sameOutlet(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /menu/{itemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /offers/{offerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /slider_items/{sliderId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /outlets/{outletId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /config/cricket_settings {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    match /cricket_bookings/{bookingId} {
+      allow read, create: if true;
+      allow update, delete: if signedIn();
+    }
+
+    match /cricket_lobbies/{lobbyId} {
+      allow read, create, update: if true;
+      allow delete: if signedIn();
+    }
+
+    match /calendar_events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /voice_orders/{voiceOrderId} {
+      allow read, write: if false;
+    }
+
+    match /auth_handshakes/{handshakeId} {
+      allow read, write: if false;
+    }
+
+    match /processed_whatsapp_messages/{messageId} {
+      allow read, write: if false;
+    }
+  }
+}

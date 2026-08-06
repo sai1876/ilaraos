@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Booking Confirmation - Ilara Social</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#e2dfde",
+                        "on-surface-variant": "#444933",
+                        "surface-tint": "#506600",
+                        "on-primary-fixed": "#161e00",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-container-high": "#ece7e4",
+                        "surface-container-highest": "#e6e2df",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-tertiary-fixed": "#1b1c19",
+                        "background": "#fdf8f6",
+                        "on-secondary-container": "#636262",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "tertiary-fixed-dim": "#c8c6c2",
+                        "primary": "#506600",
+                        "surface-variant": "#e6e2df",
+                        "surface-container-low": "#f7f3f0",
+                        "on-surface": "#1c1b1a",
+                        "primary-container": "#ccff00",
+                        "on-background": "#1c1b1a",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "secondary": "#5f5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#5e5e5b",
+                        "inverse-on-surface": "#f4f0ed",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "outline": "#747a60",
+                        "on-secondary-fixed-variant": "#474746",
+                        "outline-variant": "#c4c9ac",
+                        "surface": "#fdf8f6",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#5b7300",
+                        "surface-container": "#f1edea",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "tertiary-container": "#efede8",
+                        "surface-dim": "#ddd9d6",
+                        "on-tertiary-container": "#6b6b67",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#e4e2dd",
+                        "surface-bright": "#fdf8f6",
+                        "inverse-surface": "#31302e",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#c3f400",
+                        "inverse-primary": "#abd600"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-gap": "80px",
+                        "container-padding-mobile": "20px",
+                        "base": "8px",
+                        "container-padding-desktop": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"],
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #fdf8f6;
+        }
+        
+        .celebration-bg {
+            background: radial-gradient(circle at 50% 0%, rgba(204, 255, 0, 0.15) 0%, rgba(253, 248, 246, 0) 70%);
+        }
+
+        .check-anim {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col items-center">
+<!-- Top App Bar (Modified for transactional screen - hidden logic as per spec, but we'll show a minimal back/close if needed, or none. Spec says "Automatic Suppression... Linear/Transactional... Success/Confirmation". So NO TopAppBar or BottomNav.) -->
+<!-- Main Content Area -->
+<main class="w-full max-w-[480px] px-container-padding-mobile pt-12 pb-24 flex-grow flex flex-col celebration-bg">
+<!-- Header / Success State -->
+<section class="flex flex-col items-center text-center mb-8">
+<div class="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mb-6 check-anim shadow-[0_8px_16px_rgba(204,255,0,0.3)]">
+<span class="material-symbols-outlined text-primary text-[40px]" style="font-variation-settings: 'FILL' 1;">
+                    check_circle
+                </span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface mb-2">Booking Confirmed!</h1>
+<p class="font-body-md text-body-md text-secondary">You're all set for the match.</p>
+</section>
+<!-- Booking Details Card -->
+<section class="bg-surface-container-lowest border border-on-surface/10 rounded-xl p-6 mb-8 shadow-sm">
+<div class="flex justify-between items-center mb-6 border-b border-on-surface/10 pb-4">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Booking ID</span>
+<span class="font-label-bold text-label-bold text-on-surface">ILR12345</span>
+</div>
+<div class="grid grid-cols-2 gap-y-6 gap-x-4 mb-6">
+<div>
+<span class="font-label-sm text-label-sm text-secondary block mb-1">Date</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm">calendar_today</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">18 Oct</span>
+</div>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary block mb-1">Time</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm">schedule</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">6:00 PM</span>
+</div>
+</div>
+<div class="col-span-2">
+<span class="font-label-sm text-label-sm text-secondary block mb-1">Venue</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm">location_on</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Ilara Box Cricket</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-4 flex items-start gap-3">
+<span class="material-symbols-outlined text-primary mt-0.5">campaign</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant leading-relaxed">
+                    Your match is now visible to Ilara players. You will be notified when someone joins.
+                </p>
+</div>
+</section>
+<!-- Actions List -->
+<section class="mb-10">
+<h2 class="font-label-bold text-label-bold text-on-surface mb-4">Manage Match</h2>
+<div class="bg-surface-container-lowest border border-on-surface/10 rounded-xl divide-y divide-on-surface/10">
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">map</span>
+<span class="font-body-md text-body-md text-on-surface">Get Directions</span>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">calendar_add_on</span>
+<span class="font-body-md text-body-md text-on-surface">Add to Calendar</span>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">share</span>
+<span class="font-body-md text-body-md text-on-surface">Share with Team</span>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">rule</span>
+<span class="font-body-md text-body-md text-on-surface">Ground Rules &amp; Info</span>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</a>
+</div>
+</section>
+<!-- Bottom Action -->
+<div class="mt-auto pt-4">
+<button class="w-full bg-primary-container text-on-secondary-fixed font-headline-sm text-headline-sm rounded-full py-4 px-6 scale-down duration-200 active:scale-95 shadow-[0_4px_12px_rgba(26,26,26,0.1)] hover:bg-primary-fixed transition-colors">
+                Back to Social Hub
+            </button>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,298 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "voice_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "phone_number", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "voice_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expires_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "voice_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "soft_deleted_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_closings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "business_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_closings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "business_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_closings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "business_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "rider_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "rider_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "rider_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "rider_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "order_type", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payment_ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "captured_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "paid_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "refund_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "refund_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "refund_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "order_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wastage_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wastage_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wastage_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "stock_movements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "stock_movements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "point_ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "referred_user_id", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dough_batches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "stock_id", "order": "ASCENDING" },
+        { "fieldPath": "batch_status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cash_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "opened_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cash_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "shift", "order": "ASCENDING" },
+        { "fieldPath": "closing_cash", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "expenses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "clock_in", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "shifts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outlet_id", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "orders", "fieldPath": "items", "indexes": [] },
+    { "collectionGroup": "orders", "fieldPath": "delivery_coordinates", "indexes": [] },
+    { "collectionGroup": "orders", "fieldPath": "delivery_address", "indexes": [] },
+    { "collectionGroup": "orders", "fieldPath": "delivery_proof", "indexes": [] },
+    { "collectionGroup": "refund_requests", "fieldPath": "customer_note", "indexes": [] },
+    { "collectionGroup": "refund_requests", "fieldPath": "manager_note", "indexes": [] },
+    { "collectionGroup": "wastage_events", "fieldPath": "items", "indexes": [] },
+    { "collectionGroup": "wastage_events", "fieldPath": "photo_urls", "indexes": [] },
+    { "collectionGroup": "business_events", "fieldPath": "metadata", "indexes": [] },
+    { "collectionGroup": "staff", "fieldPath": "face_descriptor", "indexes": [] },
+    { "collectionGroup": "staff", "fieldPath": "faceDescriptor", "indexes": [] },
+    { "collectionGroup": "staff", "fieldPath": "passcode", "indexes": [] },
+    { "collectionGroup": "staff", "fieldPath": "totp_secret", "indexes": [] },
+    { "collectionGroup": "staff_private", "fieldPath": "encrypted_fields", "indexes": [] },
+    { "collectionGroup": "staff_private", "fieldPath": "passcode_hash", "indexes": [] },
+    { "collectionGroup": "admin_secrets", "fieldPath": "secret", "indexes": [] },
+    { "collectionGroup": "admin_secrets", "fieldPath": "secret_encrypted", "indexes": [] },
+    { "collectionGroup": "voice_orders", "fieldPath": "items", "indexes": [] }
+  ]
+}

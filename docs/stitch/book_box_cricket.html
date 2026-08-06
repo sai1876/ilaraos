@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Book Box Cricket</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#e2dfde",
+                        "on-surface-variant": "#444933",
+                        "surface-tint": "#506600",
+                        "on-primary-fixed": "#161e00",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-container-high": "#ece7e4",
+                        "surface-container-highest": "#e6e2df",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-tertiary-fixed": "#1b1c19",
+                        "background": "#fdf8f6",
+                        "on-secondary-container": "#636262",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "tertiary-fixed-dim": "#c8c6c2",
+                        "primary": "#506600",
+                        "surface-variant": "#e6e2df",
+                        "surface-container-low": "#f7f3f0",
+                        "on-surface": "#1c1b1a",
+                        "primary-container": "#ccff00",
+                        "on-background": "#1c1b1a",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "secondary": "#5f5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#5e5e5b",
+                        "inverse-on-surface": "#f4f0ed",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "outline": "#747a60",
+                        "on-secondary-fixed-variant": "#474746",
+                        "outline-variant": "#c4c9ac",
+                        "surface": "#fdf8f6",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#5b7300",
+                        "surface-container": "#f1edea",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "tertiary-container": "#efede8",
+                        "surface-dim": "#ddd9d6",
+                        "on-tertiary-container": "#6b6b67",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#e4e2dd",
+                        "surface-bright": "#fdf8f6",
+                        "inverse-surface": "#31302e",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#c3f400",
+                        "inverse-primary": "#abd600"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-gap": "80px",
+                        "container-padding-mobile": "20px",
+                        "base": "8px",
+                        "container-padding-desktop": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"],
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .no-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            .no-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .glass-effect {
+                @apply bg-surface/80 backdrop-blur-md;
+            }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased font-body-md min-h-screen pb-32">
+<!-- Top Navigation (Task-focused, suppressed main nav) -->
+<header class="sticky top-0 z-50 glass-effect border-b border-on-surface/10 px-container-padding-mobile py-4 flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-sm-mobile text-headline-sm-mobile md:font-headline-sm md:text-headline-sm text-on-surface">Book Box Cricket</h1>
+</header>
+<main class="max-w-3xl mx-auto px-container-padding-mobile md:px-container-padding-desktop py-6 flex flex-col gap-8">
+<!-- Venue Info Section -->
+<section class="flex flex-col gap-4">
+<div class="w-full h-48 md:h-64 rounded-xl overflow-hidden relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="High quality photograph of an outdoor, well-lit box cricket pitch during golden hour. The turf is bright green, surrounded by netting. Modern collegiate aesthetic with warm, inviting lighting. Bright and energetic mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMDk3S81UlZi17lrfinC8GAC2M89DElVxt4VPtOBpq9XYQFnTl1tM-bCB5Jjt3lem5nD6WfSNgvU5qFc_4eqe6YAe0OpWFuMIV621XlvpRKw-jS2US0283lphd0oYstYKeqzCRr5IyAtY-z3fwmaljAhtw7wQRPnMZzsY0B0cEi1g6l1bmugRPNgk20BbV7MKd4e9_jt9-J5LtGYdLmE_DiVL55kepKf_qDcJkWhvp3ZLRRgXRgkJaHPcU1SaeyFNlgYe7BKtk5Dg"/>
+<div class="absolute bottom-3 right-3 bg-surface-container-lowest/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1 font-label-bold text-label-bold text-on-surface shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+                    4.8
+                </div>
+</div>
+<div class="flex flex-col gap-2">
+<h2 class="font-headline-md text-headline-md text-on-surface">Ilara Box Cricket</h2>
+<div class="flex items-start gap-2 text-secondary font-body-md text-body-md">
+<span class="material-symbols-outlined mt-0.5 text-[20px]" style="font-variation-settings: 'FILL' 0;">location_on</span>
+<p>Beside Ilara Cafeteria</p>
+</div>
+<div class="flex items-center gap-4 mt-2">
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm bg-surface-container py-1.5 px-3 rounded-full">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 0;">schedule</span>
+                        6:00 AM - 11:00 PM
+                    </div>
+<button class="flex items-center gap-1.5 text-primary font-label-bold text-label-bold py-1.5 px-3 rounded-full border border-primary/20 hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 0;">directions</span>
+                        Directions
+                    </button>
+</div>
+</div>
+</section>
+<!-- Date Selector Section -->
+<section class="flex flex-col gap-4">
+<h3 class="font-headline-sm-mobile text-headline-sm-mobile md:font-headline-sm md:text-headline-sm text-on-surface">Select Date</h3>
+<div class="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-container-padding-mobile px-container-padding-mobile md:mx-0 md:px-0">
+<!-- Date Card Active -->
+<button class="flex-shrink-0 w-[100px] flex flex-col items-center justify-center p-3 rounded-xl bg-primary-container text-on-primary-container border-2 border-primary-container transition-transform active:scale-95 shadow-sm">
+<span class="font-label-sm text-label-sm uppercase tracking-wider opacity-80">Today</span>
+<span class="font-headline-md text-headline-md my-1">12</span>
+<span class="font-label-sm text-label-sm">8 slots</span>
+</button>
+<!-- Date Card 2 (Almost Full) -->
+<button class="flex-shrink-0 w-[100px] flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-all active:scale-95 relative">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Thu</span>
+<span class="font-headline-md text-headline-md my-1">13</span>
+<span class="font-label-sm text-label-sm text-error">2 slots</span>
+<div class="absolute -top-2 -right-2 bg-error text-on-error text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Almost Full</div>
+</button>
+<!-- Date Card 3 -->
+<button class="flex-shrink-0 w-[100px] flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-all active:scale-95">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Fri</span>
+<span class="font-headline-md text-headline-md my-1">14</span>
+<span class="font-label-sm text-label-sm text-secondary">12 slots</span>
+</button>
+<!-- Date Card 4 -->
+<button class="flex-shrink-0 w-[100px] flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-all active:scale-95">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Sat</span>
+<span class="font-headline-md text-headline-md my-1">15</span>
+<span class="font-label-sm text-label-sm text-secondary">15 slots</span>
+</button>
+<!-- Date Card 5 -->
+<button class="flex-shrink-0 w-[100px] flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-all active:scale-95">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Sun</span>
+<span class="font-headline-md text-headline-md my-1">16</span>
+<span class="font-label-sm text-label-sm text-secondary">10 slots</span>
+</button>
+</div>
+</section>
+<!-- Time Slots Section -->
+<section class="flex flex-col gap-6">
+<h3 class="font-headline-sm-mobile text-headline-sm-mobile md:font-headline-sm md:text-headline-sm text-on-surface">Select Time</h3>
+<!-- Morning Group -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2 text-secondary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">routine</span>
+<h4 class="font-label-bold text-label-bold uppercase">Morning</h4>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+<!-- Booked Slot -->
+<button class="flex items-center justify-center gap-2 py-3 px-2 rounded-lg bg-surface-container text-on-surface/40 border border-transparent cursor-not-allowed" disabled="">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">lock</span>
+<span class="font-label-bold text-label-bold">06:00 AM</span>
+</button>
+<!-- Available Slot -->
+<button class="flex items-center justify-center py-3 px-2 rounded-lg bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-colors active:scale-95">
+<span class="font-label-bold text-label-bold">07:00 AM</span>
+</button>
+<!-- Available Slot -->
+<button class="flex items-center justify-center py-3 px-2 rounded-lg bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-colors active:scale-95">
+<span class="font-label-bold text-label-bold">08:00 AM</span>
+</button>
+</div>
+</div>
+<!-- Evening Group -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2 text-secondary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">dark_mode</span>
+<h4 class="font-label-bold text-label-bold uppercase">Evening (Peak)</h4>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+<!-- Peak Slot Available -->
+<button class="flex flex-col items-center justify-center py-2 px-2 rounded-lg bg-surface-container-lowest text-on-surface border border-on-surface/10 hover:border-primary/50 transition-colors active:scale-95 relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-full h-1 bg-tertiary"></div>
+<span class="font-label-bold text-label-bold mt-1">05:00 PM</span>
+<span class="text-[10px] text-tertiary font-bold uppercase mt-0.5">Peak</span>
+</button>
+<!-- Selected Slot -->
+<button class="flex flex-col items-center justify-center py-2 px-2 rounded-lg bg-primary/10 text-primary border-2 border-primary transition-colors active:scale-95 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+<span class="font-label-bold text-label-bold mt-1">06:00 PM</span>
+<span class="text-[10px] text-primary font-bold uppercase mt-0.5">Selected</span>
+</button>
+<!-- Peak Slot Booked -->
+<button class="flex flex-col items-center justify-center py-2 px-2 rounded-lg bg-surface-container text-on-surface/40 border border-transparent cursor-not-allowed relative overflow-hidden" disabled="">
+<div class="absolute top-0 left-0 w-full h-1 bg-surface-dim"></div>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 0;">lock</span>
+<span class="font-label-bold text-label-bold">07:00 PM</span>
+</div>
+<span class="text-[10px] uppercase mt-0.5">Peak</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Sticky Bottom Summary -->
+<div class="fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-on-surface/10 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-50 px-container-padding-mobile py-4 pb-safe">
+<div class="max-w-3xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex flex-col w-full md:w-auto">
+<div class="flex justify-between items-end mb-1">
+<span class="font-body-sm text-secondary">Today, 06:00 PM</span>
+<span class="font-headline-sm text-headline-sm text-on-surface md:hidden">₹820</span>
+</div>
+<div class="flex items-center gap-2 text-label-sm text-on-surface-variant">
+<span>Base: ₹800</span>
+<span class="w-1 h-1 rounded-full bg-on-surface/20"></span>
+<span>Fee: ₹20</span>
+</div>
+</div>
+<div class="flex items-center gap-6 w-full md:w-auto">
+<div class="hidden md:flex flex-col items-end">
+<span class="font-headline-sm text-headline-sm text-on-surface">₹820</span>
+<span class="text-label-sm text-on-surface-variant">Total Amount</span>
+</div>
+<button class="w-full md:w-auto flex-1 bg-primary-container text-secondary font-label-bold text-label-bold py-4 px-8 rounded-full hover:scale-[0.98] active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm">
+                    Continue to Pay
+                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,191 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - main [ref=f4e3]:
+      - generic [ref=f4e180]:
+        - generic [ref=f4e181]:
+          - button [ref=f4e182] [cursor=pointer]
+          - heading "Book Box Cricket" [level=2] [ref=f4e185]
+        - generic [ref=f4e186]:
+          - generic [ref=f4e187]:
+            - img "Ilara Box Cricket" [ref=f4e188]
+            - generic [ref=f4e189]: "4.8"
+          - generic [ref=f4e193]:
+            - generic [ref=f4e194]:
+              - heading "Ilara Box Cricket" [level=3] [ref=f4e195]
+              - generic [ref=f4e196]: ₹800/hr
+            - generic [ref=f4e197]: Beside Ilara Cafeteria, North Campus
+            - generic [ref=f4e202]:
+              - generic [ref=f4e203]: 06:00 AM - 11:00 PM
+              - link "Directions" [ref=f4e208] [cursor=pointer]:
+                - /url: https://maps.google.com
+        - generic [ref=f4e212]:
+          - heading "Select Date" [level=4] [ref=f4e213]
+          - generic [ref=f4e214]:
+            - button "Today 18 17 slots" [ref=f4e215] [cursor=pointer]:
+              - generic [ref=f4e216]: Today
+              - generic [ref=f4e217]: "18"
+              - generic [ref=f4e218]: 17 slots
+            - button "Sun 19 17 slots" [ref=f4e219] [cursor=pointer]:
+              - generic [ref=f4e220]: Sun
+              - generic [ref=f4e221]: "19"
+              - generic [ref=f4e222]: 17 slots
+            - button "Mon 20 17 slots" [ref=f4e223] [cursor=pointer]:
+              - generic [ref=f4e224]: Mon
+              - generic [ref=f4e225]: "20"
+              - generic [ref=f4e226]: 17 slots
+            - button "Tue 21 17 slots" [ref=f4e227] [cursor=pointer]:
+              - generic [ref=f4e228]: Tue
+              - generic [ref=f4e229]: "21"
+              - generic [ref=f4e230]: 17 slots
+            - button "Wed 22 17 slots" [ref=f4e231] [cursor=pointer]:
+              - generic [ref=f4e232]: Wed
+              - generic [ref=f4e233]: "22"
+              - generic [ref=f4e234]: 17 slots
+            - button "Thu 23 17 slots" [ref=f4e235] [cursor=pointer]:
+              - generic [ref=f4e236]: Thu
+              - generic [ref=f4e237]: "23"
+              - generic [ref=f4e238]: 17 slots
+            - button "Fri 24 17 slots" [ref=f4e239] [cursor=pointer]:
+              - generic [ref=f4e240]: Fri
+              - generic [ref=f4e241]: "24"
+              - generic [ref=f4e242]: 17 slots
+        - generic [ref=f4e243]:
+          - heading "Select Time" [level=4] [ref=f4e244]
+          - generic [ref=f4e245]:
+            - heading "🌅 Morning Slots" [level=5] [ref=f4e246]
+            - generic [ref=f4e247]:
+              - button "06:00 AM to 07:00 AM" [ref=f4e248] [cursor=pointer]:
+                - generic [ref=f4e249]:
+                  - generic [ref=f4e250]: 06:00 AM
+                  - generic [ref=f4e252]: to 07:00 AM
+              - button "07:00 AM to 08:00 AM" [ref=f4e253] [cursor=pointer]:
+                - generic [ref=f4e254]:
+                  - generic [ref=f4e255]: 07:00 AM
+                  - generic [ref=f4e257]: to 08:00 AM
+              - button "08:00 AM to 09:00 AM" [ref=f4e258] [cursor=pointer]:
+                - generic [ref=f4e259]:
+                  - generic [ref=f4e260]: 08:00 AM
+                  - generic [ref=f4e262]: to 09:00 AM
+              - button "09:00 AM to 10:00 AM" [ref=f4e263] [cursor=pointer]:
+                - generic [ref=f4e264]:
+                  - generic [ref=f4e265]: 09:00 AM
+                  - generic [ref=f4e267]: to 10:00 AM
+              - button "10:00 AM to 11:00 AM" [ref=f4e268] [cursor=pointer]:
+                - generic [ref=f4e269]:
+                  - generic [ref=f4e270]: 10:00 AM
+                  - generic [ref=f4e272]: to 11:00 AM
+              - button "11:00 AM to 12:00 PM" [ref=f4e273] [cursor=pointer]:
+                - generic [ref=f4e274]:
+                  - generic [ref=f4e275]: 11:00 AM
+                  - generic [ref=f4e277]: to 12:00 PM
+          - generic [ref=f4e278]:
+            - heading "☀️ Afternoon Slots" [level=5] [ref=f4e279]
+            - generic [ref=f4e280]:
+              - button "12:00 PM to 01:00 PM" [ref=f4e281] [cursor=pointer]:
+                - generic [ref=f4e282]:
+                  - generic [ref=f4e283]: 12:00 PM
+                  - generic [ref=f4e285]: to 01:00 PM
+              - button "01:00 PM to 02:00 PM" [ref=f4e286] [cursor=pointer]:
+                - generic [ref=f4e287]:
+                  - generic [ref=f4e288]: 01:00 PM
+                  - generic [ref=f4e290]: to 02:00 PM
+              - button "02:00 PM to 03:00 PM" [ref=f4e291] [cursor=pointer]:
+                - generic [ref=f4e292]:
+                  - generic [ref=f4e293]: 02:00 PM
+                  - generic [ref=f4e295]: to 03:00 PM
+              - button "03:00 PM to 04:00 PM" [ref=f4e296] [cursor=pointer]:
+                - generic [ref=f4e297]:
+                  - generic [ref=f4e298]: 03:00 PM
+                  - generic [ref=f4e300]: to 04:00 PM
+          - generic [ref=f4e301]:
+            - heading "🌙 Evening Slots (Peak)" [level=5] [ref=f4e302]
+            - generic [ref=f4e303]:
+              - button "04:00 PM to 05:00 PM" [ref=f4e304] [cursor=pointer]:
+                - generic [ref=f4e305]:
+                  - generic [ref=f4e306]: 04:00 PM
+                  - generic [ref=f4e308]: to 05:00 PM
+              - button "05:00 PM to 06:00 PM Peak" [ref=f4e309] [cursor=pointer]:
+                - generic [ref=f4e310]:
+                  - generic [ref=f4e311]: 05:00 PM
+                  - generic [ref=f4e313]: to 06:00 PM
+                  - generic [ref=f4e314]: Peak
+              - button "06:00 PM to 07:00 PM Peak" [ref=f4e315] [cursor=pointer]:
+                - generic [ref=f4e316]:
+                  - generic [ref=f4e317]: 06:00 PM
+                  - generic [ref=f4e319]: to 07:00 PM
+                  - generic [ref=f4e320]: Peak
+              - button "07:00 PM to 08:00 PM Peak" [ref=f4e321] [cursor=pointer]:
+                - generic [ref=f4e322]:
+                  - generic [ref=f4e323]: 07:00 PM
+                  - generic [ref=f4e325]: to 08:00 PM
+                  - generic [ref=f4e326]: Peak
+              - button "08:00 PM to 09:00 PM Peak" [ref=f4e327] [cursor=pointer]:
+                - generic [ref=f4e328]:
+                  - generic [ref=f4e329]: 08:00 PM
+                  - generic [ref=f4e331]: to 09:00 PM
+                  - generic [ref=f4e332]: Peak
+              - button "09:00 PM to 10:00 PM Peak" [ref=f4e333] [cursor=pointer]:
+                - generic [ref=f4e334]:
+                  - generic [ref=f4e335]: 09:00 PM
+                  - generic [ref=f4e337]: to 10:00 PM
+                  - generic [ref=f4e338]: Peak
+              - button "10:00 PM to 11:00 PM Peak" [ref=f4e339] [cursor=pointer]:
+                - generic [ref=f4e340]:
+                  - generic [ref=f4e341]: 10:00 PM
+                  - generic [ref=f4e343]: to 11:00 PM
+                  - generic [ref=f4e344]: Peak
+        - generic [ref=f4e345]:
+          - generic [ref=f4e346]:
+            - generic [ref=f4e347]: Total Share
+            - generic [ref=f4e348]: ₹0
+          - button "Confirm details" [disabled] [ref=f4e349] [cursor=pointer]
+    - generic [ref=f4e24] [cursor=pointer]:
+      - generic [ref=f4e25]:
+        - generic [ref=f4e26]: "1"
+        - generic [ref=f4e32]:
+          - paragraph [ref=f4e33]: Your Order · 1 item
+          - paragraph [ref=f4e34]: ₹135
+      - generic [ref=f4e35]: Review & Pay
+    - navigation [ref=f4e38]:
+      - generic [ref=f4e39]:
+        - link [ref=f4e40] [cursor=pointer]:
+          - /url: /menu
+        - link "1" [ref=f4e47] [cursor=pointer]:
+          - /url: /cart
+        - link [ref=f4e55] [cursor=pointer]:
+          - /url: /
+        - link [ref=f4e61] [cursor=pointer]:
+          - /url: /social
+        - link [ref=f4e65] [cursor=pointer]:
+          - /url: /profile
+  - contentinfo [ref=f4e71]:
+    - generic [ref=f4e72]:
+      - generic [ref=f4e73]:
+        - paragraph [ref=f4e74]: Ilara
+        - paragraph [ref=f4e75]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f4e76]:
+        - heading "Quick links" [level=2] [ref=f4e77]
+        - generic [ref=f4e78]:
+          - link "Home" [ref=f4e79] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f4e80] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f4e81] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f4e82] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f4e83] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f4e84]:
+        - heading "Legal" [level=2] [ref=f4e85]
+        - generic [ref=f4e86]:
+          - link "Terms of Service" [ref=f4e87] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f4e88] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f4e89]:
+        - heading "Contact" [level=2] [ref=f4e90]
+        - link "support@ilara.cafe" [ref=f4e91] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f4e92]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f4e93]

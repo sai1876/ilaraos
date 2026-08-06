@@ -1,0 +1,42 @@
+- generic [active] [ref=f12e1]:
+  - main [ref=f12e2]:
+    - generic [ref=f12e3]:
+      - paragraph [ref=f12e4]: 404 · Page not found
+      - heading "This table is not on our map." [level=1] [ref=f12e5]
+      - paragraph [ref=f12e6]: The link may be outdated, but you can continue exploring Ilara from here.
+      - generic [ref=f12e7]:
+        - link "Return Home" [ref=f12e8] [cursor=pointer]:
+          - /url: /
+        - link "View Menu" [ref=f12e9] [cursor=pointer]:
+          - /url: /menu
+  - contentinfo [ref=f12e10]:
+    - generic [ref=f12e11]:
+      - generic [ref=f12e12]:
+        - paragraph [ref=f12e13]: Ilara
+        - paragraph [ref=f12e14]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f12e15]:
+        - heading "Quick links" [level=2] [ref=f12e16]
+        - generic [ref=f12e17]:
+          - link "Home" [ref=f12e18] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f12e19] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f12e20] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f12e21] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f12e22] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f12e23]:
+        - heading "Legal" [level=2] [ref=f12e24]
+        - generic [ref=f12e25]:
+          - link "Terms of Service" [ref=f12e26] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f12e27] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f12e28]:
+        - heading "Contact" [level=2] [ref=f12e29]
+        - link "support@ilara.cafe" [ref=f12e30] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f12e31]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f12e32]

@@ -1,0 +1,109 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - navigation [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - link "Ilara Logo Ilara" [ref=f3e6] [cursor=pointer]:
+          - /url: /
+          - img "Ilara Logo" [ref=f3e7]
+          - generic [ref=f3e8]: Ilara
+        - generic [ref=f3e9]:
+          - link "Home" [ref=f3e10] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f3e17] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f3e24] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f3e30] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f3e34] [cursor=pointer]:
+            - /url: /profile
+        - generic [ref=f3e40]:
+          - link "Cart 1" [ref=f3e41] [cursor=pointer]:
+            - /url: /cart
+            - generic [ref=f3e46]: Cart
+            - generic [ref=f3e47]: "1"
+          - link "Get Started" [ref=f3e48] [cursor=pointer]:
+            - /url: /login
+    - main [ref=f3e52]:
+      - generic [ref=f3e57]:
+        - generic [ref=f3e58]:
+          - generic [ref=f3e59]: Campus Social Club
+          - heading "Eat together. Play together. Build real connections." [level=2] [ref=f3e60]: Eat together. Play together.Build real connections.
+          - generic [ref=f3e61]:
+            - generic [ref=f3e66]:
+              - paragraph [ref=f3e67]: "Box Cricket Turf: Open"
+              - paragraph [ref=f3e68]: Next slot available today at 4:00 PM
+            - paragraph [ref=f3e75]: 14 students looking for players
+        - generic [ref=f3e76]:
+          - generic [ref=f3e77]:
+            - generic [ref=f3e78]:
+              - img "Ilara Box Cricket turf" [ref=f3e80]
+              - generic [ref=f3e81]: Premium Indoor Turf
+              - generic [ref=f3e87]: ★ 4.8 Rating
+            - generic [ref=f3e88]:
+              - generic [ref=f3e89]:
+                - heading "Book Box Cricket" [level=3] [ref=f3e90]
+                - paragraph [ref=f3e91]: Host matches, schedule friendly tournaments, or hit the nets with premium quality bats and turf lighting.
+                - generic [ref=f3e92]:
+                  - generic [ref=f3e93]: "Next: 4:00 PM"
+                  - generic [ref=f3e98]: 8 slots open
+                  - generic [ref=f3e102]: ₹800/hr
+              - button "View Slots" [ref=f3e110] [cursor=pointer]
+          - generic [ref=f3e114]:
+            - generic [ref=f3e115]:
+              - heading "Quick Actions" [level=3] [ref=f3e117]
+              - paragraph [ref=f3e121]: Track your upcoming matches, split payment links, and see stats from your completed box cricket matches.
+              - generic [ref=f3e122]:
+                - button "📅 My Bookings Check schedule & QR codes" [ref=f3e123] [cursor=pointer]:
+                  - generic [ref=f3e124]:
+                    - generic [ref=f3e125]: 📅
+                    - generic [ref=f3e126]:
+                      - heading "My Bookings" [level=4] [ref=f3e127]
+                      - paragraph [ref=f3e128]: Check schedule & QR codes
+                - button "💸 Split Bills Track contributions" [ref=f3e131] [cursor=pointer]:
+                  - generic [ref=f3e132]:
+                    - generic [ref=f3e133]: 💸
+                    - generic [ref=f3e134]:
+                      - heading "Split Bills" [level=4] [ref=f3e135]
+                      - paragraph [ref=f3e136]: Track contributions
+            - generic [ref=f3e139]:
+              - heading "Student Offer" [level=4] [ref=f3e140]
+              - paragraph [ref=f3e141]: 15% off weekday morning slots
+    - generic [ref=f3e142] [cursor=pointer]:
+      - generic [ref=f3e143]:
+        - generic [ref=f3e144]: "1"
+        - generic [ref=f3e150]:
+          - paragraph [ref=f3e151]: Your Order · 1 item
+          - paragraph [ref=f3e152]: ₹135
+      - generic [ref=f3e153]: Review & Pay
+  - contentinfo [ref=f3e156]:
+    - generic [ref=f3e157]:
+      - generic [ref=f3e158]:
+        - paragraph [ref=f3e159]: Ilara
+        - paragraph [ref=f3e160]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f3e161]:
+        - heading "Quick links" [level=2] [ref=f3e162]
+        - generic [ref=f3e163]:
+          - link "Home" [ref=f3e164] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f3e165] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f3e166] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f3e167] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f3e168] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f3e169]:
+        - heading "Legal" [level=2] [ref=f3e170]
+        - generic [ref=f3e171]:
+          - link "Terms of Service" [ref=f3e172] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f3e173] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f3e174]:
+        - heading "Contact" [level=2] [ref=f3e175]
+        - link "support@ilara.cafe" [ref=f3e176] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f3e177]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f3e178]

@@ -1,0 +1,415 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+/* @import "tw-animate-css"; */
+/* @import "shadcn/tailwind.css"; */
+
+@import "leaflet/dist/leaflet.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.noise-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+input::placeholder {
+  color: rgba(26, 26, 23, 0.3) !important;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: #FAF7F2;
+    --background-rgb: 250, 247, 242;
+    --foreground: #241A15;
+    --foreground-rgb: 36, 26, 21;
+    
+    --card: #FFFDFC;
+    --card-foreground: #241A15;
+    
+    --popover: #FFFDFC;
+    --popover-foreground: #241A15;
+    
+    --primary: #9A642C;
+    --primary-foreground: #FFFDFC;
+    
+    --secondary: #F3ECE3;
+    --secondary-foreground: #241A15;
+    
+    --muted: #F3ECE3;
+    --muted-foreground: #66554A;
+    
+    --accent: #C3924F;
+    --accent-foreground: #241A15;
+    
+    --destructive: #B42318;
+    --destructive-foreground: #FFFDFC;
+    
+    --border: #E8DFD3;
+    --input: #E8DFD3;
+    --ring: #9A642C;
+    
+    --radius: 0.75rem;
+  }
+  html {
+    /* overflow: clip prevents horizontal overflow WITHOUT creating a scroll container.
+       Using overflow-x: hidden on <html> would make <body> a scroll container = double scrollbar. */
+    overflow-x: clip;
+    width: 100%;
+    max-width: 100%;
+    @apply font-sans;
+  }
+  body {
+    background: #fbf9f1;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Hide scrollbar utility class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Premium Custom Category Scrollbar Styles */
+.category-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 139, 53, 0.35) rgba(44, 26, 16, 0.03);
+}
+
+.category-scroll-container::-webkit-scrollbar {
+  height: 5px; /* Thin premium sleek track */
+}
+
+.category-scroll-container::-webkit-scrollbar-track {
+  background: rgba(44, 26, 16, 0.02);
+  border-radius: 99px;
+  margin: 0 40px; /* Elegant margin insert */
+}
+
+.category-scroll-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, rgba(198, 139, 53, 0.15), #C68B35, rgba(198, 139, 53, 0.15));
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(198, 139, 53, 0.3);
+  transition: all 0.3s ease;
+}
+
+.category-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, rgba(198, 139, 53, 0.3), #E2A855, rgba(198, 139, 53, 0.3));
+  box-shadow: 0 0 15px rgba(198, 139, 53, 0.5);
+}
+
+/* Fix Leaflet map tiles broken by Tailwind's default img styling */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure Leaflet marker icons are visible and not constrained */
+.leaflet-marker-icon, .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Fix browser autofill injecting white backgrounds in dark mode */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #FFFFFF inset !important;
+  -webkit-text-fill-color: #2C1A10 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Spinner animation for loading states */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@layer components {
+  .hau-hau-card { @apply rounded-[24px] border border-border bg-card shadow-[0_4px_20px_rgba(62,39,35,0.06)]; }
+  .hau-hau-pill { @apply rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground; }
+}
+
+/* ── LIGHT THEME PORTAL OVERRIDES ── */
+.theme-light-override {
+  color: #534434 !important;
+}
+
+/* Containers & Backgrounds */
+.theme-light-override [class*="bg-[#120a06]"] {
+  background-color: #ffffff !important;
+  border-color: #d8c3ad !important;
+}
+
+.theme-light-override [class*="bg-[#120a06]/40"],
+.theme-light-override [class*="bg-[#120a06]/45"],
+.theme-light-override [class*="bg-[#120a06]/60"],
+.theme-light-override [class*="bg-[#120a06]/80"],
+.theme-light-override [class*="bg-[#120a06]/90"] {
+  background-color: #f5f4ec !important;
+  border-color: #d8c3ad !important;
+  box-shadow: 0 4px 24px rgba(133, 83, 0, 0.04) !important;
+}
+
+.theme-light-override [class*="bg-[#0A0604]"] {
+  background-color: #fbf9f1 !important;
+  border-color: #d8c3ad !important;
+}
+
+.theme-light-override [class*="bg-[#0A0604]/50"] {
+  background-color: rgba(234, 232, 224, 0.5) !important;
+}
+
+.theme-light-override [class*="bg-[#110A07]"] {
+  background-color: #ffffff !important;
+  border-color: #d8c3ad !important;
+}
+
+.theme-light-override [class*="bg-[#070402]"] {
+  background-color: #ffffff !important;
+  border-color: rgba(216, 195, 173, 0.6) !important;
+  color: #1b1c17 !important;
+}
+
+.theme-light-override [class*="bg-[#070402]/30"] {
+  background-color: #ffffff !important;
+  border-color: rgba(216, 195, 173, 0.5) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02) !important;
+}
+
+.theme-light-override [class*="bg-[#070402]/20"] {
+  background-color: #fbf9f1 !important;
+  border-color: rgba(216, 195, 173, 0.4) !important;
+}
+
+/* Tabs & Switchers */
+.theme-light-override [class*="bg-[#060403]"] {
+  background-color: #eae8e0 !important;
+  border-color: rgba(216, 195, 173, 0.7) !important;
+}
+
+/* Borders */
+.theme-light-override [class*="border-[#302117]"] {
+  border-color: #d8c3ad !important;
+}
+.theme-light-override [class*="border-[#302117]/60"] {
+  border-color: rgba(216, 195, 173, 0.5) !important;
+}
+.theme-light-override [class*="border-[#302117]/30"] {
+  border-color: rgba(216, 195, 173, 0.3) !important;
+}
+.theme-light-override [class*="border-[#302117]/20"] {
+  border-color: rgba(216, 195, 173, 0.2) !important;
+}
+.theme-light-override [class*="border-dashed"] {
+  border-color: rgba(216, 195, 173, 0.6) !important;
+}
+
+/* Typography & Colors */
+.theme-light-override .text-white,
+.theme-light-override [class*="text-white"] {
+  color: #855300 !important;
+}
+
+.theme-light-override [class*="text-[#d4c4b0]"] {
+  color: #534434 !important;
+}
+
+.theme-light-override [class*="text-[#d4c4b0]/"] {
+  color: #534434 !important;
+  opacity: 0.75 !important;
+}
+
+.theme-light-override [class*="text-[#f7dec4]"] {
+  color: #534434 !important;
+}
+
+/* Inputs & Form Controls */
+.theme-light-override input,
+.theme-light-override select,
+.theme-light-override textarea {
+  background-color: #ffffff !important;
+  border-color: rgba(216, 195, 173, 0.6) !important;
+  color: #1b1c17 !important;
+}
+
+.theme-light-override input:focus,
+.theme-light-override select:focus,
+.theme-light-override textarea:focus {
+  border-color: #855300 !important;
+}
+
+.theme-light-override input::placeholder {
+  color: #534434 !important;
+  opacity: 0.45 !important;
+}
+
+/* Switcher / Buttons Active State */
+.theme-light-override [class*="bg-[#f8bc51]"]:not([class*="/"]) {
+  background-color: #855300 !important;
+  color: #ffffff !important;
+}
+.theme-light-override [class*="bg-[#f8bc51]"]:not([class*="/"]):hover {
+  background-color: #a27b5c !important;
+}
+
+.theme-light-override [class*="text-[#f8bc51]"] {
+  color: #855300 !important;
+}
+
+.theme-light-override [class*="bg-[#f8bc51]/10"],
+.theme-light-override [class*="bg-[#f8bc51]/5"] {
+  background-color: rgba(133, 83, 0, 0.05) !important;
+  border-color: rgba(133, 83, 0, 0.15) !important;
+  color: #855300 !important;
+}
+
+/* Secondary / Custom Buttons */
+.theme-light-override [class*="bg-[#302117]/50"],
+.theme-light-override [class*="bg-[#302117]/45"],
+.theme-light-override [class*="bg-[#302117]/40"] {
+  background-color: #eae8e0 !important;
+  border-color: rgba(216, 195, 173, 0.7) !important;
+  color: #534434 !important;
+}
+
+.theme-light-override [class*="bg-[#302117]/50"]:hover,
+.theme-light-override [class*="bg-[#302117]/45"]:hover,
+.theme-light-override [class*="bg-[#302117]/40"]:hover {
+  background-color: #dcdad2 !important;
+  color: #1b1c17 !important;
+}
+
+/* Borders & Icons special overrides */
+.theme-light-override [class*="border-[#f8bc51]/40"],
+.theme-light-override [class*="border-[#f8bc51]/50"],
+.theme-light-override [class*="border-[#f8bc51]/20"] {
+  border-color: rgba(133, 83, 0, 0.2) !important;
+}
+
+/* Alerts */
+.theme-light-override [class*="bg-red-500/10"] {
+  background-color: #fef2f2 !important;
+  border-color: rgba(252, 165, 165, 0.5) !important;
+  color: #991b1b !important;
+}
+
+.theme-light-override [class*="bg-[#e8621a]/5"] {
+  background-color: #fff7ed !important;
+  border-color: rgba(232, 98, 26, 0.2) !important;
+}
+
+/* Tag overrides */
+.theme-light-override [class*="bg-[#302117]"]:not([class*="/"]) {
+  background-color: #ffddb8 !important;
+  color: #855300 !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+.theme-light-override [class*="bg-red-900/30"] {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Status Bar overrides */
+.theme-light-override [class*="bg-[#302117]/20"] {
+  background-color: #eae8e0 !important;
+  border-color: rgba(216, 195, 173, 0.7) !important;
+}
+.theme-light-override [class*="bg-[#302117]/20"] span {
+  color: #534434 !important;
+  opacity: 0.95 !important;
+}
+.theme-light-override [class*="bg-[#302117]/20"] span span {
+  color: #855300 !important;
+  font-weight: bold !important;
+  opacity: 1 !important;
+}
+
+/* Wastage overrides */
+.theme-light-override [class*="border-[#3e2e21]"] {
+  border-color: #d8c3ad !important;
+}
+
+.theme-light-override [class*="text-[#f7dec4]"] {
+  color: #534434 !important;
+}
+
+.theme-light-override [class*="text-[#f7dec4]/"] {
+  color: #534434 !important;
+  opacity: 0.75 !important;
+}
+
+.theme-light-override [class*="bg-orange-600/20"] {
+  background-color: #ffedd5 !important;
+  color: #c2410c !important;
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+.theme-light-override [class*="bg-orange-600/30"]:hover {
+  background-color: #fed7aa !important;
+}
+
+/* Hide scrollbar when loaded inside the admin storefront preview iframe */
+.in-iframe-preview,
+.in-iframe-preview body {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  overflow-y: scroll !important; /* Ensure scrolling is still fully functional */
+}
+.in-iframe-preview::-webkit-scrollbar,
+.in-iframe-preview body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+
+

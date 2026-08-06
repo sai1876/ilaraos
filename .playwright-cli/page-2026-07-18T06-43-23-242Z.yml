@@ -1,0 +1,89 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - generic [ref=f10e3]:
+      - generic [ref=f10e4]:
+        - img "Ilara Hero" [ref=f10e5]
+        - generic [ref=f10e7]:
+          - generic [ref=f10e8]:
+            - text: Our Creations
+            - paragraph [ref=f10e9]: Freshly prepared modern Indian kitchen delicacies, tailored to your tastes.
+          - button "HYD CAMPUS · STUDENT PRICING ▼" [ref=f10e11] [cursor=pointer]:
+            - generic [ref=f10e15]:
+              - text: HYD CAMPUS · STUDENT PRICING
+              - generic [ref=f10e16]: ▼
+      - generic [ref=f10e17]:
+        - generic [ref=f10e19]:
+          - textbox "Search biryani, momos, burgers…" [ref=f10e24]
+          - button [ref=f10e26] [cursor=pointer]
+        - generic [ref=f10e29]:
+          - button "✨ All" [ref=f10e30] [cursor=pointer]:
+            - generic [ref=f10e32]: ✨
+            - generic [ref=f10e33]: All
+          - button "🍲 Biryani" [ref=f10e34] [cursor=pointer]:
+            - generic [ref=f10e35]: 🍲
+            - generic [ref=f10e36]: Biryani
+          - button "🥟 Momos" [ref=f10e37] [cursor=pointer]:
+            - generic [ref=f10e38]: 🥟
+            - generic [ref=f10e39]: Momos
+          - button "🍔 Burgers" [ref=f10e40] [cursor=pointer]:
+            - generic [ref=f10e41]: 🍔
+            - generic [ref=f10e42]: Burgers
+          - button "🧇 Waffles" [ref=f10e43] [cursor=pointer]:
+            - generic [ref=f10e44]: 🧇
+            - generic [ref=f10e45]: Waffles
+          - button "🍟 Snacks" [ref=f10e46] [cursor=pointer]:
+            - generic [ref=f10e47]: 🍟
+            - generic [ref=f10e48]: Snacks
+          - button "🥤 Beverages" [ref=f10e49] [cursor=pointer]:
+            - generic [ref=f10e50]: 🥤
+            - generic [ref=f10e51]: Beverages
+    - generic [ref=f10e82] [cursor=pointer]:
+      - generic [ref=f10e83]:
+        - generic [ref=f10e84]: "1"
+        - generic [ref=f10e90]:
+          - paragraph [ref=f10e91]: Your Order · 1 item
+          - paragraph [ref=f10e92]: ₹135
+      - generic [ref=f10e93]: Review & Pay
+    - navigation [ref=f10e96]:
+      - generic [ref=f10e97]:
+        - link [ref=f10e98] [cursor=pointer]:
+          - /url: /menu
+        - link "1" [ref=f10e105] [cursor=pointer]:
+          - /url: /cart
+        - link [ref=f10e113] [cursor=pointer]:
+          - /url: /
+        - link [ref=f10e119] [cursor=pointer]:
+          - /url: /social
+        - link [ref=f10e123] [cursor=pointer]:
+          - /url: /profile
+  - contentinfo [ref=f10e129]:
+    - generic [ref=f10e130]:
+      - generic [ref=f10e131]:
+        - paragraph [ref=f10e132]: Ilara
+        - paragraph [ref=f10e133]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f10e134]:
+        - heading "Quick links" [level=2] [ref=f10e135]
+        - generic [ref=f10e136]:
+          - link "Home" [ref=f10e137] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f10e138] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f10e139] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f10e140] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f10e141] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f10e142]:
+        - heading "Legal" [level=2] [ref=f10e143]
+        - generic [ref=f10e144]:
+          - link "Terms of Service" [ref=f10e145] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f10e146] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f10e147]:
+        - heading "Contact" [level=2] [ref=f10e148]
+        - link "support@ilara.cafe" [ref=f10e149] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f10e150]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f10e151]

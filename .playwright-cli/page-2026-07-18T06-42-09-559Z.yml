@@ -1,0 +1,50 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - generic [ref=f8e4]:
+      - generic [ref=f8e5]: 🛒
+      - heading "Your cart is empty" [level=2] [ref=f8e6]
+      - paragraph [ref=f8e7]: Looks like you haven't added anything yet. Explore our menu to find something delicious!
+      - button "Explore Menu" [ref=f8e8] [cursor=pointer]
+    - navigation [ref=f8e9]:
+      - generic [ref=f8e10]:
+        - link [ref=f8e11] [cursor=pointer]:
+          - /url: /menu
+        - link [ref=f8e18] [cursor=pointer]:
+          - /url: /cart
+        - link [ref=f8e25] [cursor=pointer]:
+          - /url: /
+        - link [ref=f8e31] [cursor=pointer]:
+          - /url: /social
+        - link [ref=f8e35] [cursor=pointer]:
+          - /url: /profile
+  - contentinfo [ref=f8e41]:
+    - generic [ref=f8e42]:
+      - generic [ref=f8e43]:
+        - paragraph [ref=f8e44]: Ilara
+        - paragraph [ref=f8e45]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f8e46]:
+        - heading "Quick links" [level=2] [ref=f8e47]
+        - generic [ref=f8e48]:
+          - link "Home" [ref=f8e49] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f8e50] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f8e51] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f8e52] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f8e53] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f8e54]:
+        - heading "Legal" [level=2] [ref=f8e55]
+        - generic [ref=f8e56]:
+          - link "Terms of Service" [ref=f8e57] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f8e58] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f8e59]:
+        - heading "Contact" [level=2] [ref=f8e60]
+        - link "support@ilara.cafe" [ref=f8e61] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f8e62]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f8e63]

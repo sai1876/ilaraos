@@ -1,0 +1,94 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e2]:
+    - generic [ref=f9e3]:
+      - generic [ref=f9e5]:
+        - generic [ref=f9e6]:
+          - heading "Your Order" [level=1] [ref=f9e7]
+          - paragraph [ref=f9e8]: 1 ITEM IN LIST
+        - generic [ref=f9e9] [cursor=pointer]: HYD CAMPUS
+      - generic [ref=f9e18]:
+        - generic [ref=f9e19]:
+          - generic [ref=f9e22]:
+            - generic [ref=f9e23]: T
+            - generic [ref=f9e25]:
+              - heading "Test Item" [level=3] [ref=f9e26]
+              - generic [ref=f9e27]: ₹135.00
+            - generic [ref=f9e29]:
+              - button [ref=f9e30] [cursor=pointer]
+              - generic [ref=f9e34]:
+                - button [ref=f9e35] [cursor=pointer]
+                - generic [ref=f9e37]: "1"
+                - button [ref=f9e38] [cursor=pointer]
+          - generic [ref=f9e40]:
+            - textbox "Have a promo code?" [ref=f9e42]
+            - button "Apply" [ref=f9e43] [cursor=pointer]
+        - generic [ref=f9e44]:
+          - generic [ref=f9e45]:
+            - button "dine-in" [ref=f9e46] [cursor=pointer]
+            - button "pickup" [ref=f9e48] [cursor=pointer]
+            - button "delivery" [ref=f9e49] [cursor=pointer]
+          - generic [ref=f9e50]:
+            - heading "Table Number" [level=3] [ref=f9e51]
+            - textbox "e.g. T-12 or 4" [ref=f9e52]
+          - generic [ref=f9e53]:
+            - heading "Bill Summary" [level=3] [ref=f9e54]
+            - generic [ref=f9e55]:
+              - generic [ref=f9e56]:
+                - generic [ref=f9e57]: Item Total
+                - generic [ref=f9e58]: ₹135.00
+              - generic [ref=f9e59]:
+                - generic [ref=f9e60] [cursor=pointer]: Platform Fee
+                - generic [ref=f9e63]: ₹5.00
+              - generic [ref=f9e65]:
+                - generic [ref=f9e66]: To Pay
+                - generic [ref=f9e67]: ₹140.00
+          - generic [ref=f9e68]:
+            - paragraph [ref=f9e69]: Secure & private · Your data is never shared or sold
+            - button "To Pay ₹140.00 Login to Continue" [ref=f9e73] [cursor=pointer]:
+              - generic [ref=f9e74]:
+                - generic [ref=f9e75]: To Pay
+                - generic [ref=f9e76]: ₹140.00
+              - generic [ref=f9e77]: Login to Continue
+    - navigation [ref=f9e81]:
+      - generic [ref=f9e82]:
+        - link [ref=f9e83] [cursor=pointer]:
+          - /url: /menu
+        - link "1" [ref=f9e90] [cursor=pointer]:
+          - /url: /cart
+        - link [ref=f9e98] [cursor=pointer]:
+          - /url: /
+        - link [ref=f9e104] [cursor=pointer]:
+          - /url: /social
+        - link [ref=f9e108] [cursor=pointer]:
+          - /url: /profile
+  - contentinfo [ref=f9e114]:
+    - generic [ref=f9e115]:
+      - generic [ref=f9e116]:
+        - paragraph [ref=f9e117]: Ilara
+        - paragraph [ref=f9e118]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f9e119]:
+        - heading "Quick links" [level=2] [ref=f9e120]
+        - generic [ref=f9e121]:
+          - link "Home" [ref=f9e122] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f9e123] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f9e124] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f9e125] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f9e126] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f9e127]:
+        - heading "Legal" [level=2] [ref=f9e128]
+        - generic [ref=f9e129]:
+          - link "Terms of Service" [ref=f9e130] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f9e131] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f9e132]:
+        - heading "Contact" [level=2] [ref=f9e133]
+        - link "support@ilara.cafe" [ref=f9e134] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f9e135]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f9e136]

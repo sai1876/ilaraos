@@ -1,0 +1,504 @@
+[2026-07-15T02:12:42.207Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:42.208Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:42.208Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:42.322Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:42.323Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:42.323Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:42.475Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:42.476Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:44.438Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:44.439Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:44.439Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:44.535Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:44.535Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:44.535Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:44.639Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:44.640Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:44.724Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:44.724Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:44.725Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:44.887Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:44.888Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:44.888Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:44.991Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:44.992Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:45.329Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:45.336Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:45.337Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:45.454Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:45.454Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:45.455Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:45.579Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:45.579Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:48.572Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:48.573Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:48.573Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:48.678Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:48.678Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:48.678Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:48.806Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:48.807Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:51.545Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:51.545Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:51.545Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:51.651Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:51.652Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:51.652Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:51.745Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:51.748Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:54.548Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:54.549Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:54.549Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:54.680Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:54.681Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:54.681Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:54.799Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:54.799Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:12:57.566Z] [SESSION_GET] Received GET request
+[2026-07-15T02:12:57.567Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:12:57.567Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:12:57.706Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:12:57.706Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:12:57.706Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:12:57.841Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:12:57.842Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:00.570Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:00.570Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:00.571Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:00.684Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:00.685Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:00.685Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:00.796Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:00.797Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:03.538Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:03.538Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:03.539Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:03.637Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:03.637Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:03.638Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:03.731Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:03.732Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:06.571Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:06.571Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:06.572Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:06.665Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:06.665Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:06.666Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:06.763Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:06.764Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:09.556Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:09.558Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:09.558Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:09.663Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:09.664Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:09.664Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:09.779Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:09.780Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:12.567Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:12.567Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:12.568Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:12.678Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:12.678Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:12.679Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:12.793Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:12.794Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:15.571Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:15.571Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:15.575Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:15.692Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:15.693Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:15.693Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:15.795Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:15.796Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:18.592Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:18.593Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:18.593Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:18.690Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:18.691Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:18.691Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:18.791Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:18.792Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:21.557Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:21.558Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:21.558Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:21.665Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:21.666Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:21.666Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:21.763Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:21.764Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:24.572Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:24.573Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:24.573Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:24.659Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:24.660Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:24.661Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:24.764Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:24.765Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:27.572Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:27.572Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:27.573Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:27.724Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:27.725Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:27.726Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:27.824Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:27.825Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:30.572Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:30.573Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:30.573Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:30.709Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:30.710Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:30.711Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:30.826Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:30.827Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:33.565Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:33.566Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:33.569Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:33.661Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:33.662Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:33.662Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:33.756Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:33.757Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:36.571Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:36.572Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:36.572Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:36.669Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:36.670Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:36.670Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:36.764Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:36.769Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:39.567Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:39.567Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:39.568Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:39.675Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:39.676Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:39.676Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:39.783Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:39.784Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:44.042Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:44.043Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:44.043Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:45.862Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:45.865Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:45.866Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:45.988Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:45.989Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:53.680Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:53.680Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:53.681Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:54.323Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:54.324Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:54.324Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:54.435Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:54.435Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:58.288Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:58.288Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:58.289Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:58.868Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:58.869Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:58.869Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:58.975Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:58.978Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:59.037Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:59.038Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:59.038Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:59.166Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:59.167Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:59.167Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:59.279Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:59.279Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:13:59.374Z] [SESSION_GET] Received GET request
+[2026-07-15T02:13:59.379Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:13:59.380Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:13:59.521Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:13:59.522Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:13:59.523Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:13:59.639Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:13:59.640Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:01.990Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:01.991Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:01.991Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:02.095Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:02.095Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:02.096Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:02.238Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:02.239Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:04.557Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:04.559Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:04.560Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:04.673Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:04.674Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:04.677Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:04.832Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:04.832Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:07.553Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:07.553Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:07.553Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:07.661Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:07.662Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:07.662Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:07.811Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:07.811Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:10.538Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:10.538Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:10.539Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:10.644Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:10.644Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:10.644Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:10.756Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:10.759Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:13.550Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:13.551Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:13.552Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:13.665Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:13.667Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:13.668Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:13.785Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:13.785Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:16.554Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:16.557Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:16.557Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:16.652Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:16.653Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:16.653Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:16.762Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:16.763Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:19.570Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:19.572Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:19.572Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:19.675Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:19.676Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:19.676Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:19.761Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:19.761Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:22.539Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:22.540Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:22.540Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:22.640Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:22.641Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:22.641Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:22.727Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:22.728Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:25.567Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:25.567Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:25.568Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:25.661Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:25.662Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:25.662Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:25.750Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:25.750Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:28.543Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:28.543Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:28.543Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:28.666Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:28.666Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:28.666Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:28.791Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:28.792Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:31.548Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:31.548Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:31.548Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:31.679Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:31.679Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:31.679Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:31.870Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:31.870Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:34.547Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:34.548Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:34.548Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:34.658Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:34.659Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:34.659Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:34.753Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:34.753Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:37.543Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:37.543Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:37.543Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:37.645Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:37.646Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:37.646Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:37.739Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:37.739Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:40.551Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:40.551Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:40.552Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:40.709Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:40.710Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:40.710Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:40.862Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:40.863Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:43.551Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:43.551Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:43.551Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:43.650Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:43.650Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:43.650Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:43.740Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:43.741Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:46.540Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:46.541Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:46.541Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:46.643Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:46.644Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:46.645Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:46.738Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:46.739Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:49.604Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:49.606Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:49.607Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:49.701Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:49.702Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:49.703Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:49.798Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:49.799Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:52.581Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:52.582Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:52.583Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:52.690Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:52.691Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:52.692Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:52.799Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:52.800Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:55.619Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:55.621Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:55.621Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:55.755Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:55.756Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:55.756Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:55.882Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:55.883Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:14:58.948Z] [SESSION_GET] Received GET request
+[2026-07-15T02:14:58.948Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:14:58.949Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:14:59.063Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:14:59.064Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:14:59.065Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:14:59.164Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:14:59.165Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:01.551Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:01.552Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:01.553Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:01.671Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:01.672Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:01.672Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:01.783Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:01.784Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:04.663Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:04.664Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:04.665Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:04.786Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:04.786Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:04.787Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:04.887Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:04.888Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:07.788Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:07.789Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:07.790Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:08.462Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:08.463Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:08.464Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:08.565Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:08.566Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:08.628Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:08.629Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:08.630Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:08.733Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:08.734Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:08.734Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:08.862Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:08.863Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:08.942Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:08.943Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:08.943Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:09.050Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:09.050Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:09.051Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:09.156Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:09.158Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:19.859Z] [VERIFY_POST] Received POST verify request
+[2026-07-15T02:15:19.860Z] [VERIFY_POST] Session ID: scan_mrlg3jeex7uob, Has descriptor: true
+[2026-07-15T02:15:19.861Z] [VERIFY_POST] Fetching scan_sessions document
+[2026-07-15T02:15:19.870Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:19.871Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:19.872Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:20.441Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:20.442Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:20.443Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:15:20.446Z] [VERIFY_POST] Scan session document exists: true
+[2026-07-15T02:15:20.447Z] [VERIFY_POST] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"updated_at":1784081561846,"attempts":0}
+[2026-07-15T02:15:20.447Z] [VERIFY_POST] Running rateLimitDurable
+[2026-07-15T02:15:20.549Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:15:20.549Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:15:20.760Z] [VERIFY_POST] rateLimitDurable success: true
+[2026-07-15T02:15:20.761Z] [VERIFY_POST] Enrolling staff biometrics for staffId: st_1779623007325
+[2026-07-15T02:15:20.761Z] [VERIFY_POST] Getting encryption key
+[2026-07-15T02:15:20.761Z] [VERIFY_POST] Encrypting descriptor
+[2026-07-15T02:15:20.762Z] [VERIFY_POST] Starting runTransaction
+[2026-07-15T02:15:20.774Z] [VERIFY_POST] Inside runTransaction callback
+[2026-07-15T02:15:20.777Z] [VERIFY_POST] Transaction writes queued inside callback
+[2026-07-15T02:15:20.927Z] [VERIFY_POST] runTransaction completed successfully
+[2026-07-15T02:15:23.672Z] [SESSION_GET] Received GET request
+[2026-07-15T02:15:23.677Z] [SESSION_GET] Session ID: scan_mrlg3jeex7uob
+[2026-07-15T02:15:23.678Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:15:23.792Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:15:23.794Z] [SESSION_GET] Session data: {"type":"enroll","staff_id":"st_1779623007325","expires_at":1784081861846,"created_at":1784081561846,"attempts":0,"updated_at":1784081720776,"status":"success"}
+[2026-07-15T02:15:23.795Z] [SESSION_GET] Session not pending or expired. Status: success, Expires: 1784081861846, Now: 1784081723795
+[2026-07-15T02:16:39.125Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:39.127Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:39.131Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:39.231Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:39.233Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:39.234Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:16:39.328Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:16:39.332Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:16:41.465Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:41.466Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:41.467Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:41.577Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:41.581Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:41.583Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:16:41.674Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:16:41.676Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:16:43.983Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:43.984Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:43.985Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:44.085Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:44.087Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:44.088Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:16:44.201Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:16:44.203Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:16:44.736Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:44.739Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:44.740Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:44.858Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:44.859Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:44.865Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:16:44.975Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:16:44.976Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:16:47.636Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:47.637Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:47.638Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:47.731Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:47.734Z] [SESSION_GET] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:47.735Z] [SESSION_GET] Fetching staff_directory document for targetId: st_1779623007325
+[2026-07-15T02:16:47.832Z] [SESSION_GET] Staff directory document exists: true
+[2026-07-15T02:16:47.834Z] [SESSION_GET] Staff name resolved: tharun
+[2026-07-15T02:16:47.919Z] [VERIFY_POST] Received POST verify request
+[2026-07-15T02:16:47.922Z] [VERIFY_POST] Session ID: scan_mrlg8m7jul9lr, Has descriptor: true
+[2026-07-15T02:16:47.923Z] [VERIFY_POST] Fetching scan_sessions document
+[2026-07-15T02:16:48.032Z] [VERIFY_POST] Scan session document exists: true
+[2026-07-15T02:16:48.034Z] [VERIFY_POST] Session data: {"status":"pending","type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"updated_at":1784081798768,"attempts":0}
+[2026-07-15T02:16:48.036Z] [VERIFY_POST] Running rateLimitDurable
+[2026-07-15T02:16:48.301Z] [VERIFY_POST] rateLimitDurable success: true
+[2026-07-15T02:16:48.302Z] [VERIFY_POST] Enrolling staff biometrics for staffId: st_1779623007325
+[2026-07-15T02:16:48.303Z] [VERIFY_POST] Getting encryption key
+[2026-07-15T02:16:48.305Z] [VERIFY_POST] Encrypting descriptor
+[2026-07-15T02:16:48.306Z] [VERIFY_POST] Starting runTransaction
+[2026-07-15T02:16:48.312Z] [VERIFY_POST] Inside runTransaction callback
+[2026-07-15T02:16:48.314Z] [VERIFY_POST] Transaction writes queued inside callback
+[2026-07-15T02:16:48.438Z] [VERIFY_POST] runTransaction completed successfully
+[2026-07-15T02:16:50.654Z] [SESSION_GET] Received GET request
+[2026-07-15T02:16:50.655Z] [SESSION_GET] Session ID: scan_mrlg8m7jul9lr
+[2026-07-15T02:16:50.656Z] [SESSION_GET] Fetching scan_sessions document
+[2026-07-15T02:16:50.781Z] [SESSION_GET] Scan session exists: true
+[2026-07-15T02:16:50.782Z] [SESSION_GET] Session data: {"type":"enroll","staff_id":"st_1779623007325","expires_at":1784082098768,"created_at":1784081798768,"attempts":0,"updated_at":1784081808314,"status":"success"}
+[2026-07-15T02:16:50.783Z] [SESSION_GET] Session not pending or expired. Status: success, Expires: 1784082098768, Now: 1784081810783

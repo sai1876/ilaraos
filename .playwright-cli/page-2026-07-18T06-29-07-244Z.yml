@@ -1,0 +1,57 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - navigation [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - link "Ilara Logo Ilara" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+          - img "Ilara Logo" [ref=f2e7]
+          - generic [ref=f2e8]: Ilara
+        - generic [ref=f2e9]:
+          - link "Home" [ref=f2e10] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f2e17] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f2e24] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f2e30] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f2e34] [cursor=pointer]:
+            - /url: /profile
+        - generic [ref=f2e40]:
+          - link "Cart" [ref=f2e41] [cursor=pointer]:
+            - /url: /cart
+          - link "Get Started" [ref=f2e47] [cursor=pointer]:
+            - /url: /login
+    - main [ref=f2e51]:
+      - generic "Loading social activities" [ref=f2e56]
+  - contentinfo [ref=f2e72]:
+    - generic [ref=f2e73]:
+      - generic [ref=f2e74]:
+        - paragraph [ref=f2e75]: Ilara
+        - paragraph [ref=f2e76]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f2e77]:
+        - heading "Quick links" [level=2] [ref=f2e78]
+        - generic [ref=f2e79]:
+          - link "Home" [ref=f2e80] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f2e81] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f2e82] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f2e83] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f2e84] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f2e85]:
+        - heading "Legal" [level=2] [ref=f2e86]
+        - generic [ref=f2e87]:
+          - link "Terms of Service" [ref=f2e88] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f2e89] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f2e90]:
+        - heading "Contact" [level=2] [ref=f2e91]
+        - link "support@ilara.cafe" [ref=f2e92] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f2e93]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f2e94]

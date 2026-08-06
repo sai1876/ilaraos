@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ilara Social</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#e2dfde",
+                        "on-surface-variant": "#444933",
+                        "surface-tint": "#506600",
+                        "on-primary-fixed": "#161e00",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-container-high": "#ece7e4",
+                        "surface-container-highest": "#e6e2df",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-tertiary-fixed": "#1b1c19",
+                        "background": "#fdf8f6",
+                        "on-secondary-container": "#636262",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "tertiary-fixed-dim": "#c8c6c2",
+                        "primary": "#506600",
+                        "surface-variant": "#e6e2df",
+                        "surface-container-low": "#f7f3f0",
+                        "on-surface": "#1c1b1a",
+                        "primary-container": "#ccff00",
+                        "on-background": "#1c1b1a",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "secondary": "#5f5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#5e5e5b",
+                        "inverse-on-surface": "#f4f0ed",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "outline": "#747a60",
+                        "on-secondary-fixed-variant": "#474746",
+                        "outline-variant": "#c4c9ac",
+                        "surface": "#fdf8f6",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#5b7300",
+                        "surface-container": "#f1edea",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "tertiary-container": "#efede8",
+                        "surface-dim": "#ddd9d6",
+                        "on-tertiary-container": "#6b6b67",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#e4e2dd",
+                        "surface-bright": "#fdf8f6",
+                        "inverse-surface": "#31302e",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#c3f400",
+                        "inverse-primary": "#abd600"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-gap": "80px",
+                        "container-padding-mobile": "20px",
+                        "base": "8px",
+                        "container-padding-desktop": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"],
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .ambient-shadow { box-shadow: 0 8px 32px -8px rgba(28, 27, 26, 0.08); }
+        .subtle-border { border: 1px solid rgba(28, 27, 26, 0.1); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased pb-24 md:pb-0">
+<!-- TopAppBar -->
+<header class="sticky top-0 w-full z-50 flex justify-between items-center px-container-padding-mobile md:px-container-padding-desktop h-16 bg-background dark:bg-inverse-surface border-b border-on-surface/10 flat no shadows">
+<div class="flex items-center gap-4">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A candid, high-quality portrait of a young college student with a friendly, energetic expression, set against a blurred, vibrant campus cafeteria background. Modern, warm lighting, Neo-Cafeteria aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIIbPGB81FfXv5D5FXamSdJEwF_8ko3MvGAK0VMZw-7sHofAxhVmA1sPt_suPXOZJGjxuQzqtr2e6VymVbCsHOfjWa_JV0fnuPeaQEz8uY6nJfg5qqmMLz2gefg7ZMTlweEsz4V1sxt8H1QmcfpNJAHwLMYATrxM_DFNOy4hic0oCt9iz2M2XhKeTw95tu1NePu4paB_yR-B6n-bdn2F7h7VaxqukKhMCAAbWzuUzS-hjpbcT9cip3h9q5XB64jGaDMz19awV2GwM"/>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-primary-fixed-dim tracking-tight">Ilara Social</h1>
+</div>
+<!-- Web Nav (Hidden on Mobile) -->
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors scale-down duration-200 active:scale-95 px-3 py-2 rounded-lg" href="#">Home</a>
+<a class="text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors scale-down duration-200 active:scale-95 px-3 py-2 rounded-lg" href="#">Booking</a>
+<a class="text-primary dark:text-primary-fixed-dim font-bold hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors scale-down duration-200 active:scale-95 px-3 py-2 rounded-lg" href="#">Activity</a>
+<a class="text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors scale-down duration-200 active:scale-95 px-3 py-2 rounded-lg" href="#">Profile</a>
+</nav>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-primary dark:text-primary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors scale-down duration-200 active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<main class="max-w-7xl mx-auto px-container-padding-mobile md:px-container-padding-desktop pt-8 pb-16 space-y-section-gap">
+<!-- Header Section -->
+<section class="space-y-4">
+<h2 class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg text-on-surface">Eat together. Play together. <br/><span class="text-primary">Build real connections.</span></h2>
+<!-- Live Status Banner -->
+<div class="bg-surface-container-high rounded-xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 subtle-border mt-8">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-primary-container animate-pulse"></div>
+<div>
+<p class="font-headline-sm-mobile text-headline-sm-mobile md:font-headline-sm md:text-headline-sm text-on-surface">Box Cricket: Open</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Next slot: 4:00 PM</p>
+</div>
+</div>
+<div class="flex items-center gap-2 bg-surface rounded-full px-4 py-2 subtle-border">
+<span class="material-symbols-outlined text-secondary text-sm">group</span>
+<p class="font-label-bold text-label-bold text-secondary">12 students looking for players</p>
+</div>
+</div>
+</section>
+<!-- Primary Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Book Box Cricket (Hero Card) -->
+<div class="md:col-span-8 bg-surface-container-lowest rounded-xl subtle-border overflow-hidden ambient-shadow flex flex-col h-full group">
+<div class="relative h-64 md:h-80 w-full overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A dynamic, high-shutter-speed sports photograph of a college student hitting a cricket ball in an indoor box cricket arena. Vibrant artificial lighting, energetic action shot, authentic candid moment. Warm cream and charcoal ambient tones in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVXxxswnCB99MLhUleANd-EkVvef7yokDQexIn1ylaWGL6HydO1wejgwkaofhoIYUZi23Mo3FJBUYqnA2T-jaOwLzUHPhGOcYiz1DuWBK4VIiMOg_ulN_EghAx4GyohtRHmSFZ9AB_wiOtpbnMmsqoWaFvb1JlS2CIUUcX53-iaagI37FhWuhyT11OZF6t3SKSXDeia_khJElNEZtZhg08DafWdE5_LgFfl2h1cVfQeAQiZKUmO9BnDL2CZ9o4tgU9xYlHqSdlQaE"/>
+<div class="absolute top-4 left-4 bg-primary-container text-on-primary-container font-label-bold text-label-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">sports_cricket</span>
+<span>Premium Turf</span>
+</div>
+</div>
+<div class="p-6 md:p-8 flex-grow flex flex-col justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Book Box Cricket</h3>
+<div class="flex flex-wrap gap-4 text-on-surface-variant mb-6">
+<div class="flex items-center gap-2 font-body-md text-body-md">
+<span class="material-symbols-outlined text-secondary">schedule</span>
+<span>Next available: 4 PM</span>
+</div>
+<div class="flex items-center gap-2 font-body-md text-body-md">
+<span class="material-symbols-outlined text-secondary">event_available</span>
+<span>8 slots today</span>
+</div>
+<div class="flex items-center gap-2 font-body-md text-body-md">
+<span class="material-symbols-outlined text-secondary">payments</span>
+<span>From ₹800/hr</span>
+</div>
+</div>
+</div>
+<button class="w-full md:w-auto bg-primary-container text-on-background font-label-bold text-label-bold py-4 px-8 rounded-full hover:scale-[0.98] transition-transform flex items-center justify-center gap-2 mt-4 self-start">
+                        View Slots
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- My Activities (Quick Access) -->
+<div class="md:col-span-4 bg-surface-container-low rounded-xl subtle-border p-6 flex flex-col h-full">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline-sm-mobile text-headline-sm-mobile md:font-headline-sm md:text-headline-sm text-on-surface">My Activities</h3>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<div class="space-y-4 flex-grow">
+<!-- Upcoming Activity -->
+<div class="bg-surface-container-lowest p-4 rounded-lg subtle-border flex items-start gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_esports</span>
+</div>
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">FIFA Tournament</p>
+<p class="font-label-sm text-label-sm text-secondary mt-1">Tomorrow, 7:00 PM</p>
+</div>
+</div>
+<!-- Past Activity -->
+<div class="bg-surface-container-lowest p-4 rounded-lg subtle-border flex items-start gap-4 opacity-75">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-secondary">restaurant</span>
+</div>
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Mess Comm Dinner</p>
+<p class="font-label-sm text-label-sm text-secondary mt-1">Yesterday</p>
+</div>
+</div>
+</div>
+<button class="w-full bg-transparent border-2 border-secondary text-secondary font-label-bold text-label-bold py-3 rounded-full hover:bg-surface-container transition-colors mt-6">
+                    View History
+                </button>
+</div>
+</section>
+<!-- Join a Match Section -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md text-on-surface">Join a Match</h3>
+<button class="text-primary font-label-bold text-label-bold hover:underline flex items-center gap-1">
+                    See All <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Match Card 1 -->
+<div class="bg-surface-container-lowest rounded-xl subtle-border p-5 ambient-shadow flex flex-col">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="font-headline-sm-mobile text-headline-sm-mobile text-on-surface">Evening Sloggers</h4>
+<p class="font-label-sm text-label-sm text-secondary mt-1">Box Cricket • 18 Oct, 6 PM</p>
+</div>
+<span class="bg-secondary text-on-secondary font-label-sm text-label-sm px-2 py-1 rounded-full">Intermediate</span>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed-dim border-2 border-surface-container-lowest"></div>
+<div class="w-8 h-8 rounded-full bg-secondary-fixed-dim border-2 border-surface-container-lowest"></div>
+<div class="w-8 h-8 rounded-full bg-surface-variant border-2 border-surface-container-lowest"></div>
+</div>
+<p class="font-label-sm text-label-sm text-secondary ml-2">6/10 players joined</p>
+</div>
+<div class="flex items-center justify-between mt-auto pt-4 border-t border-on-surface/5">
+<p class="font-body-md text-body-md text-on-surface">₹100<span class="text-secondary text-sm">/player</span></p>
+<button class="bg-transparent border border-outline text-on-surface font-label-bold text-label-bold py-2 px-4 rounded-full hover:bg-surface-container transition-colors scale-down duration-150 active:scale-95">
+                            Join Match
+                        </button>
+</div>
+</div>
+<!-- Match Card 2 -->
+<div class="bg-surface-container-lowest rounded-xl subtle-border p-5 ambient-shadow flex flex-col">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="font-headline-sm-mobile text-headline-sm-mobile text-on-surface">Casual Kickabout</h4>
+<p class="font-label-sm text-label-sm text-secondary mt-1">Futsal • 19 Oct, 8 PM</p>
+</div>
+<span class="bg-secondary text-on-secondary font-label-sm text-label-sm px-2 py-1 rounded-full">Beginner</span>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed-dim border-2 border-surface-container-lowest"></div>
+<div class="w-8 h-8 rounded-full bg-secondary-fixed-dim border-2 border-surface-container-lowest"></div>
+</div>
+<p class="font-label-sm text-label-sm text-secondary ml-2">8/14 players joined</p>
+</div>
+<div class="flex items-center justify-between mt-auto pt-4 border-t border-on-surface/5">
+<p class="font-body-md text-body-md text-on-surface">₹150<span class="text-secondary text-sm">/player</span></p>
+<button class="bg-transparent border border-outline text-on-surface font-label-bold text-label-bold py-2 px-4 rounded-full hover:bg-surface-container transition-colors scale-down duration-150 active:scale-95">
+                            Join Match
+                        </button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface-container dark:bg-surface-dim shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] docked full-width bottom-0 rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-70 hover:text-primary dark:hover:text-primary-fixed transition-all scale-down duration-150 active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-70 hover:text-primary dark:hover:text-primary-fixed transition-all scale-down duration-150 active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">sports_cricket</span>
+<span class="font-label-sm text-label-sm">Booking</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container dark:bg-primary dark:text-on-primary rounded-full px-5 py-1.5 hover:text-primary dark:hover:text-primary-fixed transition-all scale-down duration-150 active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1">event_note</span>
+<span class="font-label-sm text-label-sm">Activity</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-70 hover:text-primary dark:hover:text-primary-fixed transition-all scale-down duration-150 active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</a>
+</nav>
+</body></html>

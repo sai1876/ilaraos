@@ -1,0 +1,2 @@
+[     979ms] [LOG] Service Worker registered with scope: http://127.0.0.1:3101/ @ http://127.0.0.1:3101/_next/static/chunks/app/layout-31a24fbfd8831304.js:0
+[    2032ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://images.unsplash.com/photo-1562376502-6f769499c886?w=300&auto=format&fit=crop&q=80:0

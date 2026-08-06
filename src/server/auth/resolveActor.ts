@@ -1,0 +1,168 @@
+import type { DecodedIdToken } from 'firebase-admin/auth';
+import type { DocumentData, DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
+import { USERS_COL } from '@/lib/firebase/collections';
+
+const CUSTOMER_ROLE = 'customer';
+const KITCHEN_ROLES = new Set([
+  'kitchen',
+  'chef',
+  'deep_fryer',
+  'grill_fryer',
+  'biryani_master',
+  'brewer',
+]);
+const STAFF_ROLES = new Set([
+  'staff',
+  'manager',
+  'admin',
+  'owner',
+  'rider',
+  ...KITCHEN_ROLES,
+]);
+const BLOCKED_STATUSES = new Set(['suspended', 'inactive', 'disabled', 'blacklisted', 'deleted']);
+const ALLOWED_STAFF_STATUSES = new Set(['active', 'offline']);
+
+export interface ActorContext {
+  uid: string;
+  email?: string;
+  role: string;
+  staffId?: string;
+  outletId?: string;
+  tokenVersion?: number;
+}
+
+export type ActorResolution =
+  | { ok: true; actor: ActorContext }
+  | {
+      ok: false;
+      reason:
+        | 'profile_not_found'
+        | 'account_inactive'
+        | 'staff_record_required'
+        | 'staff_inactive'
+        | 'invalid_role'
+        | 'stale_token';
+    };
+
+function normalize(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function documentStatus(data: DocumentData | undefined): string {
+  return normalize(data?.account_status || data?.status);
+}
+
+async function findStaffDocument(
+  db: Firestore,
+  uid: string,
+  email?: string,
+): Promise<DocumentSnapshot | null> {
+  const direct = await db.collection('staff').doc(uid).get();
+  if (direct.exists) return direct;
+
+  for (const field of ['auth_uid', 'firebase_uid']) {
+    const byUid = await db.collection('staff').where(field, '==', uid).limit(1).get();
+    if (!byUid.empty) return byUid.docs[0];
+  }
+
+  if (email) {
+    const candidates = new Set([email.trim(), email.trim().toLowerCase()]);
+    for (const candidate of candidates) {
+      const byEmail = await db.collection('staff').where('email', '==', candidate).limit(1).get();
+      if (!byEmail.empty) return byEmail.docs[0];
+    }
+  }
+
+  return null;
+}
+
+export function isRoleAllowed(role: string, allowedRoles: string[]): boolean {
+  if (allowedRoles.includes(role)) return true;
+  if (allowedRoles.includes('staff') && STAFF_ROLES.has(role)) return true;
+  if (allowedRoles.includes('kitchen') && KITCHEN_ROLES.has(role)) return true;
+  return false;
+}
+
+/** Resolve current authority from server-side documents; token role claims are never authoritative. */
+export async function resolveActorContext(
+  db: Firestore,
+  decodedToken: DecodedIdToken,
+): Promise<ActorResolution> {
+  const uid = decodedToken.uid;
+  const userDoc = await db.collection(USERS_COL).doc(uid).get();
+  const userData = userDoc.exists ? userDoc.data() : undefined;
+  const userStatus = documentStatus(userData);
+
+  if (userStatus && BLOCKED_STATUSES.has(userStatus)) {
+    return { ok: false, reason: 'account_inactive' };
+  }
+
+  const accessDoc = await db.collection('staff_access').doc(uid).get();
+  if (accessDoc.exists) {
+    const access = accessDoc.data();
+    const role = normalize(access?.role);
+    const status = documentStatus(access);
+    if (!STAFF_ROLES.has(role)) return { ok: false, reason: 'invalid_role' };
+    if (!ALLOWED_STAFF_STATUSES.has(status)) return { ok: false, reason: 'staff_inactive' };
+    const tokenVersion = access?.token_version;
+    // Only enforce token_version when the Firestore doc has one set — if undefined, allow login
+    if (tokenVersion !== undefined && decodedToken.token_version !== tokenVersion) {
+      return { ok: false, reason: 'stale_token' };
+    }
+    return {
+      ok: true,
+      actor: {
+        uid,
+        email: decodedToken.email,
+        role,
+        staffId: access?.staff_id || uid,
+        outletId: 'main',
+        tokenVersion,
+      },
+    };
+  }
+
+  const staffDoc = await findStaffDocument(db, uid, decodedToken.email);
+  if (staffDoc) {
+    const staffData = staffDoc.data();
+    const role = normalize(staffData?.role);
+    const status = documentStatus(staffData);
+
+    if (!STAFF_ROLES.has(role)) return { ok: false, reason: 'invalid_role' };
+    if (!ALLOWED_STAFF_STATUSES.has(status)) return { ok: false, reason: 'staff_inactive' };
+
+    const tokenVersion = staffData?.token_version ?? userData?.token_version;
+    if (tokenVersion !== undefined && decodedToken.token_version !== tokenVersion) {
+      return { ok: false, reason: 'stale_token' };
+    }
+
+    return {
+      ok: true,
+      actor: {
+        uid,
+        email: decodedToken.email,
+        role,
+        staffId: staffDoc.id,
+        outletId: 'main',
+        tokenVersion,
+      },
+    };
+  }
+
+  if (!userDoc.exists) return { ok: false, reason: 'profile_not_found' };
+
+  const userRole = normalize(userData?.role) || CUSTOMER_ROLE;
+  if (userRole !== CUSTOMER_ROLE) {
+    return { ok: false, reason: 'staff_record_required' };
+  }
+
+  return {
+    ok: true,
+    actor: {
+      uid,
+      email: decodedToken.email,
+      role: CUSTOMER_ROLE,
+      tokenVersion: userData?.token_version,
+    },
+  };
+}

@@ -1,0 +1,2 @@
+[     228ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3101/does-not-exist:0
+[     424ms] [LOG] Service Worker registered with scope: http://127.0.0.1:3101/ @ http://127.0.0.1:3101/_next/static/chunks/app/layout-31a24fbfd8831304.js:0

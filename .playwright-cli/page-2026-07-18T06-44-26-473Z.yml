@@ -1,0 +1,52 @@
+- generic [active] [ref=f11e1]:
+  - generic [ref=f11e2]:
+    - generic [ref=f11e21] [cursor=pointer]:
+      - generic [ref=f11e22]:
+        - generic [ref=f11e23]: "1"
+        - generic [ref=f11e29]:
+          - paragraph [ref=f11e30]: Your Order · 1 item
+          - paragraph [ref=f11e31]: ₹135
+      - generic [ref=f11e32]: Review & Pay
+    - navigation [ref=f11e35]:
+      - generic [ref=f11e36]:
+        - link [ref=f11e37] [cursor=pointer]:
+          - /url: /menu
+        - link "1" [ref=f11e44] [cursor=pointer]:
+          - /url: /cart
+        - link [ref=f11e52] [cursor=pointer]:
+          - /url: /
+        - link [ref=f11e58] [cursor=pointer]:
+          - /url: /social
+        - link [ref=f11e62] [cursor=pointer]:
+          - /url: /profile
+  - contentinfo [ref=f11e68]:
+    - generic [ref=f11e69]:
+      - generic [ref=f11e70]:
+        - paragraph [ref=f11e71]: Ilara
+        - paragraph [ref=f11e72]: Modern Indian Kitchen
+      - navigation "Footer quick links" [ref=f11e73]:
+        - heading "Quick links" [level=2] [ref=f11e74]
+        - generic [ref=f11e75]:
+          - link "Home" [ref=f11e76] [cursor=pointer]:
+            - /url: /
+          - link "Menu" [ref=f11e77] [cursor=pointer]:
+            - /url: /menu
+          - link "Rewards" [ref=f11e78] [cursor=pointer]:
+            - /url: /referrals
+          - link "Social" [ref=f11e79] [cursor=pointer]:
+            - /url: /social
+          - link "Profile" [ref=f11e80] [cursor=pointer]:
+            - /url: /profile
+      - navigation "Legal links" [ref=f11e81]:
+        - heading "Legal" [level=2] [ref=f11e82]
+        - generic [ref=f11e83]:
+          - link "Terms of Service" [ref=f11e84] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy Policy" [ref=f11e85] [cursor=pointer]:
+            - /url: /privacy
+      - generic [ref=f11e86]:
+        - heading "Contact" [level=2] [ref=f11e87]
+        - link "support@ilara.cafe" [ref=f11e88] [cursor=pointer]:
+          - /url: mailto:support@ilara.cafe
+    - paragraph [ref=f11e89]: © 2026 Ilara. All rights reserved.
+  - alert [ref=f11e90]

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Booking Details Bottom Sheet</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary-container": "#e2dfde",
+                        "on-surface-variant": "#444933",
+                        "surface-tint": "#506600",
+                        "on-primary-fixed": "#161e00",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-container-high": "#ece7e4",
+                        "surface-container-highest": "#e6e2df",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-tertiary-fixed": "#1b1c19",
+                        "background": "#fdf8f6",
+                        "on-secondary-container": "#636262",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "tertiary-fixed-dim": "#c8c6c2",
+                        "primary": "#506600",
+                        "surface-variant": "#e6e2df",
+                        "surface-container-low": "#f7f3f0",
+                        "on-surface": "#1c1b1a",
+                        "primary-container": "#ccff00",
+                        "on-background": "#1c1b1a",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "secondary": "#5f5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#5e5e5b",
+                        "inverse-on-surface": "#f4f0ed",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "outline": "#747a60",
+                        "on-secondary-fixed-variant": "#474746",
+                        "outline-variant": "#c4c9ac",
+                        "surface": "#fdf8f6",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#5b7300",
+                        "surface-container": "#f1edea",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "tertiary-container": "#efede8",
+                        "surface-dim": "#ddd9d6",
+                        "on-tertiary-container": "#6b6b67",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#e4e2dd",
+                        "surface-bright": "#fdf8f6",
+                        "inverse-surface": "#31302e",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#c3f400",
+                        "inverse-primary": "#abd600"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "section-gap": "80px",
+                        "container-padding-mobile": "20px",
+                        "base": "8px",
+                        "container-padding-desktop": "40px",
+                        "gutter": "24px"
+                    },
+                    fontFamily: {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"],
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c8c6c5;
+            border-radius: 4px;
+        }
+        .bottom-sheet-enter {
+            transform: translateY(100%);
+        }
+        .bottom-sheet-enter-active {
+            transform: translateY(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-variant min-h-screen flex items-end justify-center md:items-center text-on-surface font-body-md antialiased overflow-hidden">
+<!-- Overlay backdrop -->
+<div aria-hidden="true" class="fixed inset-0 bg-on-surface/40 z-40 transition-opacity"></div>
+<!-- Bottom Sheet Container -->
+<div class="bg-surface w-full md:w-full md:max-w-md h-[795px] md:h-[707px] md:rounded-xl rounded-t-[32px] z-50 flex flex-col relative shadow-[0_-8px_24px_rgba(0,0,0,0.12)] bottom-sheet-enter-active">
+<!-- Drag Handle -->
+<div class="w-full pt-4 pb-2 flex justify-center shrink-0">
+<div class="w-12 h-1.5 bg-outline-variant rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="px-container-padding-mobile pb-4 border-b border-on-surface/10 shrink-0 flex justify-between items-center">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Booking Details</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Configure your session</p>
+</div>
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-secondary hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-container-padding-mobile py-6">
+<!-- Type Selection Tabs -->
+<div class="flex p-1 bg-surface-container rounded-lg mb-8" role="tablist">
+<button aria-selected="true" class="flex-1 py-3 text-center rounded-md bg-surface shadow-sm font-label-bold text-label-bold text-primary border border-on-surface/5" role="tab">
+                    Private Booking
+                </button>
+<button aria-selected="false" class="flex-1 py-3 text-center rounded-md font-label-bold text-label-bold text-secondary hover:text-on-surface transition-colors" role="tab">
+                    Open Match
+                </button>
+</div>
+<!-- Private Booking Content (Active by default) -->
+<div class="space-y-6" id="private-booking-view">
+<div>
+<h3 class="font-headline-sm text-[20px] leading-[28px] font-bold text-on-surface mb-2">Enhance your session</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">Add equipment and refreshments.</p>
+</div>
+<!-- Add-ons List -->
+<div class="space-y-3">
+<!-- Item 1 -->
+<label class="flex items-center justify-between p-4 rounded-xl border border-on-surface/10 bg-surface-container-lowest hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="sports_cricket">sports_cricket</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Premium Cricket Kit</div>
+<div class="font-body-md text-[14px] text-on-surface-variant mt-0.5">Bats, pads, gloves for 2 teams</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-bold text-label-bold text-on-surface">+$25</span>
+<div class="w-6 h-6 rounded border-2 border-outline flex items-center justify-center text-surface-container-lowest bg-surface-container-lowest peer-checked:bg-primary peer-checked:border-primary transition-colors">
+<!-- Checked state icon would go here -->
+</div>
+</div>
+</label>
+<!-- Item 2 -->
+<label class="flex items-center justify-between p-4 rounded-xl border border-on-surface/10 bg-surface-container-lowest hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="sports_baseball">sports_baseball</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Match Ball (New)</div>
+<div class="font-body-md text-[14px] text-on-surface-variant mt-0.5">High-quality leather ball</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-bold text-label-bold text-on-surface">+$15</span>
+<div class="w-6 h-6 rounded border-2 border-outline flex items-center justify-center text-surface-container-lowest bg-surface-container-lowest transition-colors">
+</div>
+</div>
+</label>
+<!-- Item 3 -->
+<label class="flex items-center justify-between p-4 rounded-xl border border-on-surface/10 bg-surface-container-lowest hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="local_cafe">local_cafe</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Refreshment Pack</div>
+<div class="font-body-md text-[14px] text-on-surface-variant mt-0.5">Energy drinks &amp; water for 12</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-bold text-label-bold text-on-surface">+$30</span>
+<div class="w-6 h-6 rounded border-2 border-outline flex items-center justify-center text-surface-container-lowest bg-surface-container-lowest transition-colors">
+</div>
+</div>
+</label>
+</div>
+</div>
+<!-- Open Match Content (Hidden by default, structure provided for demonstration of task requirements) -->
+<div class="hidden space-y-6" id="open-match-view">
+<!-- Content for Open Match would go here, styled similarly to input fields and toggles -->
+</div>
+</div>
+<!-- Sticky Bottom Action Area -->
+<div class="p-container-padding-mobile bg-surface border-t border-on-surface/5 shrink-0 pb-safe">
+<div class="flex justify-between items-center mb-4">
+<span class="font-body-md text-body-md text-on-surface-variant">Total Payment</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">$120.00</span>
+</div>
+<button class="w-full h-14 bg-primary-container text-secondary font-label-bold text-label-bold rounded-full flex items-center justify-center gap-2 hover:scale-[0.98] transition-transform active:scale-95 shadow-sm">
+                Proceed to Payment
+                <span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</body></html>
