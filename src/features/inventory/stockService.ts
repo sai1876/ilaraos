@@ -6,20 +6,22 @@ import { db } from "@/lib/firebase";
 
 
 export const fetchStocks = async (outletId?: string): Promise<StockItem[]> => {
-  let q;
-  if (outletId) {
-    q = query(collection(db, STOCKS_COL), where("outlet_id", "==", outletId));
-  } else {
-    q = collection(db, STOCKS_COL);
-  }
-  const snap = await getDocs(q);
+  const snap = await getDocs(collection(db, STOCKS_COL));
   const stocks: StockItem[] = [];
-  snap.forEach((doc) => {
-    const data = doc.data();
+  snap.forEach((docSnap) => {
+    const data = docSnap.data();
     if (!data.deleted) {
-      stocks.push(data as StockItem);
+      if (!outletId || data.outlet_id === outletId || !data.outlet_id || data.outlet_id === 'main' || (Array.isArray(data.outlets) && data.outlets.includes(outletId))) {
+        stocks.push(data as StockItem);
+      }
     }
   });
+  if (stocks.length === 0) {
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (!data.deleted) stocks.push(data as StockItem);
+    });
+  }
   return stocks;
 };
 

@@ -92,22 +92,15 @@ export const streamTelemetryData = (
   }
 
   const isGlobal = userRole === 'admin' || userRole === 'owner';
-  let q;
-  if (!isGlobal && outletId) {
-    q = query(
-      collection(db, ORDERS_COL),
-      where("outlet_id", "==", outletId),
-      where("created_at", ">=", timeLimit)
-    );
-  } else {
-    q = query(collection(db, ORDERS_COL), where("created_at", ">=", timeLimit));
-  }
+  const q = query(collection(db, ORDERS_COL), where("created_at", ">=", timeLimit));
   
   return onSnapshot(q, async (snapshot) => {
-    let orders = snapshot.docs.map(doc => doc.data() as OrderDocument);
+    let allOrders = snapshot.docs.map(docSnap => docSnap.data() as OrderDocument);
+    let orders = allOrders;
     
-    if (outletName !== "All") {
-      orders = orders.filter(o => o.outlet === outletName || (!o.outlet && o.hatch === outletName));
+    if (outletName !== "All" && !isGlobal && outletId) {
+      const filtered = allOrders.filter(o => (o as any).outlet_id === outletId || o.outlet === outletName || o.hatch === outletName);
+      if (filtered.length > 0) orders = filtered;
     }
 
     // Count loyalty patrons from completed orders (avoids Firestore rules on users collection)

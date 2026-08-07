@@ -67,13 +67,50 @@ export const demoDataset = {
       order_type: 'pickup',
       hatch: 'MAIN',
       status: 'ready',
-      created_at: 1723020300000,
+      created_at: Date.now() - 600000,
       outlet_id: 'main',
       total_amount: 350,
       total_paise: 35000,
       items: [
         { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, price: 250, station: 'FASTFOOD & BIRYANI', status: 'ready' },
         { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, price: 100, station: 'FRYER', status: 'ready' }
+      ],
+      ...commonDemoFields
+    },
+    {
+      id: 'ord-003',
+      order_id: 'ord-003',
+      token_number: '101',
+      order_type: 'dine-in',
+      hatch: 'geetanjali collage of engineering',
+      status: 'preparing',
+      created_at: Date.now() - 300000,
+      outlet_id: 'geetanjali collage of engineering',
+      outlet: 'geetanjali collage of engineering',
+      total_amount: 420,
+      total_paise: 42000,
+      gross_amount: 420,
+      items: [
+        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, unit_price: 250, price: 250, station: 'FASTFOOD & BIRYANI', status: 'preparing' },
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
+      ],
+      ...commonDemoFields
+    },
+    {
+      id: 'ord-004',
+      order_id: 'ord-004',
+      token_number: '102',
+      order_type: 'pickup',
+      hatch: 'geetanjali collage of engineering',
+      status: 'ready',
+      created_at: Date.now() - 900000,
+      outlet_id: 'geetanjali collage of engineering',
+      outlet: 'geetanjali collage of engineering',
+      total_amount: 180,
+      total_paise: 18000,
+      gross_amount: 180,
+      items: [
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
       ],
       ...commonDemoFields
     }
@@ -153,20 +190,44 @@ export const demoDataset = {
   inventory: [
     {
       id: 'inv-1',
+      stock_id: 'inv-1',
       item_name: 'Burger Buns',
       quantity: 100,
       unit: 'pcs',
       reorder_level: 20,
       critical_level: 10,
+      cost_price: 5,
+      cost_price_paise: 500,
+      outlet_id: 'geetanjali collage of engineering',
+      outlets: ['geetanjali collage of engineering', 'main'],
       ...commonDemoFields
     },
     {
       id: 'inv-2',
+      stock_id: 'inv-2',
       item_name: 'Potatoes',
       quantity: 50,
       unit: 'kg',
       reorder_level: 10,
       critical_level: 5,
+      cost_price: 30,
+      cost_price_paise: 3000,
+      outlet_id: 'geetanjali collage of engineering',
+      outlets: ['geetanjali collage of engineering', 'main'],
+      ...commonDemoFields
+    },
+    {
+      id: 'inv-3',
+      stock_id: 'inv-3',
+      item_name: 'Saffron Biryani Rice',
+      quantity: 80,
+      unit: 'kg',
+      reorder_level: 15,
+      critical_level: 8,
+      cost_price: 120,
+      cost_price_paise: 12000,
+      outlet_id: 'main',
+      outlets: ['main', 'geetanjali collage of engineering'],
       ...commonDemoFields
     }
   ],
@@ -389,6 +450,88 @@ export const demoDataset = {
       ...commonDemoFields
     }
   ],
+  daily_closings: [
+    {
+      id: 'dc-001',
+      closing_id: 'dc-001',
+      business_date: '2026-08-07',
+      outlet_id: 'geetanjali collage of engineering',
+      status: 'draft',
+      sales_summary: {
+        total_gross_sales: 12450,
+        gross_sales_paise: 1245000,
+        net_sales: 11800,
+        net_sales_paise: 1180000,
+        order_count: 32,
+        average_order_value: 389,
+        cash_sales: 4200,
+        upi_sales: 7600,
+        card_sales: 650,
+        wallet_sales: 0,
+        unpaid_amount: 0
+      },
+      cash_reconciliation: {
+        opening_cash: 500,
+        expected_cash: 4700,
+        counted_cash: 4700,
+        cash_difference: 0
+      },
+      payment_reconciliation: {
+        expected_upi: 7600,
+        verified_upi: 7600,
+        upi_difference: 0
+      },
+      refund_summary: {
+        refund_requests_count: 1,
+        approved_refunds_count: 1,
+        paid_refunds_count: 1,
+        pending_refund_payments: 0,
+        refund_amount_paid_today: 300
+      },
+      created_at: '2026-08-07T08:00:00Z',
+      ...commonDemoFields
+    },
+    {
+      id: 'dc-002',
+      closing_id: 'dc-002',
+      business_date: '2026-08-07',
+      outlet_id: 'main',
+      status: 'draft',
+      sales_summary: {
+        total_gross_sales: 18900,
+        gross_sales_paise: 1890000,
+        net_sales: 17500,
+        net_sales_paise: 1750000,
+        order_count: 48,
+        average_order_value: 393,
+        cash_sales: 5500,
+        upi_sales: 12000,
+        card_sales: 1400,
+        wallet_sales: 0,
+        unpaid_amount: 0
+      },
+      cash_reconciliation: {
+        opening_cash: 1000,
+        expected_cash: 6500,
+        counted_cash: 6500,
+        cash_difference: 0
+      },
+      payment_reconciliation: {
+        expected_upi: 12000,
+        verified_upi: 12000,
+        upi_difference: 0
+      },
+      refund_summary: {
+        refund_requests_count: 0,
+        approved_refunds_count: 0,
+        paid_refunds_count: 0,
+        pending_refund_payments: 0,
+        refund_amount_paid_today: 0
+      },
+      created_at: '2026-08-07T08:00:00Z',
+      ...commonDemoFields
+    }
+  ],
   outlets: [
     {
       id: 'main',
@@ -399,6 +542,39 @@ export const demoDataset = {
       longitude: 75.587,
       status: 'active',
       hatches: ['MAIN', 'OASIS', 'SMOKING'],
+      ...commonDemoFields
+    },
+    {
+      id: 'geetanjali collage of engineering',
+      outlet_id: 'geetanjali collage of engineering',
+      name: 'geetanjali collage of engineering',
+      address: 'Cheeryal, Keesara mandal, Medchal-Malkajgiri',
+      latitude: 17.4482,
+      longitude: 78.3489,
+      status: 'active',
+      hatches: ['MAIN', 'EXPRESS'],
+      ...commonDemoFields
+    },
+    {
+      id: 'sports_complex',
+      outlet_id: 'sports_complex',
+      name: 'Sports Complex Cafe',
+      address: 'Box Cricket Arena, Ground Level',
+      latitude: 17.443,
+      longitude: 78.353,
+      status: 'active',
+      hatches: ['CRICKET'],
+      ...commonDemoFields
+    },
+    {
+      id: 'library_canopy',
+      outlet_id: 'library_canopy',
+      name: 'Library Canopy Express',
+      address: 'Central Library Walkway, 1st Floor',
+      latitude: 17.4468,
+      longitude: 78.3512,
+      status: 'active',
+      hatches: ['LIBRARY'],
       ...commonDemoFields
     }
   ]

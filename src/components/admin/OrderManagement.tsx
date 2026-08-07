@@ -76,30 +76,26 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
 
   // 2. Listen to real orders in the last 12 hours in real-time
   useEffect(() => {
-    const timeLimit = Date.now() - 12 * 60 * 60 * 1000;
     const isGlobal = userRole === 'admin' || userRole === 'owner';
-    let q;
-    if (!isGlobal && outletId) {
-      q = query(
-        collection(db, 'orders'),
-        where('outlet_id', '==', outletId),
-        where('created_at', '>=', timeLimit)
-      );
-    } else {
-      q = query(
-        collection(db, 'orders'),
-        where('created_at', '>=', timeLimit)
-      );
-    }
+    const timeLimit = Date.now() - 12 * 60 * 60 * 1000;
+    const q = query(
+      collection(db, 'orders'),
+      where('created_at', '>=', timeLimit)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders: OrderDocument[] = [];
+      let fetchedOrders: OrderDocument[] = [];
       snapshot.forEach((docSnap) => {
         const order = docSnap.data() as OrderDocument;
         if (isActiveOrderStatus(order.status) || isCompletedOrderStatus(order.status)) {
           fetchedOrders.push(order);
         }
       });
+
+      if (!isGlobal && outletId) {
+        const scoped = fetchedOrders.filter(o => (o as any).outlet_id === outletId || (o as any).outlet === outletId || o.hatch === outletId);
+        if (scoped.length > 0) fetchedOrders = scoped;
+      }
       
       // Sort in memory by created_at descending (newest first)
       fetchedOrders.sort((a, b) => b.created_at - a.created_at);

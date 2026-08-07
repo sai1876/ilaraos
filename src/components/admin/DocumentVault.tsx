@@ -177,23 +177,27 @@ export default function DocumentVault({ userRole }: { userRole: string }) {
     return d.category === activeTab;
   });
 
+  const isDark = userRole !== 'manager';
+
   return (
-    <div className="flex flex-col h-full bg-[#1e140d] text-[#e0cfb8] p-6 font-mono overflow-y-auto">
-      <div className="mb-6 flex justify-between items-end border-b border-[#d4c4b0]/20 pb-4">
+    <div className={`flex flex-col h-full p-6 font-mono overflow-y-auto rounded-3xl ${isDark ? 'bg-[#1e140d] text-[#e0cfb8]' : 'bg-[#f5f4ec] text-[#241A15] border border-[#d8c3ad]/70 shadow-sm'}`}>
+      <div className={`mb-6 flex justify-between items-end border-b pb-4 ${isDark ? 'border-[#d4c4b0]/20' : 'border-[#d8c3ad]'}`}>
         <div>
-          <h2 className="text-2xl font-bold tracking-tighter uppercase text-[#f59e0b]">Document Vault</h2>
-          <p className="text-xs text-[#d4c4b0]/60 mt-1">Secure centralized storage for all organizational files.</p>
+          <h2 className={`text-3xl font-serif font-black italic tracking-wide uppercase ${isDark ? 'text-[#f59e0b]' : 'text-[#855300]'}`}>Document Vault</h2>
+          <p className={`text-xs mt-1 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#66554A]/70'}`}>Secure centralized storage for all organizational files.</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-[#d4c4b0]/10 pb-2 overflow-x-auto no-scrollbar">
+      <div className={`flex gap-2 mb-6 border-b pb-2 overflow-x-auto no-scrollbar ${isDark ? 'border-[#d4c4b0]/10' : 'border-[#d8c3ad]/50'}`}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-1.5 text-xs font-bold tracking-widest uppercase transition-colors whitespace-nowrap
-              ${activeTab === tab.id ? 'bg-[#f59e0b] text-[#1e140d]' : 'bg-[#1e140d] text-[#d4c4b0]/60 hover:bg-[#d4c4b0]/10 hover:text-[#f59e0b]'}`}
+            className={`px-4 py-1.5 text-xs font-bold tracking-widest uppercase transition-colors whitespace-nowrap rounded-lg cursor-pointer
+              ${activeTab === tab.id 
+                ? (isDark ? 'bg-[#f59e0b] text-[#1e140d]' : 'bg-[#855300] text-white shadow-sm') 
+                : (isDark ? 'bg-[#1e140d] text-[#d4c4b0]/60 hover:bg-[#d4c4b0]/10 hover:text-[#f59e0b]' : 'bg-white text-[#534434] hover:bg-[#eae8e0] border border-[#d8c3ad]/50')}`}
           >
             {tab.label}
           </button>
@@ -205,10 +209,10 @@ export default function DocumentVault({ userRole }: { userRole: string }) {
           <RefreshCw className="w-6 h-6 animate-spin text-[#f59e0b]" />
         </div>
       ) : (
-        <div className="bg-[#150e09] border border-[#d4c4b0]/20 p-1">
+        <div className={`p-1 rounded-2xl border ${isDark ? 'bg-[#150e09] border-[#d4c4b0]/20' : 'bg-white border-[#d8c3ad]/60 shadow-sm'}`}>
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[#1e140d] border-b border-[#d4c4b0]/20 text-[#d4c4b0]/80">
+              <tr className={`border-b ${isDark ? 'bg-[#1e140d] border-[#d4c4b0]/20 text-[#d4c4b0]/80' : 'bg-[#f5f4ec] border-[#d8c3ad] text-[#855300] font-bold'}`}>
                 <th className="p-3 font-semibold tracking-wider">File Name</th>
                 <th className="p-3 font-semibold tracking-wider">Entity</th>
                 <th className="p-3 font-semibold tracking-wider">Type & Size</th>
@@ -221,24 +225,24 @@ export default function DocumentVault({ userRole }: { userRole: string }) {
             <tbody>
               {filteredDocs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-[#d4c4b0]/40">
+                  <td colSpan={7} className={`p-6 text-center ${isDark ? 'text-[#d4c4b0]/40' : 'text-[#534434]/60'}`}>
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     No documents found for this category.
                   </td>
                 </tr>
               ) : (
                 filteredDocs.map(doc => (
-                  <tr key={doc.document_id} className="border-b border-[#d4c4b0]/10 hover:bg-[#1e140d]/50 transition-colors">
-                    <td className="p-3 font-medium text-[#d4c4b0] max-w-[200px] truncate" title={doc.original_filename}>
+                  <tr key={doc.document_id} className={`border-b transition-colors ${isDark ? 'border-[#d4c4b0]/10 hover:bg-[#1e140d]/50' : 'border-[#d8c3ad]/30 hover:bg-[#fbf9f1]'}`}>
+                    <td className={`p-3 font-medium max-w-[200px] truncate ${isDark ? 'text-[#d4c4b0]' : 'text-[#241A15]'}`} title={doc.original_filename}>
                       {doc.original_filename}
                     </td>
-                    <td className="p-3 text-[#d4c4b0]/60">
-                      <span className="block text-[10px] uppercase">{doc.related_entity_type}</span>
+                    <td className={`p-3 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#534434]/80'}`}>
+                      <span className="block text-[10px] uppercase font-bold">{doc.related_entity_type}</span>
                       <span className="truncate max-w-[120px] inline-block" title={doc.related_entity_id}>{doc.related_entity_id}</span>
                     </td>
-                    <td className="p-3 text-[#d4c4b0]/60">
+                    <td className={`p-3 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#534434]/80'}`}>
                       <span className="block">{doc.mime_type.split('/')[1] || doc.mime_type}</span>
-                      <span className="text-[10px] text-[#f59e0b]">{formatSize(doc.size_bytes)}</span>
+                      <span className="text-[10px] font-bold text-[#855300]">{formatSize(doc.size_bytes)}</span>
                     </td>
                     <td className="p-3">
                       <span className={`inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-sm mr-2

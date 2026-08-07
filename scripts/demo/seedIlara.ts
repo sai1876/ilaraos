@@ -59,6 +59,7 @@ async function seed() {
     'wastage_events',
     'approvals',
     'refund_requests',
+    'daily_closings',
     'bi_daily_snapshots',
     'bi_revenue_daily',
     'gst_snapshots',
