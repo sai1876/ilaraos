@@ -161,8 +161,15 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
   const markCompleted = async (orderId: string) => {
     const method = paymentMethods[orderId] || 'cash';
     try {
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) throw new Error("Authentication required");
+      let user = auth.currentUser;
+      if (!user) {
+        await new Promise<void>((resolve) => {
+          const unsub = auth.onAuthStateChanged(() => { unsub(); resolve(); });
+        });
+        user = auth.currentUser;
+      }
+      if (!user) throw new Error("Authentication required");
+      const idToken = await user.getIdToken();
 
       const res = await fetch('/api/orders/update-status', {
         method: 'POST',

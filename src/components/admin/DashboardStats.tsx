@@ -75,7 +75,16 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
   }, [outletId, userRole]);
 
   const getToken = async () => {
-    const user = auth.currentUser;
+    let user = auth.currentUser;
+    if (!user) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = auth.onAuthStateChanged(() => {
+          unsubscribe();
+          resolve();
+        });
+      });
+      user = auth.currentUser;
+    }
     if (!user) throw new Error('Not authenticated');
     return user.getIdToken();
   };
