@@ -2,6 +2,7 @@ import { ORDERS_COL, MENU_COL, CASH_SESSIONS_COL, EXPENSES_COL } from '@/lib/fir
 import { collection, doc, getDoc, updateDoc, query, where, orderBy, onSnapshot, getDocs, addDoc, limit } from 'firebase/firestore';
 import { OrderDocument, MenuItem } from '@/lib/types';
 import { fetchOutlets } from '@/features/outlets/outletService';
+import { isActiveOrderStatus } from '@/lib/orderUtils';
 
 import { db } from "@/lib/firebase";
 
@@ -202,12 +203,12 @@ export const streamTelemetryData = (
         ordersCompleted++;
       }
 
+      if (isActiveOrderStatus(order.status)) {
+        activeQueueLoad++;
+      }
+
       if (isCreatedToday || isCompletedToday) {
         todaysRevenue += rev;
-        
-        if (isCreatedToday && ['pending', 'accepted', 'preparing', 'ready'].includes(order.status)) {
-          activeQueueLoad++;
-        }
       }
 
       order.items?.forEach(item => {
