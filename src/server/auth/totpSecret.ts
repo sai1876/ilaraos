@@ -4,8 +4,24 @@ import {
   fieldAad,
   getFieldEncryptionKey,
   getConfiguredFieldEncryptionKey,
+  FieldEncryptionConfigurationError,
+  FieldDecryptionError,
   type EncryptedFieldEnvelope,
 } from '@/server/crypto/fieldEncryption';
+
+export class TotpConfigurationError extends Error {
+  constructor(message: string = 'Two-factor authentication is temporarily unavailable.') {
+    super(message);
+    this.name = 'TotpConfigurationError';
+  }
+}
+
+export class TotpResetRequiredError extends Error {
+  constructor(message: string = 'Two-factor authentication must be re-enrolled.') {
+    super(message);
+    this.name = 'TotpResetRequiredError';
+  }
+}
 
 type SecretDocument = {
   secret?: unknown;
@@ -23,23 +39,45 @@ function isEncryptedEnvelope(value: unknown): value is EncryptedFieldEnvelope {
 }
 
 export function encryptTotpSecret(uid: string, secret: string): EncryptedFieldEnvelope {
-  return encryptField(
-    secret,
-    getConfiguredFieldEncryptionKey(),
-    fieldAad('admin_secrets', uid, 'secret'),
-  );
+  try {
+    return encryptField(
+      secret,
+      getConfiguredFieldEncryptionKey(),
+      fieldAad('admin_secrets', uid, 'secret'),
+    );
+  } catch (error) {
+    if (error instanceof FieldEncryptionConfigurationError) {
+      throw new TotpConfigurationError(error.message);
+    }
+    throw error;
+  }
 }
 
 export function readTotpSecret(uid: string, data: SecretDocument | undefined): string | null {
   if (!data) return null;
   if (isEncryptedEnvelope(data.secret_encrypted)) {
-    return decryptField<string>(
-      data.secret_encrypted,
-      getFieldEncryptionKey(data.secret_encrypted.key_version),
-      fieldAad('admin_secrets', uid, 'secret'),
-    );
+    try {
+      const key = getFieldEncryptionKey(data.secret_encrypted.key_version);
+      return decryptField<string>(
+        data.secret_encrypted,
+        key,
+        fieldAad('admin_secrets', uid, 'secret'),
+      );
+    } catch (error) {
+      if (error instanceof FieldEncryptionConfigurationError) {
+        throw new TotpConfigurationError(error.message);
+      }
+      if (error instanceof FieldDecryptionError) {
+        throw new TotpResetRequiredError(error.message);
+      }
+      throw new TotpResetRequiredError(error instanceof Error ? error.message : 'TOTP secret decryption failed');
+    }
   }
 
-  // Temporary compatibility for records not yet processed by the migration.
-  return typeof data.secret === 'string' && data.secret ? data.secret : null;
+  // Temporary compatibility for legacy unencrypted records
+  if (typeof data.secret === 'string' && data.secret) {
+    return data.secret;
+  }
+
+  return null;
 }

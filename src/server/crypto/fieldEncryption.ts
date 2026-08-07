@@ -32,15 +32,29 @@ export interface PasscodeHashEnvelope {
   parallelization: number;
 }
 
+export class FieldEncryptionConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FieldEncryptionConfigurationError';
+  }
+}
+
+export class FieldDecryptionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FieldDecryptionError';
+  }
+}
+
 export function decodeFieldEncryptionKey(encodedKey: string): Buffer {
   const normalized = encodedKey.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
   if (!normalized || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
-    throw new Error('STAFF_PRIVATE_ENCRYPTION_KEY must be a base64-encoded 32-byte key');
+    throw new FieldEncryptionConfigurationError('STAFF_PRIVATE_ENCRYPTION_KEY must be a base64-encoded 32-byte key');
   }
 
   const key = Buffer.from(normalized, 'base64');
   if (key.length !== KEY_BYTES) {
-    throw new Error('STAFF_PRIVATE_ENCRYPTION_KEY must decode to exactly 32 bytes');
+    throw new FieldEncryptionConfigurationError('STAFF_PRIVATE_ENCRYPTION_KEY must decode to exactly 32 bytes');
   }
   return key;
 }
@@ -60,10 +74,10 @@ export function getFieldEncryptionKey(keyVersion: string): Buffer {
     try {
       keyring = JSON.parse(encodedKeyring);
     } catch {
-      throw new Error('STAFF_PRIVATE_ENCRYPTION_KEYS must be valid JSON');
+      throw new FieldEncryptionConfigurationError('STAFF_PRIVATE_ENCRYPTION_KEYS must be valid JSON');
     }
     if (typeof keyring !== 'object' || keyring === null || Array.isArray(keyring)) {
-      throw new Error('STAFF_PRIVATE_ENCRYPTION_KEYS must be a version-to-key object');
+      throw new FieldEncryptionConfigurationError('STAFF_PRIVATE_ENCRYPTION_KEYS must be a version-to-key object');
     }
     const encoded = (keyring as Record<string, unknown>)[keyVersion];
     if (typeof encoded === 'string') return decodeFieldEncryptionKey(encoded);
@@ -71,13 +85,13 @@ export function getFieldEncryptionKey(keyVersion: string): Buffer {
   if (keyVersion === fieldEncryptionKeyVersion() && process.env.STAFF_PRIVATE_ENCRYPTION_KEY) {
     return decodeFieldEncryptionKey(process.env.STAFF_PRIVATE_ENCRYPTION_KEY);
   }
-  throw new Error(`Sensitive-field encryption key ${keyVersion} is not configured`);
+  throw new FieldEncryptionConfigurationError(`Sensitive-field encryption key ${keyVersion} is not configured`);
 }
 
 export function getConfiguredPasscodePepper(): string {
   const pepper = process.env.STAFF_PASSCODE_PEPPER;
   if (!pepper || Buffer.byteLength(pepper, 'utf8') < 32) {
-    throw new Error('STAFF_PASSCODE_PEPPER must contain at least 32 bytes');
+    throw new FieldEncryptionConfigurationError('STAFF_PASSCODE_PEPPER must contain at least 32 bytes');
   }
   return pepper;
 }
@@ -92,8 +106,8 @@ export function encryptField(
   aad: string,
   keyVersion = fieldEncryptionKeyVersion(),
 ): EncryptedFieldEnvelope {
-  if (key.length !== KEY_BYTES) throw new Error('Encryption key must be 32 bytes');
-  if (!aad) throw new Error('Encryption context is required');
+  if (key.length !== KEY_BYTES) throw new FieldEncryptionConfigurationError('Encryption key must be 32 bytes');
+  if (!aad) throw new FieldEncryptionConfigurationError('Encryption context is required');
 
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv(CIPHER, key, iv);
@@ -115,18 +129,23 @@ export function decryptField<T>(
   key: Buffer,
   aad: string,
 ): T {
-  if (envelope.scheme !== CIPHER) throw new Error('Unsupported encrypted-field scheme');
-  if (key.length !== KEY_BYTES) throw new Error('Encryption key must be 32 bytes');
-  if (!aad) throw new Error('Encryption context is required');
+  if (envelope.scheme !== CIPHER) throw new FieldDecryptionError('Unsupported encrypted-field scheme');
+  if (key.length !== KEY_BYTES) throw new FieldEncryptionConfigurationError('Encryption key must be 32 bytes');
+  if (!aad) throw new FieldEncryptionConfigurationError('Encryption context is required');
 
-  const decipher = createDecipheriv(CIPHER, key, Buffer.from(envelope.iv, 'base64'));
-  decipher.setAAD(Buffer.from(aad, 'utf8'));
-  decipher.setAuthTag(Buffer.from(envelope.tag, 'base64'));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
-    decipher.final(),
-  ]);
-  return JSON.parse(plaintext.toString('utf8')) as T;
+  try {
+    const decipher = createDecipheriv(CIPHER, key, Buffer.from(envelope.iv, 'base64'));
+    decipher.setAAD(Buffer.from(aad, 'utf8'));
+    decipher.setAuthTag(Buffer.from(envelope.tag, 'base64'));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
+      decipher.final(),
+    ]);
+    return JSON.parse(plaintext.toString('utf8')) as T;
+  } catch (error: any) {
+    if (error instanceof FieldEncryptionConfigurationError) throw error;
+    throw new FieldDecryptionError(error?.message || 'Failed to decrypt sensitive field');
+  }
 }
 
 export function hashPasscode(

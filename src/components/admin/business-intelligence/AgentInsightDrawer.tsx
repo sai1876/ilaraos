@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
+import { auth } from '@/lib/firebase';
 import SeverityBadge from './SeverityBadge';
 import { AgentInsightData } from './AgentInsightCard';
 
@@ -74,10 +75,12 @@ export default function AgentInsightDrawer({
       const authHeaders: Record<string, string> = {
         'Content-Type': 'application/json'
       };
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('ilara_id_token') || sessionStorage.getItem('ilara_id_token');
-        if (token) {
+      if (typeof window !== 'undefined' && auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
           authHeaders['Authorization'] = `Bearer ${token}`;
+        } catch (e) {
+          console.warn('Failed to get token in drawer:', e);
         }
       }
 

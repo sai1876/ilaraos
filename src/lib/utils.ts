@@ -10,8 +10,14 @@ export const getFriendlyErrorMessage = (error: any): string => {
   const str = String(msg).toLowerCase();
 
   // Firebase Auth Errors
-  if (str.includes('auth/invalid-credential') || str.includes('auth/wrong-password')) return 'Invalid credentials. Please check your details and try again.';
-  if (str.includes('auth/user-not-found')) return 'No account found with this email.';
+  if (
+    str.includes('auth/invalid-credential') ||
+    str.includes('auth/wrong-password') ||
+    str.includes('auth/user-not-found') ||
+    str.includes('auth/invalid-email')
+  ) {
+    return 'Email or password is incorrect.';
+  }
   if (str.includes('auth/id-token-expired') || str.includes('token has expired')) return 'Your security session has expired. Please refresh the page and log in again.';
   if (str.includes('auth/network-request-failed')) return 'Network connection lost. Please check your internet and try again.';
   if (str.includes('auth/too-many-requests')) return 'Too many attempts. Please try again later.';

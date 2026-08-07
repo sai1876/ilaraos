@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import {
   isRoleAllowed,
@@ -9,9 +10,9 @@ import {
 export type AuthContext = ActorContext;
 
 /**
- * Validates the Authorization header, verifies the Firebase ID token,
- * resolves current server-side authority and ensures the actor has one of
- * the allowed roles. Token role claims are never authoritative.
+ * Validates the Authorization header or session cookie, verifies the Firebase ID token
+ * or session cookie, resolves current server-side authority and ensures the actor has
+ * one of the allowed roles. Token role claims are never authoritative.
  * 
  * Returns the AuthContext if successful, or a NextResponse error if unauthorized.
  */
@@ -20,17 +21,31 @@ export async function requireRole(req: Request, allowedRoles: string[]): Promise
     return NextResponse.json({ detail: 'Firebase Admin not configured' }, { status: 500 });
   }
 
+  let decodedToken: any = null;
+
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      decodedToken = await adminAuth.verifyIdToken(idToken, true);
+    } catch {
+      // Ignore bearer error and try session cookie fallback
+    }
   }
 
-  const idToken = authHeader.split('Bearer ')[1];
-  let decodedToken;
-  try {
-    decodedToken = await adminAuth.verifyIdToken(idToken, true);
-  } catch {
-    return NextResponse.json({ detail: 'Invalid Firebase ID token' }, { status: 401 });
+  if (!decodedToken) {
+    const sessionCookie = cookies().get('__session')?.value || cookies().get('session')?.value;
+    if (sessionCookie) {
+      try {
+        decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+      } catch {
+        // invalid session
+      }
+    }
+  }
+
+  if (!decodedToken) {
+    return NextResponse.json({ detail: 'Unauthorized: Authentication required' }, { status: 401 });
   }
 
   let resolution;

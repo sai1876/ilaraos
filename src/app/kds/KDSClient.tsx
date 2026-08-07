@@ -10,7 +10,14 @@ import { OrderDocument, OrderItem } from '@/lib/types';
 import StaffCopilot from '@/components/admin/StaffCopilot';
 import KDSProfileModal from '@/components/kds/KDSProfileModal';
 import { User } from 'lucide-react';
+import { canAccessKdsStation } from '@/lib/auth/roles';
 import { useStore } from '@/store/useStore';
+
+function getNextKdsStatus(status: string): string | null {
+  if (status === 'ordered') return 'preparing';
+  if (status === 'preparing') return 'ready';
+  return null;
+}
 
 interface KDSClientProps {
   role: string;
@@ -59,15 +66,7 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
 
   // 2. Map KDS Roles to MenuItem Station fields
   const isAllowedItem = (item: OrderItem) => {
-    if (role === 'manager' || role === 'owner') return true;
-    const stationUpper = (item.station || '').toUpperCase();
-    
-    if (role === 'deep_fryer') return stationUpper === 'FRYER';
-    if (role === 'grill_fryer') return stationUpper === 'GRILLED OR STEAMED';
-    if (role === 'biryani_master') return stationUpper === 'FASTFOOD & BIRYANI';
-    if (role === 'brewer') return stationUpper === 'BREWER';
-    
-    return false;
+    return canAccessKdsStation(role, item.station);
   };
 
   // 3. Listen to real orders in the last 12 hours from Firestore in real-time
@@ -175,7 +174,11 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
       return;
     }
 
-    const nextStatus = currentStatus === 'ordered' ? 'preparing' : 'ordered';
+    const nextStatus = getNextKdsStatus(currentStatus);
+    if (!nextStatus) {
+      setPendingMutations(prev => ({ ...prev, [itemId]: false }));
+      return;
+    }
     const idToken = await auth.currentUser?.getIdToken();
     if (!idToken) {
       showToast("Authentication required. Please refresh.", "error");

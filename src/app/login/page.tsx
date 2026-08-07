@@ -69,8 +69,17 @@ function StaffLoginContent() {
     setAuthLoading(true);
     setAuthError(null);
 
+    let userCredential;
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      userCredential = await signInWithEmailAndPassword(auth, email, password);
+    } catch (err: unknown) {
+      console.error("Firebase sign in failed:", err);
+      setAuthError('Email or password is incorrect.');
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
       if (userCredential.user) {
         const idToken = await userCredential.user.getIdToken();
         
@@ -81,13 +90,22 @@ function StaffLoginContent() {
         });
         
         const resData = await res.json();
-        if (!res.ok) throw new Error(resData.error || 'Session creation failed');
+        if (!res.ok) {
+          if (resData.code === 'TOTP_RESET_REQUIRED') {
+            setAuthError('Two-factor authentication must be re-enrolled. Please contact your manager.');
+          } else if (resData.code === 'TOTP_CONFIGURATION_ERROR') {
+            setAuthError('Two-factor authentication system configuration error. Contact admin.');
+          } else {
+            setAuthError(resData.error || 'Session creation failed');
+          }
+          return;
+        }
         
         setTempIdToken(idToken);
         
         if (resData.setup_required) {
           setQrCodeDataUrl(resData.qrCodeDataUrl);
-          setTotpSecret(resData.secret);
+          setTotpSecret(resData.secret || '');
           setTotpStep('setup');
         } else if (resData.require_totp) {
           setTotpStep('verify');
@@ -112,9 +130,20 @@ function StaffLoginContent() {
         body: JSON.stringify({ idToken: tempIdToken, action: 'verify', totpCode })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Verification failed');
+      if (!res.ok) {
+        if (data.code === 'TOTP_RESET_REQUIRED') {
+          setAuthError('Two-factor authentication must be re-enrolled. Please contact your manager.');
+        } else if (data.code === 'TOTP_CONFIGURATION_ERROR') {
+          setAuthError('Two-factor authentication system configuration error. Contact admin.');
+        } else if (data.code === 'INVALID_TOTP') {
+          setAuthError('Invalid authenticator code. Please try again.');
+        } else {
+          setAuthError(data.error || 'Verification failed');
+        }
+        return;
+      }
       
-      window.location.href = data.redirectUrl || '/admin';
+      window.location.href = data.redirectUrl || '/operations';
     } catch (err: unknown) {
       setAuthError(getFriendlyErrorMessage(err));
     } finally {

@@ -8,6 +8,9 @@ import {
 import AgentInsightCard, { AgentInsightData } from './business-intelligence/AgentInsightCard';
 import AgentInsightDrawer from './business-intelligence/AgentInsightDrawer';
 
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
 const BI_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'gst', label: 'GST Intelligence' },
@@ -45,22 +48,34 @@ export default function BusinessIntelligence() {
   // CA note input state
   const [caNoteText, setCaNoteText] = useState<Record<string, string>>({});
 
-  const getAuthHeaders = (): Record<string, string> => {
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('ilara_id_token') || sessionStorage.getItem('ilara_id_token');
-      if (token) {
+    let user = auth.currentUser;
+    if (!user && typeof window !== 'undefined') {
+      user = await new Promise((resolve) => {
+        const unsub = onAuthStateChanged(auth, (u) => {
+          unsub();
+          resolve(u);
+        });
+        setTimeout(() => resolve(null), 2000);
+      });
+    }
+    if (user) {
+      try {
+        const token = await user.getIdToken();
         headers['Authorization'] = `Bearer ${token}`;
+      } catch (err) {
+        console.warn('Failed to get Firebase token:', err);
       }
     }
     return headers;
-  };
+  }, []);
 
   const fetchTabData = useCallback(async (tab: string) => {
     setLoading(true);
     setError(null);
 
-    const headers = getAuthHeaders();
+    const headers = await getAuthHeaders();
 
     try {
       if (tab === 'overview') {
@@ -105,7 +120,7 @@ export default function BusinessIntelligence() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   useEffect(() => {
     fetchTabData(activeTab);
@@ -132,7 +147,7 @@ export default function BusinessIntelligence() {
     try {
       const res = await fetch(`/api/business-intelligence/gst/reconciliations/${id}/mark-ca-review`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: await getAuthHeaders()
       });
       if (res.ok) fetchTabData('gst');
     } catch (err) {
@@ -144,7 +159,7 @@ export default function BusinessIntelligence() {
     try {
       const res = await fetch(`/api/business-intelligence/compliance/${id}/review`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: await getAuthHeaders()
       });
       if (res.ok) fetchTabData('compliance');
     } catch (err) {
@@ -158,7 +173,7 @@ export default function BusinessIntelligence() {
     try {
       const res = await fetch(`/api/business-intelligence/ca/${id}/note`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ ca_note: note })
       });
       if (res.ok) {
@@ -174,7 +189,7 @@ export default function BusinessIntelligence() {
     try {
       const res = await fetch(`/api/business-intelligence/ca/${id}/${action}`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: await getAuthHeaders()
       });
       if (res.ok) fetchTabData('ca_workspace');
     } catch (err) {
