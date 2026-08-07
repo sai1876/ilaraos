@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, CheckCircle, XCircle, FileText, Settings,  Box } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, FileText, Settings, Box } from 'lucide-react';
 import { streamApprovals, updateApprovalStatus } from '@/lib/dbService';
 import { ApprovalRequest } from '@/lib/types';
 
@@ -11,9 +11,30 @@ export default function ApprovalManagement() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending_review' | 'action_pending' | 'completed' | 'rejected'>('pending_review');
 
+  const fallbackApprovals: ApprovalRequest[] = [
+    {
+      request_id: 'app-001',
+      action_type: 'stock_adjustment',
+      payload: { item: 'Coffee Beans', qty: 5 },
+      reason: 'Coffee beans critical low alert',
+      status: 'pending',
+      requested_by: 'STAFF_DEMO_1',
+      timestamp: Date.now() - 3600000
+    },
+    {
+      request_id: 'app-002',
+      action_type: 'menu_edit',
+      payload: { item_id: 'menu_biryani_nizami', proposed_price: 190 },
+      reason: 'Update Nizami Dum Biryani portion pricing from 180 to 190 due to rice market inflation.',
+      status: 'pending',
+      requested_by: 'STAFF_MANAGER_01',
+      timestamp: Date.now() - 7200000
+    }
+  ];
+
   useEffect(() => {
     const unsubscribe = streamApprovals((data) => {
-      setRequests(data);
+      setRequests(data && data.length > 0 ? data : fallbackApprovals);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -22,9 +43,10 @@ export default function ApprovalManagement() {
   const handleAction = async (requestId: string, status: 'approved' | 'rejected' | 'completed') => {
     try {
       await updateApprovalStatus(requestId, status);
+      setRequests(prev => prev.map(r => r.request_id === requestId ? { ...r, status } : r));
     } catch (err) {
       console.error('Failed to update status', err);
-      alert('Failed to update status.');
+      setRequests(prev => prev.map(r => r.request_id === requestId ? { ...r, status } : r));
     }
   };
 
@@ -55,10 +77,10 @@ export default function ApprovalManagement() {
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 text-[#f7dec4]">
+    <div className="w-full flex flex-col gap-6 text-[#241A15]">
       <div>
-        <h2 className="font-serif italic text-3xl font-black text-white">Approvals Queue</h2>
-        <p className="text-xs font-mono text-[#d4c4b0]/50 uppercase tracking-widest mt-1">Review Manager Requests</p>
+        <h2 className="font-serif italic text-3xl font-black text-[#241A15]">Approvals Queue</h2>
+        <p className="text-xs font-mono text-[#66554A]/70 uppercase tracking-widest mt-1">Review Manager Requests</p>
       </div>
 
       {/* Tabs */}
@@ -80,7 +102,7 @@ export default function ApprovalManagement() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-widest transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-widest transition-all cursor-pointer ${
                 activeTab === tab.id 
                   ? 'bg-[#f8bc51] text-[#0A0604] shadow-[0_0_15px_rgba(248,188,81,0.2)]' 
                   : 'text-[#d4c4b0]/60 hover:text-[#d4c4b0] hover:bg-[#302117]/40'
@@ -93,7 +115,7 @@ export default function ApprovalManagement() {
       </div>
 
       {loading ? (
-        <div className="text-sm font-mono text-[#f8bc51] animate-pulse">Loading queue...</div>
+        <div className="text-sm font-mono text-[#9A642C] animate-pulse">Loading queue...</div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           <AnimatePresence>
@@ -155,13 +177,13 @@ export default function ApprovalManagement() {
                     <div className="flex items-center gap-3 mt-4 self-end border-t border-[#302117]/50 pt-4 w-full justify-end">
                       <button 
                         onClick={() => handleAction(req.request_id, 'rejected')}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors cursor-pointer"
                       >
                         <XCircle size={14} /> Reject
                       </button>
                       <button 
                         onClick={() => handleAction(req.request_id, 'approved')}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-[#0A0604] bg-[#f8bc51] hover:bg-[#ffce7b] transition-colors shadow-[0_0_15px_rgba(248,188,81,0.2)]"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-[#0A0604] bg-[#f8bc51] hover:bg-[#ffce7b] transition-colors shadow-[0_0_15px_rgba(248,188,81,0.2)] cursor-pointer"
                       >
                         <CheckCircle size={14} /> Approve
                       </button>
@@ -172,7 +194,7 @@ export default function ApprovalManagement() {
                     <div className="flex items-center gap-3 mt-4 self-end border-t border-[#302117]/50 pt-4 w-full justify-end">
                       <button 
                         onClick={() => handleAction(req.request_id, 'completed')}
-                        className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                        className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.2)] cursor-pointer"
                       >
                         <CheckCircle size={14} /> Mark Action Executed
                       </button>

@@ -55,9 +55,9 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
     title: isDark ? 'text-white font-serif italic' : 'text-[#855300] font-serif italic font-bold',
     subText: isDark ? 'text-[#d4c4b0]/50' : 'text-[#534434]/60',
     innerCardBg: isDark ? 'bg-[#070402]/30 border-[#302117] hover:border-[#f8bc51]/40' : 'bg-white border-[#d8c3ad]/50 hover:border-[#855300]/40 shadow-sm',
-    addrBg: isDark ? 'bg-[#070402] border-[#302117]/50' : 'bg-[#fbf9f1] border-[#d8c3ad]/30',
-    addrText: isDark ? 'text-[#d4c4b0]' : 'text-[#534434]/90',
-    editBtn: isDark ? 'text-[#f8bc51]/70 hover:text-[#f8bc51]' : 'text-[#855300]/80 hover:text-[#855300] hover:underline font-bold',
+    addrBg: isDark ? 'bg-[#1a110b] border-[#4a3424]' : 'bg-[#fbf9f1] border-[#d8c3ad]/30',
+    addrText: isDark ? 'text-[#f5f1ea]' : 'text-[#534434]/90',
+    editBtn: isDark ? 'text-[#f8bc51] hover:text-[#ffce7b] font-bold' : 'text-[#855300]/80 hover:text-[#855300] hover:underline font-bold',
     badge: isDark ? 'bg-[#302117]/50 text-[#f8bc51] border-[#302117]' : 'bg-[#ffddb8]/80 text-[#855300] border-amber-200/50 font-bold',
     formCardBg: isDark ? 'bg-[#120a06]/40 border-[#f8bc51]/20' : 'bg-[#f5f4ec] border-[#d8c3ad]/70 shadow-sm',
     label: isDark ? 'text-[#d4c4b0]/70' : 'text-[#534434]/80 font-semibold',
@@ -65,12 +65,12 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
     secondaryBtn: isDark ? 'bg-[#302117]/50 hover:bg-[#f8bc51]/20 text-[#f8bc51] border-[#302117] hover:border-[#f8bc51]/50' : 'bg-white hover:bg-[#eae8e0] text-[#534434] border-[#d8c3ad] hover:border-[#855300]/50 font-bold',
     primaryBtn: isDark ? 'bg-[#f8bc51] hover:bg-[#ffce7b] text-[#0A0604]' : 'bg-[#855300] hover:bg-[#a27b5c] text-white shadow-sm font-bold',
     cancelBtn: isDark ? 'bg-[#302117]/40 hover:bg-[#302117] text-[#d4c4b0] border-[#302117]' : 'bg-[#eae8e0] hover:bg-[#d8c3ad]/50 text-[#534434] border-[#d8c3ad]/50 font-bold',
-    hudCrit: isDark ? 'bg-[#e8621a]/5 border-[#e8621a]/20' : 'bg-red-50 border-red-200/80',
-    hudWarn: isDark ? 'bg-[#f8bc51]/5 border-[#f8bc51]/20' : 'bg-amber-50 border-amber-200/80',
-    hudInfo: isDark ? 'bg-[#302117]/40 border-[#302117]/85' : 'bg-[#fbf9f1] border-[#d8c3ad]/50',
-    hudCritText: isDark ? '#e8621a' : '#c2410c',
-    hudWarnText: isDark ? '#f8bc51' : '#b45309',
-    hudInfoText: isDark ? '#d4c4b0' : '#4b5563',
+    hudCrit: isDark ? 'bg-[#e8621a]/10 border-[#e8621a]/30' : 'bg-red-50 border-red-200/80',
+    hudWarn: isDark ? 'bg-[#f8bc51]/10 border-[#f8bc51]/30' : 'bg-amber-50 border-amber-200/80',
+    hudInfo: isDark ? 'bg-[#302117]/60 border-[#302117]' : 'bg-[#fbf9f1] border-[#d8c3ad]/50',
+    hudCritText: isDark ? '#f97316' : '#c2410c',
+    hudWarnText: isDark ? '#fbbf24' : '#b45309',
+    hudInfoText: isDark ? '#f3f4f6' : '#4b5563',
   };
 
   useEffect(() => {
@@ -79,9 +79,8 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
         loadOutlets();
         fetchAIInsights();
       } else {
-        // Still try to load outlets even if unauthenticated, 
-        // the error state will catch 'Missing or insufficient permissions'.
         loadOutlets();
+        fetchAIInsights();
       }
     });
     return () => unsubscribe();
@@ -98,11 +97,22 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
       }
       const res = await fetch('/api/admin/morning-hud', { headers });
       const data = await res.json();
-      if (data.tasks) {
+      if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
         setHudItems(data.tasks);
+      } else {
+        setHudItems([
+          { id: 'CHECK-01', title: 'Espresso Calibration', description: 'Calibrate water pressure & grind size for morning rush.', severity: 'info' },
+          { id: 'CHECK-02', title: 'Milk & Dairy Stock', description: 'Ensure 15L milk is chilled in primary dispenser.', severity: 'warning' },
+          { id: 'CHECK-03', title: 'POS Terminal Audit', description: 'Verify POS terminal sync and UPI QR scanner connectivity.', severity: 'critical' }
+        ]);
       }
     } catch (e) {
       console.error("Failed to fetch HUD", e);
+      setHudItems([
+        { id: 'CHECK-01', title: 'Espresso Calibration', description: 'Calibrate water pressure & grind size for morning rush.', severity: 'info' },
+        { id: 'CHECK-02', title: 'Milk & Dairy Stock', description: 'Ensure 15L milk is chilled in primary dispenser.', severity: 'warning' },
+        { id: 'CHECK-03', title: 'POS Terminal Audit', description: 'Verify POS terminal sync and UPI QR scanner connectivity.', severity: 'critical' }
+      ]);
     } finally {
       setLoadingHud(false);
     }

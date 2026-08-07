@@ -67,11 +67,6 @@ const nextConfig = {
         destination: '/operations',
         permanent: true,
       },
-      {
-        source: '/manager',
-        destination: '/operations',
-        permanent: true,
-      },
     ];
   },
   async rewrites() {
