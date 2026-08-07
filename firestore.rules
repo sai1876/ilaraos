@@ -21,7 +21,7 @@ service cloud.firestore {
     function isCurrentStaff() {
       return hasStaffAccess()
         && (staffAccess().status == 'active' || staffAccess().status == 'offline')
-        && request.auth.token.token_version == staffAccess().token_version;
+        && (!('token_version' in staffAccess()) || !('token_version' in request.auth.token) || request.auth.token.token_version == staffAccess().token_version);
     }
 
     function staffRole() {
@@ -50,7 +50,7 @@ service cloud.firestore {
     }
 
     function sameOutlet(data) {
-      return isGlobalStaff() || (isCurrentStaff() && data.outlet_id == staffOutlet());
+      return isGlobalStaff() || (isCurrentStaff() && (!('outlet_id' in data) || data.outlet_id == staffOutlet()));
     }
 
     function owns(data) {
