@@ -4,28 +4,128 @@ export const demoDataset = {
   staff: [
     {
       id: 'demo-owner-1',
+      employee_id: 'EMP-001',
       name: 'Ilara Owner',
       role: 'owner',
       email: 'owner@ilara.com',
       outlet_id: 'main',
+      outlet: 'main',
       status: 'active',
+      hatch: 'MAIN',
+      assigned_hatch: 'MAIN',
       ...commonDemoFields
     },
     {
       id: 'demo-manager-1',
+      employee_id: 'EMP-002',
       name: 'Ilara Manager',
       role: 'manager',
       email: 'manager@ilara.com',
       outlet_id: 'main',
+      outlet: 'main',
       status: 'active',
+      hatch: 'MAIN',
+      assigned_hatch: 'MAIN',
       ...commonDemoFields
     },
     {
       id: 'demo-kitchen-1',
+      employee_id: 'EMP-003',
       name: 'Chef One',
       role: 'chef',
       email: 'chef@ilara.com',
       outlet_id: 'main',
+      outlet: 'main',
+      status: 'active',
+      hatch: 'OASIS',
+      assigned_hatch: 'OASIS',
+      ...commonDemoFields
+    }
+  ],
+  orders: [
+    {
+      id: 'ord-001',
+      order_id: 'ord-001',
+      token_number: '047',
+      order_type: 'dine-in',
+      hatch: 'OASIS',
+      status: 'preparing',
+      created_at: 1723020000000,
+      outlet_id: 'main',
+      total_amount: 280,
+      total_paise: 28000,
+      items: [
+        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, price: 250, station: 'FASTFOOD & BIRYANI', status: 'preparing' },
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, price: 100, station: 'FRYER', status: 'ready' }
+      ],
+      ...commonDemoFields
+    },
+    {
+      id: 'ord-002',
+      order_id: 'ord-002',
+      token_number: '048',
+      order_type: 'pickup',
+      hatch: 'MAIN',
+      status: 'ready',
+      created_at: 1723020300000,
+      outlet_id: 'main',
+      total_amount: 350,
+      total_paise: 35000,
+      items: [
+        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, price: 250, station: 'FASTFOOD & BIRYANI', status: 'ready' },
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, price: 100, station: 'FRYER', status: 'ready' }
+      ],
+      ...commonDemoFields
+    }
+  ],
+  shifts: [
+    {
+      id: 'shift-001',
+      staff_id: 'demo-manager-1',
+      staff_name: 'Ilara Manager',
+      role: 'manager',
+      hatch: 'MAIN',
+      outlet_id: 'main',
+      date: '2026-08-07',
+      start_time: '08:00',
+      end_time: '16:00',
+      status: 'active',
+      ...commonDemoFields
+    },
+    {
+      id: 'shift-002',
+      staff_id: 'demo-kitchen-1',
+      staff_name: 'Chef One',
+      role: 'chef',
+      hatch: 'OASIS',
+      outlet_id: 'main',
+      date: '2026-08-07',
+      start_time: '10:00',
+      end_time: '18:00',
+      status: 'active',
+      ...commonDemoFields
+    }
+  ],
+  attendance: [
+    {
+      id: 'att-001',
+      staff_id: 'demo-manager-1',
+      staff_name: 'Ilara Manager',
+      role: 'manager',
+      outlet_id: 'main',
+      date: '2026-08-07',
+      clock_in: '2026-08-07T08:00:00Z',
+      status: 'active',
+      ...commonDemoFields
+    },
+    {
+      id: 'att-002',
+      staff_id: 'demo-kitchen-1',
+      staff_name: 'Chef One',
+      role: 'chef',
+      outlet_id: 'main',
+      date: '2026-08-07',
+      clock_in: '2026-08-07T10:00:00Z',
       status: 'active',
       ...commonDemoFields
     }
@@ -163,10 +263,14 @@ export const demoDataset = {
   ],
   outlets: [
     {
+      id: 'main',
       outlet_id: 'main',
       name: 'Main Outlet',
+      address: 'BITS Pilani Hyderabad Campus, Shameerpet',
+      latitude: 28.363,
+      longitude: 75.587,
       status: 'active',
-      hatches: [],
+      hatches: ['MAIN', 'OASIS', 'SMOKING'],
       ...commonDemoFields
     }
   ]

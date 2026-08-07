@@ -19,9 +19,13 @@ const db = getFirestore();
 
 const collectionsToClean = [
   'staff',
+  'staff_directory',
   'menu',
   'inventory',
   'outlets',
+  'orders',
+  'shifts',
+  'attendance',
   'bi_daily_snapshots',
   'bi_revenue_daily',
   'gst_snapshots',

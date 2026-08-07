@@ -22,8 +22,19 @@ async function seed() {
 
   for (const staff of demoDataset.staff) {
     await db.collection('staff').doc(staff.id).set(staff);
+    await db.collection('staff_directory').doc(staff.id).set({
+      id: staff.id,
+      employee_id: staff.employee_id || staff.id,
+      name: staff.name,
+      role: staff.role,
+      status: staff.status || 'active',
+      outlet_id: staff.outlet_id || 'main',
+      assigned_hatch: staff.assigned_hatch || 'MAIN',
+      demo_seed_id: 'ilara-single-restaurant-v1',
+      is_demo: true
+    });
   }
-  console.log("Staff seeded.");
+  console.log("Staff & Staff Directory seeded.");
 
   for (const item of demoDataset.menu) {
     await db.collection('menu').doc(item.item_id).set(item);
@@ -41,6 +52,9 @@ async function seed() {
   console.log("Outlets seeded.");
 
   const biCollections: (keyof typeof demoDataset)[] = [
+    'orders',
+    'shifts',
+    'attendance',
     'bi_daily_snapshots',
     'bi_revenue_daily',
     'gst_snapshots',
