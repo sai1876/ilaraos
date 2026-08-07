@@ -194,7 +194,10 @@ export const streamTelemetryData = (
 
       order.items?.forEach(item => {
         const st = item.station || 'GRILLED OR STEAMED';
-        const val = item.unit_price * item.quantity;
+        const price = typeof (item as any).unit_price === 'number' ? (item as any).unit_price : (typeof (item as any).price === 'number' ? (item as any).price : 0);
+        const qty = typeof item.quantity === 'number' ? item.quantity : 1;
+        const val = price * qty;
+
         if (st === 'FASTFOOD & BIRYANI') categoryTotals['BIRYANI'] += val;
         else if (st === 'BREWER') categoryTotals['BEVERAGES'] += val;
         else if (st === 'FRYER') categoryTotals['BURGERS'] += val;
@@ -206,14 +209,16 @@ export const streamTelemetryData = (
       hourlyCounts[orderHour]++;
     });
 
-    const totalCategoryRevenue = Object.values(categoryTotals).reduce((a,b) => a+b, 0) || 1;
+    const safeCatVal = (v: number) => (typeof v === 'number' && !isNaN(v) ? v : 0);
+    const totalCategoryRevenue = Object.values(categoryTotals).reduce((a, b) => a + safeCatVal(b), 0) || 1;
+    
     const categories = [
-      { name: 'Biryani', percentage: Math.round((categoryTotals['BIRYANI']/totalCategoryRevenue)*100), color: '#f8bc51', amount: `+${categoryTotals['BIRYANI']}` },
-      { name: 'Beverages', percentage: Math.round((categoryTotals['BEVERAGES']/totalCategoryRevenue)*100), color: '#e8621a', amount: `+${categoryTotals['BEVERAGES']}` },
-      { name: 'Burgers', percentage: Math.round((categoryTotals['BURGERS']/totalCategoryRevenue)*100), color: '#e4b595', amount: `+${categoryTotals['BURGERS']}` },
-      { name: 'Momos', percentage: Math.round((categoryTotals['MOMOS']/totalCategoryRevenue)*100), color: '#a27b5c', amount: `+${categoryTotals['MOMOS']}` },
-      { name: 'Others', percentage: Math.round((categoryTotals['OTHERS']/totalCategoryRevenue)*100), color: '#413220', amount: `+${categoryTotals['OTHERS']}` },
-    ].sort((a,b) => b.percentage - a.percentage);
+      { name: 'Biryani', percentage: Math.round((safeCatVal(categoryTotals['BIRYANI']) / totalCategoryRevenue) * 100) || 0, color: '#f8bc51', amount: `+${safeCatVal(categoryTotals['BIRYANI'])}` },
+      { name: 'Beverages', percentage: Math.round((safeCatVal(categoryTotals['BEVERAGES']) / totalCategoryRevenue) * 100) || 0, color: '#e8621a', amount: `+${safeCatVal(categoryTotals['BEVERAGES'])}` },
+      { name: 'Burgers', percentage: Math.round((safeCatVal(categoryTotals['BURGERS']) / totalCategoryRevenue) * 100) || 0, color: '#e4b595', amount: `+${safeCatVal(categoryTotals['BURGERS'])}` },
+      { name: 'Momos', percentage: Math.round((safeCatVal(categoryTotals['MOMOS']) / totalCategoryRevenue) * 100) || 0, color: '#a27b5c', amount: `+${safeCatVal(categoryTotals['MOMOS'])}` },
+      { name: 'Others', percentage: Math.round((safeCatVal(categoryTotals['OTHERS']) / totalCategoryRevenue) * 100) || 0, color: '#413220', amount: `+${safeCatVal(categoryTotals['OTHERS'])}` },
+    ].sort((a, b) => b.percentage - a.percentage);
 
     const queuePeakData = [];
     for (let i = 8; i <= 22; i+=2) {
