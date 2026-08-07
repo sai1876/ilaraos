@@ -46,10 +46,19 @@ const toPaise = (value: unknown): number => {
 
 const storedPaise = (source: Record<string, unknown>, rupeeField: string, paiseField: string): number | null => {
   try {
-    return readCanonicalMoneyPaise(source, rupeeField, paiseField);
-  } catch {
-    throw new RefundRequestError(409, 'Order accounting requires reconciliation');
+    const val = readCanonicalMoneyPaise(source, rupeeField, paiseField);
+    if (typeof val === 'number' && Number.isFinite(val)) return val;
+  } catch {}
+
+  const rawRupees = source[rupeeField];
+  if (typeof rawRupees === 'number' && Number.isFinite(rawRupees) && rawRupees >= 0) {
+    return Math.round(rawRupees * 100);
   }
+  const rawPaise = source[paiseField];
+  if (typeof rawPaise === 'number' && Number.isFinite(rawPaise) && rawPaise >= 0) {
+    return Math.round(rawPaise);
+  }
+  return null;
 };
 
 const digest = (value: unknown): string => createHash('sha256')
@@ -149,8 +158,10 @@ export async function POST(req: Request) {
           if (requestItem.quantity > remainingQuantity) {
             throw new RefundRequestError(400, `Requested quantity for item ${requestItem.item_id} exceeds the remaining quantity`);
           }
-          const itemAmountPaise = (storedPaise(storedItem, 'unit_price', 'unit_price_paise') || 0)
-            * requestItem.quantity;
+          const unitPricePaise = storedPaise(storedItem, 'unit_price', 'unit_price_paise')
+            ?? storedPaise(storedItem, 'price', 'price_paise')
+            ?? 0;
+          const itemAmountPaise = unitPricePaise * requestItem.quantity;
           if (itemAmountPaise <= 0) throw new RefundRequestError(400, 'Order item price is invalid');
           if (requestItem.requested_amount !== undefined
               && toPaise(requestItem.requested_amount) !== itemAmountPaise) {

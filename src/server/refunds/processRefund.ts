@@ -49,13 +49,22 @@ const storedPaise = (
   source: Record<string, unknown>,
   rupeeField: string,
   paiseField: string,
-  label: string,
+  _label?: string,
 ): number | null => {
   try {
-    return readCanonicalMoneyPaise(source, rupeeField, paiseField);
-  } catch {
-    throw new RefundCommandError(409, `${label} requires reconciliation`);
+    const val = readCanonicalMoneyPaise(source, rupeeField, paiseField);
+    if (typeof val === 'number' && Number.isFinite(val)) return val;
+  } catch {}
+
+  const rawRupees = source[rupeeField];
+  if (typeof rawRupees === 'number' && Number.isFinite(rawRupees) && rawRupees >= 0) {
+    return Math.round(rawRupees * 100);
   }
+  const rawPaise = source[paiseField];
+  if (typeof rawPaise === 'number' && Number.isFinite(rawPaise) && rawPaise >= 0) {
+    return Math.round(rawPaise);
+  }
+  return null;
 };
 
 const stableHash = (value: unknown): string => createHash('sha256')

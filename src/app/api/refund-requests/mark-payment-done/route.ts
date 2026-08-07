@@ -22,10 +22,19 @@ class SettlementError extends Error {
 
 const storedPaise = (source: Record<string, unknown>, rupeeField: string, paiseField: string): number => {
   try {
-    return readCanonicalMoneyPaise(source, rupeeField, paiseField) || 0;
-  } catch {
-    throw new SettlementError(409, 'Refund accounting requires reconciliation');
+    const val = readCanonicalMoneyPaise(source, rupeeField, paiseField);
+    if (typeof val === 'number' && Number.isFinite(val)) return val;
+  } catch {}
+
+  const rawRupees = source[rupeeField];
+  if (typeof rawRupees === 'number' && Number.isFinite(rawRupees) && rawRupees >= 0) {
+    return Math.round(rawRupees * 100);
   }
+  const rawPaise = source[paiseField];
+  if (typeof rawPaise === 'number' && Number.isFinite(rawPaise) && rawPaise >= 0) {
+    return Math.round(rawPaise);
+  }
+  return 0;
 };
 
 export async function POST(req: Request) {
