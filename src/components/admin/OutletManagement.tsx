@@ -237,8 +237,8 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
     setEditingOutletId(outlet.id);
     setName(outlet.name);
     setAddress(outlet.address);
-    setLat(outlet.latitude.toString());
-    setLng(outlet.longitude.toString());
+    setLat(typeof outlet.latitude === 'number' ? outlet.latitude.toString() : '28.363');
+    setLng(typeof outlet.longitude === 'number' ? outlet.longitude.toString() : '75.587');
     setHatches(outlet.hatches ? outlet.hatches.join(', ') : '');
     setMapLink('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -348,11 +348,11 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
                   <div className={`flex gap-4 mt-2 border-t pt-2 ${isDark ? 'border-[#302117]/30' : 'border-[#d8c3ad]/30'}`}>
                     <div>
                       <span className={`text-[8px] uppercase tracking-wider ${t.subText}`}>Lat: </span>
-                      <span className="text-[9px] font-bold" style={{ color: isDark ? '#f8bc51' : '#855300' }}>{outlet.latitude.toFixed(4)}</span>
+                      <span className="text-[9px] font-bold" style={{ color: isDark ? '#f8bc51' : '#855300' }}>{typeof outlet.latitude === 'number' ? outlet.latitude.toFixed(4) : 'N/A'}</span>
                     </div>
                     <div>
                       <span className={`text-[8px] uppercase tracking-wider ${t.subText}`}>Lng: </span>
-                      <span className="text-[9px] font-bold" style={{ color: isDark ? '#f8bc51' : '#855300' }}>{outlet.longitude.toFixed(4)}</span>
+                      <span className="text-[9px] font-bold" style={{ color: isDark ? '#f8bc51' : '#855300' }}>{typeof outlet.longitude === 'number' ? outlet.longitude.toFixed(4) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
