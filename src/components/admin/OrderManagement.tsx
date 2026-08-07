@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Power, Send, AlertTriangle, CheckCircle, Clock, MapPin, Coffee, ShoppingBag, Truck } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, limit, onSnapshot, doc } from 'firebase/firestore';
 import { OrderDocument } from '@/lib/types';
 import { isActiveOrderStatus, isCompletedOrderStatus } from '@/lib/orderUtils';
 import { secureUpdateRushMode } from '@/app/_actions/secureDbActions';
@@ -74,13 +74,12 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
     return () => unsubscribe();
   }, []);
 
-  // 2. Listen to real orders in the last 12 hours in real-time
+  // 2. Listen to real orders in real-time
   useEffect(() => {
     const isGlobal = userRole === 'admin' || userRole === 'owner';
-    const timeLimit = Date.now() - 12 * 60 * 60 * 1000;
     const q = query(
       collection(db, 'orders'),
-      where('created_at', '>=', timeLimit)
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

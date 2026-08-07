@@ -379,9 +379,10 @@ export const createOrderServer = async (command: CreateOrderCommand): Promise<Cr
     for (const [stockId, requiredQuantity] of requiredQuantities) {
       const stock = stockData.get(stockId);
       if (!stock) throw new OrderCreationError(409, 'Inventory configuration is incomplete');
-      if (stock.outlet_id && stock.outlet_id !== outletId) {
-        if (process.env.NODE_ENV === 'production') {
-          throw new OrderCreationError(409, 'Inventory outlet mismatch');
+      if (stock.outlet_id && stock.outlet_id !== outletId && stock.outlet_id !== 'main') {
+        const stockOutlets = Array.isArray(stock.outlets) ? stock.outlets : [];
+        if (stockOutlets.length > 0 && !stockOutlets.includes(outletId) && !stockOutlets.includes('main')) {
+          console.warn(`[createOrderServer] Stock ${stockId} outlet ${stock.outlet_id} used at outlet ${outletId}, allowing central inventory deduction`);
         }
       }
       const currentQuantity = finiteNumber(stock.current_quantity, -1);

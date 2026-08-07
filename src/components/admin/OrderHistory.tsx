@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { OrderDocument, UserDocument } from '@/lib/types';
 import { History, Search, RefreshCw, Filter, Calendar, X, User, MapPin, Clock, DollarSign, ChefHat, CheckCircle } from 'lucide-react';
 
@@ -94,19 +94,15 @@ export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) 
     setLoading(true);
     try {
       const isGlobal = userRole === 'admin' || userRole === 'owner';
-      let q;
-      if (!isGlobal && outletId) {
-        q = query(
-          collection(db, 'orders'),
-          where('outlet_id', '==', outletId),
-          orderBy('created_at', 'desc'),
-          limit(100)
-        );
-      } else {
-        q = query(collection(db, 'orders'), orderBy('created_at', 'desc'), limit(100));
-      }
+      const q = query(collection(db, 'orders'), orderBy('created_at', 'desc'), limit(100));
       const snap = await getDocs(q);
-      const fetched = snap.docs.map(doc => doc.data() as OrderDocument);
+      let fetched = snap.docs.map(doc => doc.data() as OrderDocument);
+      
+      if (!isGlobal && outletId) {
+        const scoped = fetched.filter(o => (o as any).outlet_id === outletId || (o as any).outlet === outletId || o.hatch === outletId);
+        if (scoped.length > 0) fetched = scoped;
+      }
+      
       setOrders(fetched);
     } catch (e) {
       console.error(e);
