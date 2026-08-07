@@ -91,8 +91,8 @@ export async function resolveActorContext(
     if (!STAFF_ROLES.has(role)) return { ok: false, reason: 'invalid_role' };
     if (!ALLOWED_STAFF_STATUSES.has(status)) return { ok: false, reason: 'staff_inactive' };
     const tokenVersion = access?.token_version;
-    // Only enforce token_version when the Firestore doc has one set — if undefined, allow login
-    if (tokenVersion !== undefined && decodedToken.token_version !== tokenVersion) {
+    // Only enforce token_version when both the Firestore doc and decodedToken specify one
+    if (tokenVersion !== undefined && decodedToken.token_version !== undefined && decodedToken.token_version !== tokenVersion) {
       return { ok: false, reason: 'stale_token' };
     }
     return {
@@ -118,7 +118,7 @@ export async function resolveActorContext(
     if (!ALLOWED_STAFF_STATUSES.has(status)) return { ok: false, reason: 'staff_inactive' };
 
     const tokenVersion = staffData?.token_version ?? userData?.token_version;
-    if (tokenVersion !== undefined && decodedToken.token_version !== tokenVersion) {
+    if (tokenVersion !== undefined && decodedToken.token_version !== undefined && decodedToken.token_version !== tokenVersion) {
       return { ok: false, reason: 'stale_token' };
     }
 
