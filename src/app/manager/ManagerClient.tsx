@@ -35,7 +35,6 @@ const OutletManagement = dynamic(() => import('@/components/admin/OutletManageme
 const OrderHistory = dynamic(() => import('@/components/admin/OrderHistory'), { ssr: false });
 const OrderManagement = dynamic(() => import('@/components/admin/OrderManagement'), { ssr: false });
 const RiderDispatch = dynamic(() => import('@/components/admin/RiderDispatch'), { ssr: false });
-const StaffCopilot = dynamic(() => import('@/components/admin/StaffCopilot'), { ssr: false });
 const ScheduleDashboard = dynamic(() => import('@/components/admin/ScheduleDashboard'), { ssr: false });
 const RefundManagement = dynamic(() => import('@/components/admin/RefundManagement'), { ssr: false });
 const WastageManagement = dynamic(() => import('@/components/admin/WastageManagement'), { ssr: false });
@@ -346,8 +345,6 @@ export default function ManagerClient({ actor }: ManagerClientProps) {
           </div>
         </div>
       </main>
-
-      <StaffCopilot />
     </div>
   );
 }

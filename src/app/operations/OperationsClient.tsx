@@ -32,8 +32,6 @@ import { useStore } from '@/store/useStore';
 
 import dynamic from 'next/dynamic';
 
-const StaffCopilot = dynamic(() => import('@/components/admin/StaffCopilot'), { ssr: false });
-
 // Firebase core configuration & seeding imports
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -515,8 +513,6 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <StaffCopilot />
     </div>
   );
 }

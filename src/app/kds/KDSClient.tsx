@@ -7,7 +7,6 @@ import { db, auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { OrderDocument, OrderItem } from '@/lib/types';
-import StaffCopilot from '@/components/admin/StaffCopilot';
 import KDSProfileModal from '@/components/kds/KDSProfileModal';
 import { User } from 'lucide-react';
 import { canAccessKdsStation } from '@/lib/auth/roles';
@@ -498,8 +497,6 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
           background: #C3924F;
         }
       `}} />
-
-      <StaffCopilot />
 
       <KDSProfileModal 
         isOpen={isProfileOpen} 
