@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { DEMO_SEED_ID } from './manifest';
@@ -20,7 +21,20 @@ const collectionsToClean = [
   'staff',
   'menu',
   'inventory',
-  'outlets'
+  'outlets',
+  'bi_daily_snapshots',
+  'bi_revenue_daily',
+  'gst_snapshots',
+  'gst_reconciliations',
+  'resource_snapshots',
+  'resource_station_load',
+  'resource_utility_usage',
+  'finance_snapshots',
+  'finance_supplier_payments',
+  'compliance_tasks',
+  'ca_reviews',
+  'ca_document_requests',
+  'ai_insights'
 ];
 
 async function reset() {

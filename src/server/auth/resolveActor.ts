@@ -2,23 +2,9 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { DocumentData, DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import { USERS_COL } from '@/lib/firebase/collections';
 
+import { KITCHEN_ROLES, STAFF_ROLES } from '@/lib/auth/roles';
+
 const CUSTOMER_ROLE = 'customer';
-const KITCHEN_ROLES = new Set([
-  'kitchen',
-  'chef',
-  'deep_fryer',
-  'grill_fryer',
-  'biryani_master',
-  'brewer',
-]);
-const STAFF_ROLES = new Set([
-  'staff',
-  'manager',
-  'admin',
-  'owner',
-  'rider',
-  ...KITCHEN_ROLES,
-]);
 const BLOCKED_STATUSES = new Set(['suspended', 'inactive', 'disabled', 'blacklisted', 'deleted']);
 const ALLOWED_STAFF_STATUSES = new Set(['active', 'offline']);
 
@@ -116,7 +102,7 @@ export async function resolveActorContext(
         email: decodedToken.email,
         role,
         staffId: access?.staff_id || uid,
-        outletId: 'main',
+        outletId: access?.outlet_id || 'main',
         tokenVersion,
       },
     };
@@ -143,7 +129,7 @@ export async function resolveActorContext(
         email: decodedToken.email,
         role,
         staffId: staffDoc.id,
-        outletId: 'main',
+        outletId: staffData?.outlet_id || 'main',
         tokenVersion,
       },
     };

@@ -1,3 +1,4 @@
+// [INTERNAL] Document access route
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { removeObject } from '@/server/supabase/storageAdmin';

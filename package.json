@@ -17,7 +17,10 @@
     "storage:setup": "tsx scripts/setup-supabase-storage.ts",
     "storage:cleanup": "tsx scripts/cleanup-abandoned-uploads.ts",
     "storage:cleanup:dry": "tsx scripts/cleanup-abandoned-uploads.ts --dry-run",
-    "demo:reset": "tsx scripts/reset-demo.ts"
+    "demo:legacy-reset": "tsx scripts/reset-demo.ts",
+    "demo:seed": "tsx scripts/demo/seedIlara.ts",
+    "demo:reset": "tsx scripts/demo/resetIlara.ts",
+    "demo:reseed": "npm run demo:reset && npm run demo:seed"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

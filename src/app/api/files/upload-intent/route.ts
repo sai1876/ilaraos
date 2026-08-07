@@ -1,3 +1,4 @@
+// [INTERNAL] Upload intent route
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';

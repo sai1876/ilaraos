@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { demoDataset } from './dataset';
@@ -38,6 +39,31 @@ async function seed() {
     await db.collection('outlets').doc(outlet.outlet_id).set(outlet);
   }
   console.log("Outlets seeded.");
+
+  const biCollections: (keyof typeof demoDataset)[] = [
+    'bi_daily_snapshots',
+    'bi_revenue_daily',
+    'gst_snapshots',
+    'gst_reconciliations',
+    'resource_snapshots',
+    'resource_station_load',
+    'resource_utility_usage',
+    'finance_snapshots',
+    'finance_supplier_payments',
+    'compliance_tasks',
+    'ca_reviews',
+    'ai_insights'
+  ];
+
+  for (const colKey of biCollections) {
+    const items = demoDataset[colKey] as any[];
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await db.collection(colKey).doc(item.id).set(item);
+      }
+      console.log(`${colKey} seeded.`);
+    }
+  }
 
   console.log("Seed complete.");
 }

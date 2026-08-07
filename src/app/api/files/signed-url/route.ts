@@ -1,3 +1,4 @@
+// [INTERNAL] Signed URL route
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';

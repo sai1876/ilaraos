@@ -275,5 +275,19 @@ service cloud.firestore {
     match /processed_whatsapp_messages/{messageId} {
       allow read, write: if false;
     }
+
+    match /bi_daily_snapshots/{id} { allow read, write: if false; }
+    match /bi_revenue_daily/{id} { allow read, write: if false; }
+    match /gst_snapshots/{id} { allow read, write: if false; }
+    match /gst_reconciliations/{id} { allow read, write: if false; }
+    match /resource_snapshots/{id} { allow read, write: if false; }
+    match /resource_station_load/{id} { allow read, write: if false; }
+    match /resource_utility_usage/{id} { allow read, write: if false; }
+    match /finance_snapshots/{id} { allow read, write: if false; }
+    match /finance_supplier_payments/{id} { allow read, write: if false; }
+    match /compliance_tasks/{id} { allow read, write: if false; }
+    match /ca_reviews/{id} { allow read, write: if false; }
+    match /ca_document_requests/{id} { allow read, write: if false; }
+    match /ai_insights/{id} { allow read, write: if false; }
   }
 }

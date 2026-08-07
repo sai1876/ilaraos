@@ -1,3 +1,4 @@
+// [INTERNAL] Upload confirmation route
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
@@ -139,6 +140,6 @@ export async function POST(req: Request) {
     if (error.message === 'Document metadata not found') {
       return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
