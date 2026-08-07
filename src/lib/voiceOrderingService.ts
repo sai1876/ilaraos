@@ -134,9 +134,21 @@ export async function sendWhatsAppMessage(
     return false;
   }
 
+  const targetPhoneId = (phoneNumberId && phoneNumberId !== 'unknown' ? phoneNumberId : process.env.WHATSAPP_BOT_NUMBER_ID)?.trim() || '';
+  if (!targetPhoneId) {
+    console.error('[WHATSAPP ERROR] Target phone_number_id is missing/unconfigured. Skipping send.');
+    return false;
+  }
+
+  const cleanToPhone = toPhone.replace(/\D/g, '');
+  if (!cleanToPhone) {
+    console.error('[WHATSAPP ERROR] Recipient phone number is empty after cleaning.');
+    return false;
+  }
+
   try {
-    console.log(`[WHATSAPP] Sending message to ${toPhone}`);
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+    console.log(`[WHATSAPP] Sending message via phone_number_id ${targetPhoneId} to recipient ${cleanToPhone}`);
+    const res = await fetch(`https://graph.facebook.com/v19.0/${targetPhoneId}/messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${whatsappToken}`,
@@ -145,7 +157,7 @@ export async function sendWhatsAppMessage(
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to: toPhone,
+        to: cleanToPhone,
         type: 'text',
         text: { preview_url: true, body: message },
       }),
@@ -153,14 +165,14 @@ export async function sendWhatsAppMessage(
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[WHATSAPP] Send failed: ${res.statusText}. Details: ${errText}`);
+      console.error(`[WHATSAPP ERROR] Meta Graph API returned ${res.status} ${res.statusText}: ${errText}`);
       return false;
     }
 
-    console.log(`[WHATSAPP] Message sent to ${toPhone}`);
+    console.log(`[WHATSAPP SUCCESS] Message delivered to ${cleanToPhone}`);
     return true;
   } catch (error) {
-    console.error(`[WHATSAPP] Network error:`, error);
+    console.error(`[WHATSAPP EXCEPTION] Network request failed:`, error);
     return false;
   }
 }
