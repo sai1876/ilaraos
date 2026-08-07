@@ -50,13 +50,15 @@ export const demoDataset = {
       order_type: 'dine-in',
       hatch: 'OASIS',
       status: 'preparing',
-      created_at: 1723020000000,
+      created_at: Date.now() - 1200000,
       outlet_id: 'main',
       total_amount: 280,
+      gross_amount: 280,
       total_paise: 28000,
+      gross_amount_paise: 28000,
       items: [
-        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, price: 250, station: 'FASTFOOD & BIRYANI', status: 'preparing' },
-        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, price: 100, station: 'FRYER', status: 'ready' }
+        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, unit_price: 250, price: 250, station: 'FASTFOOD & BIRYANI', status: 'preparing' },
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
       ],
       ...commonDemoFields
     },
@@ -70,10 +72,12 @@ export const demoDataset = {
       created_at: Date.now() - 600000,
       outlet_id: 'main',
       total_amount: 350,
+      gross_amount: 350,
       total_paise: 35000,
+      gross_amount_paise: 35000,
       items: [
-        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, price: 250, station: 'FASTFOOD & BIRYANI', status: 'ready' },
-        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, price: 100, station: 'FRYER', status: 'ready' }
+        { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, unit_price: 250, price: 250, station: 'FASTFOOD & BIRYANI', status: 'ready' },
+        { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
       ],
       ...commonDemoFields
     },
@@ -88,8 +92,9 @@ export const demoDataset = {
       outlet_id: 'geetanjali collage of engineering',
       outlet: 'geetanjali collage of engineering',
       total_amount: 420,
-      total_paise: 42000,
       gross_amount: 420,
+      total_paise: 42000,
+      gross_amount_paise: 42000,
       items: [
         { item_id: 'item-1', menu_item_id: 'item-1', name: 'Classic Burger', quantity: 1, unit_price: 250, price: 250, station: 'FASTFOOD & BIRYANI', status: 'preparing' },
         { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
@@ -107,8 +112,9 @@ export const demoDataset = {
       outlet_id: 'geetanjali collage of engineering',
       outlet: 'geetanjali collage of engineering',
       total_amount: 180,
-      total_paise: 18000,
       gross_amount: 180,
+      total_paise: 18000,
+      gross_amount_paise: 18000,
       items: [
         { item_id: 'item-2', menu_item_id: 'item-2', name: 'Fries', quantity: 1, unit_price: 100, price: 100, station: 'FRYER', status: 'ready' }
       ],

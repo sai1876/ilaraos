@@ -149,15 +149,33 @@ export const streamTelemetryData = (
       }
     }
 
+    const getOrderRevenue = (order: OrderDocument): number => {
+      const o = order as any;
+      if (typeof o.gross_amount === 'number' && !isNaN(o.gross_amount) && o.gross_amount > 0) {
+        return o.gross_amount;
+      }
+      if (typeof o.total_amount === 'number' && !isNaN(o.total_amount) && o.total_amount > 0) {
+        return o.total_amount;
+      }
+      if (typeof o.total_paise === 'number' && !isNaN(o.total_paise) && o.total_paise > 0) {
+        return o.total_paise / 100;
+      }
+      if (typeof o.gross_amount_paise === 'number' && o.gross_amount_paise > 0) {
+        return o.gross_amount_paise / 100;
+      }
+      return 0;
+    };
+
     orders.forEach(order => {
       // Revenue Trajectory grouping
       const orderDate = new Date(order.created_at);
+      const rev = getOrderRevenue(order);
       
       if (timeRange === "week") {
         orderDate.setHours(0,0,0,0);
         const daysAgo = Math.round((todayTimestamp - orderDate.getTime()) / (24 * 60 * 60 * 1000));
         if (daysAgo >= 0 && daysAgo < 7) {
-          revenuePoints[6 - daysAgo] += order.gross_amount || 0;
+          revenuePoints[6 - daysAgo] += rev;
         }
       } else if (timeRange === "today") {
         const currentHour = new Date().getHours();
@@ -165,27 +183,27 @@ export const streamTelemetryData = (
         let hoursAgo = currentHour - orderHour;
         if (hoursAgo < 0) hoursAgo += 24; // If it crossed midnight
         if (hoursAgo >= 0 && hoursAgo < 12) {
-          revenuePoints[11 - hoursAgo] += order.gross_amount || 0;
+          revenuePoints[11 - hoursAgo] += rev;
         }
       } else if (timeRange === "month") {
         orderDate.setHours(0,0,0,0);
         const daysAgo = Math.round((todayTimestamp - orderDate.getTime()) / (24 * 60 * 60 * 1000));
         if (daysAgo >= 0 && daysAgo < 30) {
-          revenuePoints[29 - daysAgo] += order.gross_amount || 0;
+          revenuePoints[29 - daysAgo] += rev;
         }
       }
 
       const isCreatedToday = order.created_at >= todayTimestamp;
-      const isCompletedToday = order.status === 'completed' && 
+      const isCompletedToday = (order.status === 'completed' || order.status === 'delivered') && 
         (order.completed_at ? order.completed_at >= todayTimestamp : order.created_at >= todayTimestamp);
 
-      // Completed orders count specifically completed today (matches the 2 orders completed today)
+      // Completed orders count specifically completed today
       if (isCompletedToday) {
         ordersCompleted++;
       }
 
       if (isCreatedToday || isCompletedToday) {
-        todaysRevenue += order.gross_amount || 0;
+        todaysRevenue += rev;
         
         if (isCreatedToday && ['pending', 'accepted', 'preparing', 'ready'].includes(order.status)) {
           activeQueueLoad++;
