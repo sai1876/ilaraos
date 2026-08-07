@@ -341,8 +341,8 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
                           typeof order.delivery_address === 'string'
                             ? order.delivery_address
                             : (order.delivery_address as any)?.fullAddress ||
-                              ((order.delivery_address as any)?.lat !== undefined
-                                ? `Coordinates: ${(order.delivery_address as any).lat.toFixed(6)}, ${(order.delivery_address as any).lng.toFixed(6)}`
+                              (typeof (order.delivery_address as any)?.lat === 'number'
+                                ? `Coordinates: ${(order.delivery_address as any).lat.toFixed(6)}, ${typeof (order.delivery_address as any).lng === 'number' ? (order.delivery_address as any).lng.toFixed(6) : ''}`
                                 : '')
                         }
                       >
@@ -350,8 +350,8 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
                           typeof order.delivery_address === 'string'
                             ? order.delivery_address
                             : (order.delivery_address as any)?.fullAddress ||
-                              ((order.delivery_address as any)?.lat !== undefined
-                                ? `Coordinates: ${(order.delivery_address as any).lat.toFixed(6)}, ${(order.delivery_address as any).lng.toFixed(6)}`
+                              (typeof (order.delivery_address as any)?.lat === 'number'
+                                ? `Coordinates: ${(order.delivery_address as any).lat.toFixed(6)}, ${typeof (order.delivery_address as any).lng === 'number' ? (order.delivery_address as any).lng.toFixed(6) : ''}`
                                 : '')
                         }
                       </span>

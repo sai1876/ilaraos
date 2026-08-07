@@ -289,45 +289,61 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
   };
 
   const renderDashboardCards = (closing: DailyClosingDocument) => {
-    const { sales_summary, cash_reconciliation, payment_reconciliation, refund_summary, wastage_summary } = closing;
-    const cashDiff = cash_reconciliation?.cash_difference || 0;
-    const upiDiff = payment_reconciliation?.upi_difference || 0;
+    const safeNum = (val: any): number => {
+      if (typeof val === 'number' && !isNaN(val)) return val;
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed)) return parsed;
+      }
+      return 0;
+    };
+
+    const safeFormat = (val: any): string => safeNum(val).toFixed(2);
+
+    const grossSales = (closing.sales_summary as any)?.gross_sales ?? (closing.sales_summary as any)?.total_gross_sales ?? ((closing.sales_summary as any)?.gross_sales_paise ? (closing.sales_summary as any).gross_sales_paise / 100 : 0);
+    const netSales = (closing.sales_summary as any)?.net_sales ?? ((closing.sales_summary as any)?.net_sales_paise ? (closing.sales_summary as any).net_sales_paise / 100 : 0);
+    const expectedCash = closing.cash_reconciliation?.expected_cash ?? 0;
+    const expectedUpi = closing.payment_reconciliation?.expected_upi ?? 0;
+    const cashDiff = closing.cash_reconciliation?.cash_difference ?? 0;
+    const upiDiff = closing.payment_reconciliation?.upi_difference ?? 0;
+    const refundsPaid = closing.refund_summary?.refund_amount_paid_today ?? 0;
+    const wastageCount = closing.wastage_summary?.wastage_events_count ?? 0;
     
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-4 font-sans">
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Gross Sales</p>
-          <p className="text-xl font-bold font-mono text-[#241A15]">₹{sales_summary.gross_sales.toFixed(2)}</p>
+          <p className="text-xl font-bold font-mono text-[#241A15]">₹{safeFormat(grossSales)}</p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Net Sales</p>
-          <p className="text-xl font-bold font-mono text-[#2F6B54]">₹{sales_summary.net_sales.toFixed(2)}</p>
+          <p className="text-xl font-bold font-mono text-[#2F6B54]">₹{safeFormat(netSales)}</p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Expected Cash</p>
-          <p className="text-xl font-bold font-mono text-[#241A15]">₹{cash_reconciliation?.expected_cash?.toFixed(2) || '0.00'}</p>
+          <p className="text-xl font-bold font-mono text-[#241A15]">₹{safeFormat(expectedCash)}</p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Expected UPI</p>
-          <p className="text-xl font-bold font-mono text-[#241A15]">₹{payment_reconciliation?.expected_upi?.toFixed(2) || '0.00'}</p>
+          <p className="text-xl font-bold font-mono text-[#241A15]">₹{safeFormat(expectedUpi)}</p>
         </div>
-        <div className={`p-4 rounded-xl border ${Math.abs(cashDiff) > 100 ? 'bg-[#B42318]/5 border-[#B42318]/20' : 'bg-[#F3ECE3]/40 border-[#E8DFD3]'}`}>
+        <div className={`p-4 rounded-xl border ${Math.abs(safeNum(cashDiff)) > 100 ? 'bg-[#B42318]/5 border-[#B42318]/20' : 'bg-[#F3ECE3]/40 border-[#E8DFD3]'}`}>
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Cash Difference</p>
-          <p className={`text-xl font-bold font-mono ${Math.abs(cashDiff) > 100 ? 'text-[#B42318]' : 'text-[#241A15]'}`}>
-            ₹{cashDiff.toFixed(2)}
+          <p className={`text-xl font-bold font-mono ${Math.abs(safeNum(cashDiff)) > 100 ? 'text-[#B42318]' : 'text-[#241A15]'}`}>
+            ₹{safeFormat(cashDiff)}
           </p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">UPI Difference</p>
-          <p className="text-xl font-bold font-mono text-[#241A15]">₹{upiDiff.toFixed(2)}</p>
+          <p className="text-xl font-bold font-mono text-[#241A15]">₹{safeFormat(upiDiff)}</p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Refunds Paid</p>
-          <p className="text-xl font-bold font-mono text-[#A15C17]">₹{refund_summary.refund_amount_paid_today.toFixed(2)}</p>
+          <p className="text-xl font-bold font-mono text-[#A15C17]">₹{safeFormat(refundsPaid)}</p>
         </div>
         <div className="p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3]">
           <p className="text-xs font-bold uppercase tracking-wider text-[#66554A]">Wastage Count</p>
-          <p className="text-xl font-bold font-mono text-[#241A15]">{wastage_summary.wastage_events_count}</p>
+          <p className="text-xl font-bold font-mono text-[#241A15]">{safeNum(wastageCount)}</p>
         </div>
       </div>
     );
