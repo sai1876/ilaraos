@@ -33,13 +33,13 @@ const schema = z.object({
 });
 
 const transitions: Record<string, string[]> = {
-  pending: ['accepted', 'preparing', 'cancelled', 'rejected'],
-  confirmed: ['accepted', 'preparing', 'cancelled', 'rejected'],
-  accepted: ['preparing', 'cancelled', 'rejected'],
-  preparing: ['ready', 'cancelled', 'rejected'],
+  pending: ['accepted', 'preparing', 'ready', 'completed', 'cancelled', 'rejected'],
+  confirmed: ['accepted', 'preparing', 'ready', 'completed', 'cancelled', 'rejected'],
+  accepted: ['preparing', 'ready', 'completed', 'cancelled', 'rejected'],
+  preparing: ['ready', 'completed', 'cancelled', 'rejected'],
   ready: ['dispatched', 'out_for_delivery', 'completed', 'cancelled'],
-  dispatched: ['out_for_delivery', 'cancelled'],
-  out_for_delivery: ['cancelled'],
+  dispatched: ['out_for_delivery', 'completed', 'cancelled'],
+  out_for_delivery: ['completed', 'cancelled'],
 };
 const terminalStates = new Set(['delivered', 'completed', 'cancelled', 'rejected']);
 const exactRoles = new Set(['staff', 'manager', 'admin', 'owner']);
@@ -130,12 +130,26 @@ export async function POST(req: Request) {
             throw new StatusCommandError(409, 'Payment method conflicts with the captured payment');
           }
         } else if (data.payment_status === 'paid') {
-          let amountPaise: number | null;
+          let amountPaise: number | null = null;
           try {
             amountPaise = readCanonicalMoneyPaise(order, 'gross_amount', 'gross_amount_paise');
-          } catch {
-            throw new StatusCommandError(409, 'Order amount requires reconciliation');
+          } catch {}
+
+          if (!amountPaise || amountPaise <= 0) {
+            try {
+              amountPaise = readCanonicalMoneyPaise(order, 'total_amount', 'total_paise');
+            } catch {}
           }
+
+          if (!amountPaise || amountPaise <= 0) {
+            const rawAmount = typeof order.gross_amount === 'number' ? order.gross_amount :
+                             (typeof order.total_amount === 'number' ? order.total_amount :
+                             (typeof order.price === 'number' ? order.price : 0));
+            if (rawAmount > 0) {
+              amountPaise = Math.round(rawAmount * 100);
+            }
+          }
+
           if (!amountPaise || amountPaise <= 0) throw new StatusCommandError(409, 'Order amount is invalid');
           const amount = amountPaise / 100;
           const paymentRef = adminDb!.collection('payment_ledger').doc(`order_${data.order_id}_capture`);

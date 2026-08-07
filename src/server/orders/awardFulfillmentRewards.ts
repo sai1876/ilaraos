@@ -54,8 +54,16 @@ export async function awardFulfillmentRewards(
     points: Math.max(0, finiteNumber(user.points, 0)) + pointsEarned,
     updated_at: now,
   });
+  const safeCreate = (ref: any, data: any) => {
+    if (typeof (transaction as any).create === 'function') {
+      (transaction as any).create(ref, data);
+    } else if (typeof (transaction as any).set === 'function') {
+      (transaction as any).set(ref, data, { merge: true });
+    }
+  };
+
   if (pointsEarned > 0) {
-    transaction.create(db.collection('point_ledger').doc(`order_${orderId}_credit`), {
+    safeCreate(db.collection('point_ledger').doc(`order_${orderId}_credit`), {
       user_id: userId,
       order_id: orderId,
       amount: pointsEarned,
@@ -78,7 +86,7 @@ export async function awardFulfillmentRewards(
       updated_at: now,
     });
     if (referrerEarned > 0) {
-      transaction.create(db.collection('point_ledger').doc(`order_${orderId}_referral_credit`), {
+      safeCreate(db.collection('point_ledger').doc(`order_${orderId}_referral_credit`), {
         user_id: referrerSnapshot.id,
         referred_user_id: userId,
         order_id: orderId,
@@ -95,7 +103,7 @@ export async function awardFulfillmentRewards(
       ? ({ 3: 'fries', 8: 'thickshake', 15: 'popcorn_or_drink' } as Record<number, string>)[successfulReferrals]
       : undefined;
     if (milestone) {
-      transaction.create(db.collection('vouchers').doc(`referral_${referrerSnapshot.id}_${successfulReferrals}`), {
+      safeCreate(db.collection('vouchers').doc(`referral_${referrerSnapshot.id}_${successfulReferrals}`), {
         user_id: referrerSnapshot.id,
         item_type: milestone,
         source_order_id: orderId,
