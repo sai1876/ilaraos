@@ -81,15 +81,14 @@ export {
 } from './../features/crm/crmService';
 export { fetchPincodeDetails } from './pincodeService';
 export {
-  streamCricketConfig,
-  saveCricketConfig,
-  streamBookings,
-  streamLobbies,
-  addBooking,
-  addLobby,
-  joinLobby,
-  deleteBooking,
-  deleteLobby,
-  updateBookingRemainingPayment
+  fetchCricketAvailability,
+  createCricketHold,
+  confirmCricketBooking,
+  fetchMyCricketBookings,
+  cancelCricketBooking,
+  verifyTicketToken,
+  updateCricketAdminConfig,
+  blockCricketSlotAdmin,
+  unblockCricketSlotAdmin,
 } from '../features/cricket/cricketService';
 

@@ -246,17 +246,24 @@ service cloud.firestore {
 
     match /config/cricket_settings {
       allow read: if true;
-      allow write: if signedIn();
+      allow write: if false;
     }
 
     match /cricket_bookings/{bookingId} {
-      allow read, create: if true;
-      allow update, delete: if signedIn();
+      allow read, write: if false;
+    }
+
+    match /cricket_slot_locks/{id} {
+      allow read, write: if false;
+    }
+
+    match /cricket_slot_blocks/{id} {
+      allow read, write: if false;
     }
 
     match /cricket_lobbies/{lobbyId} {
-      allow read, create, update: if true;
-      allow delete: if signedIn();
+      allow read: if true;
+      allow write: if false;
     }
 
     match /calendar_events/{eventId} {

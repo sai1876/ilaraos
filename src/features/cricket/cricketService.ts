@@ -1,131 +1,118 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  arrayUnion 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { CRICKET_BOOKINGS_COL, CRICKET_LOBBIES_COL } from '@/lib/firebase/collections';
-import { CricketBooking, SocialLobby } from '@/stores/useStore';
+import { apiRequest } from '@/lib/apiClient';
 
-export interface CricketConfig {
-  basePrice: number;
-  openingTime: string;
-  closingTime: string;
-  blockedSlots: string[]; // List of dateKey:timeSlot (e.g. "Jul 16:07:00 PM")
+export interface CricketAvailabilityResponse {
+  date: string;
+  timeZone: string;
+  serverNow: number;
+  config: any;
+  slotsLeft: number;
+  slots: {
+    slotKey: string;
+    venueId: string;
+    dateStr: string;
+    timeStr: string;
+    startAt: number;
+    endAt: number;
+    displayStart: string;
+    displayEnd: string;
+    status: 'available' | 'past' | 'lead_time' | 'booked' | 'held' | 'blocked' | 'closed';
+    bookable: boolean;
+    reason: string | null;
+    pricePaise: number;
+  }[];
 }
 
-/**
- * Stream Box Cricket owner settings (pricing, hours, blocked slots)
- */
-export const streamCricketConfig = (callback: (config: CricketConfig) => void) => {
-  return onSnapshot(doc(db, "config", "cricket_settings"), (docSnap) => {
-    if (docSnap.exists()) {
-      callback(docSnap.data() as CricketConfig);
-    } else {
-      callback({
-        basePrice: 800,
-        openingTime: "06:00 AM",
-        closingTime: "11:00 PM",
-        blockedSlots: []
-      });
-    }
-  }, (err) => {
-    console.error("Failed to stream cricket config: ", err);
+export interface CricketHoldResponse {
+  success: boolean;
+  holdId: string;
+  expiresAt: number;
+  businessDate: string;
+  slotKeys: string[];
+  displayTimes: string[];
+  totalPaise: number;
+}
+
+export interface CricketBookResponse {
+  success: boolean;
+  bookingId: string;
+  bookingReference: string;
+  redirectUrl: string;
+  ticketToken: string;
+  booking: any;
+}
+
+export const fetchCricketAvailability = async (dateStr?: string): Promise<CricketAvailabilityResponse> => {
+  const query = dateStr ? `?date=${encodeURIComponent(dateStr)}` : '';
+  return apiRequest<CricketAvailabilityResponse>(`/api/cricket/availability${query}`, {
+    cacheKey: `cricket_avail:${dateStr || 'today'}`,
+    staleTimeMs: 15 * 1000,
   });
 };
 
-/**
- * Save Box Cricket owner settings
- */
-export const saveCricketConfig = async (config: Partial<CricketConfig>): Promise<void> => {
-  const docRef = doc(db, "config", "cricket_settings");
-  await setDoc(docRef, config, { merge: true });
-};
-
-/**
- * Stream all cricket bookings
- */
-export const streamBookings = (callback: (bookings: CricketBooking[]) => void) => {
-  const q = query(collection(db, CRICKET_BOOKINGS_COL), orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const list: CricketBooking[] = [];
-    snapshot.forEach((docSnap) => {
-      list.push(docSnap.data() as CricketBooking);
-    });
-    callback(list);
-  }, (err) => {
-    console.error("Failed to stream bookings: ", err);
+export const createCricketHold = async (slotKeys: string[], dateStr?: string): Promise<CricketHoldResponse> => {
+  return apiRequest<CricketHoldResponse>('/api/cricket/hold', {
+    method: 'POST',
+    body: JSON.stringify({ slot_keys: slotKeys, date: dateStr }),
   });
 };
 
-/**
- * Stream all social match lobbies
- */
-export const streamLobbies = (callback: (lobbies: SocialLobby[]) => void) => {
-  const q = query(collection(db, CRICKET_LOBBIES_COL), orderBy("lobbyId", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const list: SocialLobby[] = [];
-    snapshot.forEach((docSnap) => {
-      list.push(docSnap.data() as SocialLobby);
-    });
-    callback(list);
-  }, (err) => {
-    console.error("Failed to stream lobbies: ", err);
+export const confirmCricketBooking = async (data: {
+  holdId?: string;
+  slot_keys: string[];
+  date: string;
+  customer_name: string;
+  customer_phone: string;
+  payment_option: 'pay_at_venue' | 'demo_online';
+  is_student?: boolean;
+}): Promise<CricketBookResponse> => {
+  return apiRequest<CricketBookResponse>('/api/cricket/book', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 };
 
-/**
- * Add a new cricket booking
- */
-export const addBooking = async (booking: CricketBooking): Promise<void> => {
-  const docRef = doc(db, CRICKET_BOOKINGS_COL, booking.bookingId);
-  await setDoc(docRef, booking);
-};
-
-/**
- * Add a new social lobby
- */
-export const addLobby = async (lobby: SocialLobby): Promise<void> => {
-  const docRef = doc(db, CRICKET_LOBBIES_COL, lobby.lobbyId);
-  await setDoc(docRef, lobby);
-};
-
-/**
- * Join an existing social match lobby
- */
-export const joinLobby = async (lobbyId: string, playerName: string): Promise<void> => {
-  const docRef = doc(db, CRICKET_LOBBIES_COL, lobbyId);
-  await updateDoc(docRef, {
-    players: arrayUnion(playerName)
+export const fetchMyCricketBookings = async (): Promise<{
+  success: boolean;
+  serverNow: number;
+  upcoming: any[];
+  past: any[];
+  cancelled: any[];
+  totalCount: number;
+}> => {
+  return apiRequest('/api/cricket/bookings/mine', {
+    cacheKey: 'cricket_mine',
+    staleTimeMs: 10 * 1000,
   });
 };
 
-/**
- * Delete a cricket booking
- */
-export const deleteBooking = async (bookingId: string): Promise<void> => {
-  await deleteDoc(doc(db, CRICKET_BOOKINGS_COL, bookingId));
+export const cancelCricketBooking = async (bookingId: string, reason?: string): Promise<void> => {
+  await apiRequest(`/api/cricket/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 };
 
-/**
- * Delete a social match lobby
- */
-export const deleteLobby = async (lobbyId: string): Promise<void> => {
-  await deleteDoc(doc(db, CRICKET_LOBBIES_COL, lobbyId));
+export const verifyTicketToken = async (token: string) => {
+  return apiRequest(`/api/cricket/tickets/verify?token=${encodeURIComponent(token)}`);
 };
 
-/**
- * Update remaining payment status for a booking
- */
-export const updateBookingRemainingPayment = async (bookingId: string, status: 'paid' | 'unpaid'): Promise<void> => {
-  const docRef = doc(db, CRICKET_BOOKINGS_COL, bookingId);
-  await updateDoc(docRef, {
-    remainingPaidStatus: status
+export const updateCricketAdminConfig = async (configData: any): Promise<void> => {
+  await apiRequest('/api/cricket/admin', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'update_config', config: configData }),
+  });
+};
+
+export const blockCricketSlotAdmin = async (slotKey: string, dateStr: string, reason?: string): Promise<void> => {
+  await apiRequest('/api/cricket/admin', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'block_slot', slot_key: slotKey, business_date: dateStr, reason }),
+  });
+};
+
+export const unblockCricketSlotAdmin = async (slotKey: string): Promise<void> => {
+  await apiRequest('/api/cricket/admin', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'unblock_slot', slot_key: slotKey }),
   });
 };

@@ -19,12 +19,18 @@ export interface CricketBooking {
   duration: number; // hours
   turfName: string;
   price: number;
-  addons: { name: string; price: number; quantity: number }[];
-  splitFriends: string[];
-  paymentMethod: string;
-  totalPaid: number;
+  addons?: { name: string; price: number; quantity: number }[];
+  splitFriends?: string[];
+  paymentMethod?: string;
+  totalPaid?: number;
   isConfirmed: boolean;
-  createdAt: number;
+  createdAt?: number;
+  slotKeys?: string[];
+  businessDate?: string;
+  ticketToken?: string;
+  remainingPaidStatus?: string;
+  paymentStatus?: string;
+  expiresAt?: number;
 }
 
 export interface SocialLobby {

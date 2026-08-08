@@ -32,7 +32,7 @@ export default function BookingConfirmed({ onNavigate }: BookingConfirmedProps) 
   };
 
   const hasSplits = currentBooking.splitFriends && currentBooking.splitFriends.length > 0;
-  const numSplit = currentBooking.splitFriends.length;
+  const numSplit = currentBooking.splitFriends?.length || 0;
   const splitAmount = Math.round(currentBooking.price / (numSplit + 1));
 
   // Generate a basic SVG QR Code
@@ -147,7 +147,7 @@ export default function BookingConfirmed({ onNavigate }: BookingConfirmedProps) 
         <div className="w-full bg-[#FAF7F2] border border-[#E8DFD3] rounded-2xl p-4 shadow-sm text-[10px] font-mono text-[#66554A]">
           <p className="font-bold text-[#241A15] mb-1">Split Payment Status</p>
           <p className="text-[10px] leading-relaxed mb-2.5">
-            Requests of ₹{splitAmount} sent to: <strong>{currentBooking.splitFriends.join(', ')}</strong>.
+            Requests of ₹{splitAmount} sent to: <strong>{currentBooking.splitFriends?.join(', ')}</strong>.
           </p>
           
           <button 
