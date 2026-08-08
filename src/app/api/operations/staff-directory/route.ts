@@ -24,20 +24,43 @@ export async function GET(request: Request) {
     const actor = await requireOperationalActor();
     const requestedOutlet = new URL(request.url).searchParams.get('outlet_id')?.trim() || undefined;
     const outletId = await resolveOperationalOutlet(adminDb, actor, requestedOutlet, { allowGlobalRead: true });
-    let query: FirebaseFirestore.Query = adminDb.collection('staff_directory');
-    if (outletId) query = query.where('outlet_id', '==', outletId);
-    const snapshot = await query.limit(200).get();
+    let staffRef: FirebaseFirestore.Query = adminDb.collection('staff');
+    if (outletId) {
+      staffRef = staffRef.where('outlet_id', '==', outletId);
+    }
+    let snapshot = await staffRef.limit(200).get();
+
+    if (snapshot.empty && outletId) {
+      const fallbackSnap = await adminDb.collection('staff').where('outlet', '==', outletId).limit(200).get();
+      if (!fallbackSnap.empty) snapshot = fallbackSnap;
+    }
+
+    if (snapshot.empty) {
+      let dirRef: FirebaseFirestore.Query = adminDb.collection('staff_directory');
+      if (outletId) dirRef = dirRef.where('outlet_id', '==', outletId);
+      snapshot = await dirRef.limit(200).get();
+    }
+
     const staff = snapshot.docs.map(document => {
       const data = document.data();
+      const id = document.id;
+      const outletVal = String(data.outlet_id || data.outlet || 'main');
       return {
-        id: document.id,
-        employee_id: data.employee_id,
-        name: data.name,
-        role: data.role,
-        status: data.status,
-        outlet_id: data.outlet_id,
-        outlet: data.outlet_id,
-        assigned_hatch: data.assigned_hatch,
+        id,
+        employee_id: data.employee_id || id,
+        name: data.name || 'Unnamed Staff',
+        email: data.email || '',
+        phone: data.phone || '',
+        role: data.role || 'deep_fryer',
+        status: data.status || data.account_status || 'active',
+        outlet_id: outletVal,
+        outlet: outletVal,
+        assigned_hatch: data.assigned_hatch || 'OASIS',
+        hourly_rate: data.hourly_rate ?? 0,
+        salary: data.salary ?? 0,
+        created_at: data.created_at || Date.now(),
+        shift_start: data.shift_start || '08:00',
+        shift_end: data.shift_end || '17:00',
       };
     });
     return NextResponse.json({ staff });
