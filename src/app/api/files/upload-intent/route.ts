@@ -5,15 +5,22 @@ import { randomUUID } from 'node:crypto';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { createUploadIntent } from '@/server/supabase/storageAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
+import { resolveActorContext } from '@/server/auth/resolveActor';
 
 const requestSchema = z.object({
-  category: z.enum(['menu', 'atmosphere', 'evidence', 'invoice', 'receipt', 'document', 'report', 'media']),
+  category: z.enum(['evidence', 'invoice', 'receipt', 'document', 'report', 'media', 'menu', 'atmosphere']),
+  documentType: z.string().min(1).max(80).optional(),
   relatedEntityType: z.string().min(1).max(50),
   relatedEntityId: z.string().min(1).max(128),
   originalFilename: z.string().min(1).max(255),
   mimeType: z.string().min(1).max(100),
-  sizeBytes: z.number().int().positive().max(20 * 1024 * 1024), // 20MB max
-  accessLevel: z.enum(['public', 'private', 'role_restricted'])
+  sizeBytes: z.number().int().positive().max(50 * 1024 * 1024), // 50MB max
+  accessLevel: z.enum(['public', 'private', 'role_restricted']).optional(),
+  description: z.string().max(500).optional(),
+  invoiceNumber: z.string().max(100).optional(),
+  invoiceDate: z.string().max(20).optional(),
+  vendorId: z.string().max(128).optional(),
+  amountPaise: z.number().int().nonnegative().optional(),
 });
 
 const sanitizeFilename = (filename: string) => {
@@ -27,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitRes = await rateLimitDurable(`${ip}_upload_intent`, 30, 60000);
+    const rateLimitRes = await rateLimitDurable(`${ip}_upload_intent`, 40, 60000);
     if (!rateLimitRes.success) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
     }
@@ -40,14 +47,13 @@ export async function POST(req: Request) {
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(authHeader.slice(7), true);
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const userRole = decodedToken.role || 'customer';
-    
-    // Only staff and owners should upload files, or customers uploading profile pics (if supported)
-    if (!['owner', 'manager', 'staff'].includes(userRole)) {
+    // Server-side authoritative actor resolution
+    const actorRes = await resolveActorContext(adminDb, decodedToken);
+    if (!actorRes.ok) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -59,28 +65,41 @@ export async function POST(req: Request) {
     let parsedBody;
     try {
       parsedBody = requestSchema.parse(JSON.parse(bodyText));
-    } catch (err) {
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    } catch (err: any) {
+      return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
     }
 
-    const { category, relatedEntityType, relatedEntityId, originalFilename, mimeType, sizeBytes, accessLevel } = parsedBody;
+    const {
+      category,
+      documentType,
+      relatedEntityType,
+      relatedEntityId,
+      originalFilename,
+      mimeType,
+      sizeBytes,
+      description,
+      invoiceNumber,
+      invoiceDate,
+      vendorId,
+      amountPaise,
+    } = parsedBody;
+
+    const isPublic = category === 'menu' || category === 'atmosphere' || category === 'media';
+    const bucket = isPublic ? 'ilara-public-media' : 'ilara-private-files';
+    const accessLevel = isPublic ? 'public' : 'private';
 
     const documentId = randomUUID();
     const safeFilename = sanitizeFilename(originalFilename);
-    const isPublic = category === 'menu' || category === 'atmosphere' || category === 'media';
-    const bucket = isPublic ? 'ilara-public-media' : 'ilara-private-files';
-    
     const objectPath = `main/${category}/${relatedEntityId}/${documentId}/${safeFilename}`;
 
-    const { signedUrl } = await createUploadIntent(bucket, objectPath);
+    // Create Supabase signed upload URL
+    const intentRes = await createUploadIntent(bucket, objectPath);
 
-    const docRef = adminDb.collection('documents').doc(documentId);
-    
-    // Create the Firestore metadata record
-    await docRef.set({
+    const docData: Record<string, any> = {
       document_id: documentId,
-      outlet_id: 'default', // Assuming single outlet or fetched from session context
+      outlet_id: 'main',
       category,
+      document_type: documentType || category,
       related_entity_type: relatedEntityType,
       related_entity_id: relatedEntityId,
       bucket,
@@ -90,21 +109,31 @@ export async function POST(req: Request) {
       mime_type: mimeType,
       size_bytes: sizeBytes,
       access_level: accessLevel,
-      uploaded_by: decodedToken.uid,
-      uploaded_by_role: userRole,
-      uploaded_at: new Date(),
-      upload_expires_at: new Date(Date.now() + 15 * 60 * 1000), // 15 mins expiry
+      uploaded_by: actorRes.actor.uid,
+      uploaded_by_role: actorRes.actor.role,
+      uploaded_at: Date.now(),
+      upload_expires_at: Date.now() + 15 * 60 * 1000,
       version: 1,
-      status: 'uploading'
-    });
+      status: 'uploading',
+    };
+
+    if (description) docData.description = description;
+    if (invoiceNumber) docData.invoice_number = invoiceNumber;
+    if (invoiceDate) docData.invoice_date = invoiceDate;
+    if (vendorId) docData.vendor_id = vendorId;
+    if (typeof amountPaise === 'number') docData.amount_paise = amountPaise;
+
+    await adminDb.collection('documents').doc(documentId).set(docData);
 
     return NextResponse.json({
+      success: true,
       documentId,
       bucket,
       objectPath,
-      uploadToken: signedUrl
+      signedUrl: intentRes.signedUrl,
+      token: (intentRes as any).token || intentRes.signedUrl,
+      document: docData,
     });
-
   } catch (error: any) {
     console.error('[Upload Intent Error]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

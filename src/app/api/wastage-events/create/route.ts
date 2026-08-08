@@ -28,6 +28,7 @@ const schema = z.object({
   reason_category: z.string().trim().min(2).max(100),
   manager_note: z.string().trim().min(1).max(500),
   photo_urls: z.array(z.string().url().max(2048)).max(5).optional(),
+  document_ids: z.array(z.string()).optional(),
 }).strict().superRefine((data, context) => {
   data.items.forEach((item, index) => {
     if (item.loss_basis === 'menu_item') {
@@ -163,6 +164,7 @@ export async function POST(req: Request) {
         reason_category: input.reason_category,
         manager_note: input.manager_note,
         ...(input.photo_urls ? { photo_urls: input.photo_urls } : {}),
+        ...(input.document_ids ? { document_ids: input.document_ids } : {}),
         reported_by: actor.uid,
         status: 'reported',
         deduct_inventory: deductInventory,

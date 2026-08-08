@@ -5,9 +5,10 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { createPrivateSignedUrl } from '@/server/supabase/storageAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
+import { resolveActorContext } from '@/server/auth/resolveActor';
 
 const signedUrlSchema = z.object({
-  documentId: z.string().uuid(),
+  documentId: z.string().min(1),
   disposition: z.enum(['inline', 'download']).default('inline')
 });
 
@@ -31,8 +32,13 @@ export async function POST(req: Request) {
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(authHeader.slice(7), true);
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const actorRes = await resolveActorContext(adminDb, decodedToken);
+    if (!actorRes.ok) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const bodyText = await req.text();
@@ -43,7 +49,7 @@ export async function POST(req: Request) {
     let parsedBody;
     try {
       parsedBody = signedUrlSchema.parse(JSON.parse(bodyText));
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
@@ -58,27 +64,20 @@ export async function POST(req: Request) {
 
     const metadata = docSnap.data()!;
     
-    // Reject deleted, failed, expired or unavailable documents
     if (metadata.status !== 'available' && metadata.status !== 'archived') {
-      return NextResponse.json({ error: `Document is ${metadata.status}` }, { status: 400 });
+      return NextResponse.json({ error: `Document status is ${metadata.status}` }, { status: 400 });
     }
 
-    const userRole = decodedToken.role || 'customer';
-    
     // Resolve Access
     let hasAccess = false;
-    
+    const userRole = actorRes.actor.role;
+
     if (metadata.bucket === 'ilara-public-media' || metadata.access_level === 'public') {
       hasAccess = true;
-    } else if (userRole === 'owner' || userRole === 'manager') {
-      hasAccess = true; // Owners and managers generally have access to all documents
-    } else if (metadata.uploaded_by === decodedToken.uid) {
+    } else if (['owner', 'admin', 'manager', 'ca_auditor'].includes(userRole)) {
       hasAccess = true;
-    } else if (metadata.access_level === 'role_restricted') {
-      // Custom business logic for restricted access based on related entity
-      // E.g., a staff member might be able to view their own payroll slip.
-      // We will allow access if uploaded by them, otherwise forbidden unless specific rule applies.
-      // For now, only owner/manager or uploader.
+    } else if (metadata.uploaded_by === actorRes.actor.uid) {
+      hasAccess = true;
     }
 
     if (!hasAccess) {
@@ -89,22 +88,18 @@ export async function POST(req: Request) {
     const expiry = new Date(Date.now() + 300 * 1000); // 300 seconds
 
     if (metadata.bucket === 'ilara-public-media') {
-      const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      url = `${NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${metadata.bucket}/${metadata.object_path}`;
+      const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      url = `${SUPABASE_URL}/storage/v1/object/public/${metadata.bucket}/${metadata.object_path}`;
     } else {
       url = await createPrivateSignedUrl(metadata.bucket, metadata.object_path, 300);
-      
-      // Optionally adjust disposition using URL parameters if Supabase supports it, 
-      // otherwise client handles downloading vs inline.
       if (disposition === 'download') {
-        url += `&download=${encodeURIComponent(metadata.original_filename)}`;
+        url += `&download=${encodeURIComponent(metadata.original_filename || 'document')}`;
       }
     }
 
-    // Record Audit Event
     await logBusinessEvent({
       event_type: disposition === 'download' ? 'file_downloaded' : 'file_viewed',
-      actor_id: decodedToken.uid,
+      actor_id: actorRes.actor.uid,
       actor_type: userRole as any,
       target_type: metadata.category,
       target_id: documentId,

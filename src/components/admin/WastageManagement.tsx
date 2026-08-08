@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { WastageEventDocument } from '@/lib/types';
 import { X, Check, Plus } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import EntityDocumentsPanel from '@/components/documents/EntityDocumentsPanel';
 
 interface WastageManagementProps {
   userRole: string;
@@ -260,6 +261,19 @@ export default function WastageManagement({ userRole }: WastageManagementProps) 
                   <p><span className="text-[#f7dec4]/50">Deduct Inventory:</span> {event.deduct_inventory ? 'Yes' : 'No'} ({event.deduction_method})</p>
                   <p><span className="text-[#f7dec4]/50">Date:</span> {new Date(event.created_at).toLocaleString()}</p>
                 </div>
+              </div>
+
+              {/* Photo Evidence Panel */}
+              <div className="mt-1">
+                <EntityDocumentsPanel
+                  entityType="wastage_events"
+                  entityId={event.event_id}
+                  category="evidence"
+                  allowedDocumentTypes={['wastage_photo']}
+                  requiredDocumentTypes={['wastage_photo']}
+                  readOnly={event.status !== 'reported'}
+                  title="Wastage Photo Evidence"
+                />
               </div>
             </div>
           ))}

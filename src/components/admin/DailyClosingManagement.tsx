@@ -8,6 +8,7 @@ import { Loader2, CheckCircle2, Lock, FileText, Send, XCircle, Camera, Upload } 
 import { uploadFileViaIntent } from '@/lib/fileUpload';
 import { fetchWithAuth } from '@/lib/auth/getActionToken';
 import { markStart, markEnd } from '@/lib/performance/perf';
+import EntityDocumentsPanel from '@/components/documents/EntityDocumentsPanel';
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════
@@ -534,7 +535,20 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
                 </div>
               )}
 
-              {(closing.founder_review_note || closing.manager_notes || closing.cash_reconciliation?.cash_proof_photo_urls?.length || closing.payment_reconciliation?.payment_proof_refs?.length) && (
+              {/* Daily Closing Evidence Panel */}
+              <div className="mt-4">
+                <EntityDocumentsPanel
+                  entityType="daily_closings"
+                  entityId={closing.closing_id}
+                  category="evidence"
+                  allowedDocumentTypes={['cash_count_proof', 'upi_settlement_proof']}
+                  requiredDocumentTypes={['cash_count_proof', 'upi_settlement_proof']}
+                  readOnly={closing.status === 'locked'}
+                  title="Daily Closing Cash & Settlement Evidence"
+                />
+              </div>
+
+              {(closing.founder_review_note || closing.manager_notes) && (
                 <div className="mt-4 p-4 bg-[#F3ECE3]/40 rounded-xl border border-[#E8DFD3] space-y-4">
                   {closing.manager_notes && (
                     <div>
@@ -546,24 +560,6 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
                     <div>
                       <span className="font-bold text-xs uppercase tracking-wider text-[#9A642C]">Reviewer Note:</span>
                       <p className="text-sm text-[#241A15] mt-0.5">{closing.founder_review_note}</p>
-                    </div>
-                  )}
-                  {((closing.cash_reconciliation?.cash_proof_photo_urls && closing.cash_reconciliation.cash_proof_photo_urls.length > 0) || 
-                    (closing.payment_reconciliation?.payment_proof_refs && closing.payment_reconciliation.payment_proof_refs.length > 0)) && (
-                    <div className="pt-2 border-t border-[#E8DFD3]/50">
-                      <span className="font-bold text-xs uppercase tracking-wider text-[#66554A]">Attached Evidence:</span>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {closing.cash_reconciliation?.cash_proof_photo_urls?.map((url, i) => (
-                          <a key={`cash-${i}`} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-3 py-1.5 bg-[#FFFDFC] border border-[#E8DFD3] rounded-lg text-xs font-mono text-[#9A642C] hover:bg-[#F3ECE3] transition-colors">
-                            <Camera className="w-3 h-3" /> Cash Proof {i + 1}
-                          </a>
-                        ))}
-                        {closing.payment_reconciliation?.payment_proof_refs?.map((ref, i) => (
-                          <span key={`payment-${i}`} className="flex items-center gap-1 px-3 py-1.5 bg-[#FFFDFC] border border-[#E8DFD3] rounded-lg text-xs font-mono text-[#9A642C]">
-                            <FileText className="w-3 h-3" /> Payment Proof Ref: {ref.substring(0, 8)}...
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   )}
                 </div>

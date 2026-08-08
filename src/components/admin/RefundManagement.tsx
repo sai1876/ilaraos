@@ -7,6 +7,7 @@ import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, getDocs, doc, getDoc, where, limit } from 'firebase/firestore';
 import { RefundRequestDocument, OrderDocument } from '@/lib/types';
 import { generateRefundsCSV, downloadCSV } from '@/lib/csvExport';
+import EntityDocumentsPanel from '@/components/documents/EntityDocumentsPanel';
 
 interface ExtendedRefundRequest extends RefundRequestDocument {
   orderData?: OrderDocument;
@@ -470,6 +471,18 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
                       <span className="text-[#d4c4b0]/60">Payment: <span className="text-white">{req.orderData.payment_status || (req.orderData.is_paid ? 'Paid' : 'Unpaid')}</span></span>
                     </div>
                   )}
+
+                  {/* Refund Evidence Section */}
+                  <div className="mt-1">
+                    <EntityDocumentsPanel
+                      entityType="refund_requests"
+                      entityId={req.request_id}
+                      category="evidence"
+                      allowedDocumentTypes={['refund_evidence', 'refund_payment_proof', 'customer_proof']}
+                      requiredDocumentTypes={req.status === 'pending' ? ['refund_evidence'] : []}
+                      title="Refund Evidence & Financial Trace"
+                    />
+                  </div>
 
                   {/* Action Area for Pending Requests */}
                   {activeTab === 'pending_review' && (

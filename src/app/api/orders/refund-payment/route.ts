@@ -19,6 +19,8 @@ const schema = z.object({
   refund_amount: z.number().finite().positive().max(1_000_000).optional(),
   reason: z.string().trim().min(3).max(300),
   method: z.enum(['cash', 'upi', 'card', 'wallet', 'manual']).optional(),
+  payment_reference: z.string().max(128).optional(),
+  document_ids: z.array(z.string()).optional(),
   items: z.array(z.object({
     item_id: z.string().trim().min(1).max(128),
     quantity_refunded: z.number().int().min(1).max(100),

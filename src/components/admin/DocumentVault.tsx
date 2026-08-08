@@ -1,24 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
-import { Eye, Download, Trash2, RefreshCw, FileText } from 'lucide-react';
+'use client';
 
-interface DocumentMetadata {
-  document_id: string;
-  category: string;
-  related_entity_type: string;
-  related_entity_id: string;
-  original_filename: string;
-  mime_type: string;
-  size_bytes: number;
-  access_level: string;
-  uploaded_by: string;
-  uploaded_at: any; // Firestore Timestamp
-  status: string;
-  version: number;
-}
+import React, { useState, useEffect } from 'react';
+import { 
+  Eye, 
+  Download, 
+  RefreshCw, 
+  FileText, 
+  Search, 
+  Link as LinkIcon,
+  ExternalLink
+} from 'lucide-react';
+import { 
+  fetchVaultDocuments, 
+  getDocumentSignedUrl, 
+  linkExistingDocumentToEntity,
+  DocumentRecord 
+} from '@/features/documents/documentService';
+import DocumentPreview from '@/components/documents/DocumentPreview';
+import DocumentTypeBadge from '@/components/documents/DocumentTypeBadge';
 
 const TABS = [
+  { id: 'all', label: 'All Files' },
   { id: 'evidence', label: 'Proofs' },
   { id: 'invoice', label: 'Invoices' },
   { id: 'receipt', label: 'Receipts' },
@@ -28,255 +30,296 @@ const TABS = [
   { id: 'media', label: 'Media' },
 ];
 
-export default function DocumentVault({ userRole }: { userRole: string }) {
-  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
+export default function DocumentVault({ 
+  userRole = 'manager',
+  onOpenRecord
+}: { 
+  userRole?: string;
+  onOpenRecord?: (entityType: string, entityId: string) => void;
+}) {
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('evidence');
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('available');
+  const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
 
-  const fallbackDocs: DocumentMetadata[] = [
-    {
-      document_id: 'doc-001',
-      category: 'proofs',
-      related_entity_type: 'wastage',
-      related_entity_id: 'w-001',
-      original_filename: 'burnt_buns_proof.jpg',
-      mime_type: 'image/jpeg',
-      size_bytes: 245000,
-      access_level: 'staff',
-      uploaded_by: 'Chef One',
-      uploaded_at: { toDate: () => new Date() },
-      status: 'available',
-      version: 1
-    },
-    {
-      document_id: 'doc-002',
-      category: 'invoices',
-      related_entity_type: 'gst_reconciliations',
-      related_entity_id: 'gst-rec-001',
-      original_filename: 'fresh_foods_invoice.pdf',
-      mime_type: 'application/pdf',
-      size_bytes: 1045000,
-      access_level: 'manager',
-      uploaded_by: 'Ilara Manager',
-      uploaded_at: { toDate: () => new Date() },
-      status: 'available',
-      version: 1
+  // Link existing modal state
+  const [linkingDoc, setLinkingDoc] = useState<DocumentRecord | null>(null);
+  const [targetType, setTargetType] = useState('expenses');
+  const [targetId, setTargetId] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
+
+  const loadVault = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchVaultDocuments({
+        category: activeTab === 'all' ? undefined : activeTab,
+        status: statusFilter,
+        search: searchQuery || undefined,
+      });
+      setDocuments(res.documents || []);
+    } catch (err) {
+      console.error('Failed to fetch Document Vault files:', err);
+    } fontally: {
+      setLoading(false);
     }
-  ];
+  };
 
   useEffect(() => {
-    let unsubscribed = false;
-    const q = query(collection(db, 'documents'), orderBy('uploaded_at', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (unsubscribed) return;
-      const docs: DocumentMetadata[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as DocumentMetadata;
-        if (data.status !== 'deleted') {
-          docs.push(data);
-        }
-      });
-      setDocuments(docs.length > 0 ? docs : fallbackDocs);
-      setLoading(false);
-    }, (error) => {
-      console.error("DocumentVault Firestore listener error:", error);
-      setDocuments(fallbackDocs);
-      setLoading(false);
-    });
+    loadVault();
+  }, [activeTab, statusFilter]);
 
-    return () => {
-      unsubscribed = true;
-      unsubscribe();
-    };
-  }, []);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadVault();
+  };
+
+  const handleDownload = async (docId: string) => {
+    try {
+      const res = await getDocumentSignedUrl(docId, 'download');
+      window.open(res.url, '_blank');
+    } catch (err: any) {
+      alert(err.message || 'Failed to download document');
+    }
+  };
+
+  const handleConfirmLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkingDoc || !targetId.trim()) return;
+    setIsLinking(true);
+
+    try {
+      await linkExistingDocumentToEntity(linkingDoc.document_id, targetType, targetId.trim());
+      alert(`Document linked to ${targetType}:${targetId.trim()} successfully!`);
+      setLinkingDoc(null);
+      setTargetId('');
+      await loadVault();
+    } catch (err: any) {
+      alert(err.message || 'Failed to link document');
+    } finally {
+      setIsLinking(false);
+    }
+  };
 
   const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (!bytes) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp || !timestamp.toDate) return 'Unknown';
-    return timestamp.toDate().toLocaleString();
-  };
-
-  const handleAction = async (docId: string, action: 'view' | 'download') => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const res = await fetch('/api/files/signed-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          documentId: docId,
-          disposition: action === 'download' ? 'download' : 'inline'
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to get URL');
-      }
-
-      const { url } = await res.json();
-      
-      if (action === 'download') {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  const handleDelete = async (docId: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
-    
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const res = await fetch(`/api/files/${docId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to delete');
-      }
-
-    } catch (error: any) {
-      alert(`Delete Error: ${error.message}`);
-    }
-  };
-
-  const filteredDocs = documents.filter(d => {
-    if (activeTab === 'media') return d.category === 'menu' || d.category === 'atmosphere' || d.category === 'media';
-    if (activeTab === 'evidence') return d.category === 'evidence' || d.category === 'proofs';
-    if (activeTab === 'invoice') return d.category === 'invoice' || d.category === 'invoices';
-    if (activeTab === 'receipt') return d.category === 'receipt' || d.category === 'receipts';
-    if (activeTab === 'document') return d.category === 'document' || d.category === 'staff_documents';
-    if (activeTab === 'report') return d.category === 'report' || d.category === 'reports';
-    return d.category === activeTab;
-  });
-
-  const isDark = userRole !== 'manager';
 
   return (
-    <div className={`flex flex-col h-full p-6 font-mono overflow-y-auto rounded-3xl ${isDark ? 'bg-[#1e140d] text-[#e0cfb8]' : 'bg-[#f5f4ec] text-[#241A15] border border-[#d8c3ad]/70 shadow-sm'}`}>
-      <div className={`mb-6 flex justify-between items-end border-b pb-4 ${isDark ? 'border-[#d4c4b0]/20' : 'border-[#d8c3ad]'}`}>
+    <div className="flex flex-col h-full p-6 font-sans bg-[#FFFDFC] text-[#241A15] border border-[#E8DFD3] rounded-3xl shadow-sm no-scrollbar">
+      {/* Header */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between border-b border-[#E8DFD3] pb-4 gap-4">
         <div>
-          <h2 className={`text-3xl font-serif font-black italic tracking-wide uppercase ${isDark ? 'text-[#f59e0b]' : 'text-[#855300]'}`}>Document Vault</h2>
-          <p className={`text-xs mt-1 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#66554A]/70'}`}>Secure centralized storage for all organizational files.</p>
+          <h2 className="text-2xl font-serif font-bold text-[#241A15]">Document Vault Archive</h2>
+          <p className="text-xs text-[#66554A] mt-1">Centralized operational evidence & financial document repository.</p>
+        </div>
+
+        <button
+          onClick={loadVault}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs font-mono font-bold text-[#66554A] hover:bg-[#F3ECE3] transition-colors self-start md:self-auto cursor-pointer"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <span>Refresh Vault</span>
+        </button>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col md:flex-row gap-3 mb-5">
+        <form onSubmit={handleSearchSubmit} className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search filenames, invoice #, vendors, descriptions…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs font-mono outline-none focus:border-[#9A642C]"
+          />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#66554A]" />
+        </form>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-[#FAF7F2] border border-[#E8DFD3] rounded-xl px-3 py-2.5 text-xs font-mono text-[#241A15] outline-none"
+          >
+            <option value="available">Available Files</option>
+            <option value="archived">Archived</option>
+            <option value="all">All Statuses</option>
+          </select>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className={`flex gap-2 mb-6 border-b pb-2 overflow-x-auto no-scrollbar ${isDark ? 'border-[#d4c4b0]/10' : 'border-[#d8c3ad]/50'}`}>
-        {TABS.map(tab => (
+      {/* Category Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-[#E8DFD3] pb-2 overflow-x-auto no-scrollbar">
+        {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-1.5 text-xs font-bold tracking-widest uppercase transition-colors whitespace-nowrap rounded-lg cursor-pointer
-              ${activeTab === tab.id 
-                ? (isDark ? 'bg-[#f59e0b] text-[#1e140d]' : 'bg-[#855300] text-white shadow-sm') 
-                : (isDark ? 'bg-[#1e140d] text-[#d4c4b0]/60 hover:bg-[#d4c4b0]/10 hover:text-[#f59e0b]' : 'bg-white text-[#534434] hover:bg-[#eae8e0] border border-[#d8c3ad]/50')}`}
+            className={`px-4 py-1.5 text-xs font-mono font-bold tracking-wider uppercase transition-colors whitespace-nowrap rounded-lg cursor-pointer ${
+              activeTab === tab.id
+                ? 'bg-[#9A642C] text-white shadow-sm'
+                : 'bg-[#FAF7F2] text-[#66554A] hover:bg-[#F3ECE3] border border-[#E8DFD3]'
+            }`}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
+      {/* Vault Documents Table */}
       {loading ? (
-        <div className="flex justify-center items-center h-48">
-          <RefreshCw className="w-6 h-6 animate-spin text-[#f59e0b]" />
+        <div className="flex justify-center items-center h-48 text-[#66554A] font-mono text-xs gap-2">
+          <RefreshCw size={20} className="animate-spin text-[#9A642C]" />
+          <span>Fetching vault records…</span>
         </div>
       ) : (
-        <div className={`p-1 rounded-2xl border ${isDark ? 'bg-[#150e09] border-[#d4c4b0]/20' : 'bg-white border-[#d8c3ad]/60 shadow-sm'}`}>
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="bg-white rounded-2xl border border-[#E8DFD3] overflow-hidden shadow-sm flex-1 overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs font-mono">
             <thead>
-              <tr className={`border-b ${isDark ? 'bg-[#1e140d] border-[#d4c4b0]/20 text-[#d4c4b0]/80' : 'bg-[#f5f4ec] border-[#d8c3ad] text-[#855300] font-bold'}`}>
-                <th className="p-3 font-semibold tracking-wider">File Name</th>
-                <th className="p-3 font-semibold tracking-wider">Entity</th>
-                <th className="p-3 font-semibold tracking-wider">Type & Size</th>
-                <th className="p-3 font-semibold tracking-wider">Status / Level</th>
-                <th className="p-3 font-semibold tracking-wider">Uploaded By</th>
-                <th className="p-3 font-semibold tracking-wider">Date</th>
-                <th className="p-3 font-semibold tracking-wider text-right">Actions</th>
+              <tr className="border-b border-[#E8DFD3] bg-[#FAF7F2] text-[#66554A] font-bold">
+                <th className="p-3">File Name</th>
+                <th className="p-3">Type / Category</th>
+                <th className="p-3">Related Business Record</th>
+                <th className="p-3">Size</th>
+                <th className="p-3">Uploaded By</th>
+                <th className="p-3">Date</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredDocs.length === 0 ? (
+              {documents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className={`p-6 text-center ${isDark ? 'text-[#d4c4b0]/40' : 'text-[#534434]/60'}`}>
-                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    No documents found for this category.
+                  <td colSpan={7} className="p-8 text-center text-[#66554A]">
+                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50 text-[#9A642C]" />
+                    No documents found matching the filter criteria.
                   </td>
                 </tr>
               ) : (
-                filteredDocs.map(doc => (
-                  <tr key={doc.document_id} className={`border-b transition-colors ${isDark ? 'border-[#d4c4b0]/10 hover:bg-[#1e140d]/50' : 'border-[#d8c3ad]/30 hover:bg-[#fbf9f1]'}`}>
-                    <td className={`p-3 font-medium max-w-[200px] truncate ${isDark ? 'text-[#d4c4b0]' : 'text-[#241A15]'}`} title={doc.original_filename}>
+                documents.map((doc) => (
+                  <tr key={doc.document_id} className="border-b border-[#E8DFD3]/40 hover:bg-[#FAF7F2]/60 transition-colors">
+                    <td className="p-3 font-sans font-bold text-[#241A15] max-w-[220px] truncate" title={doc.original_filename}>
                       {doc.original_filename}
                     </td>
-                    <td className={`p-3 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#534434]/80'}`}>
-                      <span className="block text-[10px] uppercase font-bold">{doc.related_entity_type}</span>
-                      <span className="truncate max-w-[120px] inline-block" title={doc.related_entity_id}>{doc.related_entity_id}</span>
-                    </td>
-                    <td className={`p-3 ${isDark ? 'text-[#d4c4b0]/60' : 'text-[#534434]/80'}`}>
-                      <span className="block">{doc.mime_type.split('/')[1] || doc.mime_type}</span>
-                      <span className="text-[10px] font-bold text-[#855300]">{formatSize(doc.size_bytes)}</span>
-                    </td>
                     <td className="p-3">
-                      <span className={`inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-sm mr-2
-                        ${doc.status === 'available' ? 'bg-green-900/40 text-green-400 border border-green-500/30' : 
-                          doc.status === 'uploading' ? 'bg-yellow-900/40 text-yellow-400 border border-yellow-500/30' : 
-                          'bg-red-900/40 text-red-400 border border-red-500/30'}`}>
-                        {doc.status}
-                      </span>
-                      <span className="text-[10px] text-[#d4c4b0]/50 uppercase">{doc.access_level}</span>
+                      <DocumentTypeBadge documentType={doc.document_type || doc.category} />
                     </td>
-                    <td className="p-3 text-[#d4c4b0]/60 truncate max-w-[100px]" title={doc.uploaded_by}>
-                      {doc.uploaded_by}
-                    </td>
-                    <td className="p-3 text-[#d4c4b0]/60 text-[10px]">
-                      {formatDate(doc.uploaded_at)}
-                    </td>
-                    <td className="p-3 text-right space-x-2">
-                      <button onClick={() => handleAction(doc.document_id, 'view')} className="p-1.5 bg-[#d4c4b0]/10 hover:bg-[#f59e0b] hover:text-[#1e140d] transition-colors rounded-sm" title="View">
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleAction(doc.document_id, 'download')} className="p-1.5 bg-[#d4c4b0]/10 hover:bg-[#f59e0b] hover:text-[#1e140d] transition-colors rounded-sm" title="Download">
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-                      {(userRole === 'owner' || userRole === 'manager') && doc.status !== 'archived' && (
-                        <button onClick={() => handleDelete(doc.document_id)} className="p-1.5 bg-[#d4c4b0]/10 hover:bg-red-500 hover:text-white transition-colors rounded-sm" title="Delete">
-                          <Trash2 className="w-3.5 h-3.5" />
+                    <td className="p-3 text-[#66554A]">
+                      {doc.related_entity_type && doc.related_entity_id ? (
+                        <button
+                          onClick={() => onOpenRecord && onOpenRecord(doc.related_entity_type, doc.related_entity_id)}
+                          className="hover:underline text-[#9A642C] font-bold text-left flex items-center gap-1"
+                        >
+                          <span className="uppercase">{doc.related_entity_type}</span>
+                          <span className="text-[10px]">#{doc.related_entity_id.slice(-6)}</span>
+                          <ExternalLink size={10} />
                         </button>
+                      ) : (
+                        <span className="opacity-50">Unlinked</span>
                       )}
+                    </td>
+                    <td className="p-3 text-[#66554A]">{formatSize(doc.size_bytes)}</td>
+                    <td className="p-3 text-[#66554A] font-sans">
+                      {doc.uploaded_by_role || 'staff'} ({doc.uploaded_by.slice(0, 6)})
+                    </td>
+                    <td className="p-3 text-[#66554A] text-[10px]">
+                      {new Date(doc.uploaded_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                    </td>
+                    <td className="p-3 text-right space-x-1.5">
+                      <button
+                        onClick={() => setPreviewDoc(doc)}
+                        className="p-1.5 bg-[#FAF7F2] hover:bg-[#F3ECE3] text-[#9A642C] transition-colors rounded-lg border border-[#E8DFD3]"
+                        title="Preview File"
+                      >
+                        <Eye size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDownload(doc.document_id)}
+                        className="p-1.5 bg-[#FAF7F2] hover:bg-[#F3ECE3] text-[#66554A] transition-colors rounded-lg border border-[#E8DFD3]"
+                        title="Download File"
+                      >
+                        <Download size={13} />
+                      </button>
+                      <button
+                        onClick={() => setLinkingDoc(doc)}
+                        className="p-1.5 bg-[#FAF7F2] hover:bg-[#F3ECE3] text-[#2F6B54] transition-colors rounded-lg border border-[#E8DFD3]"
+                        title="Attach / Reuse File on Record"
+                      >
+                        <LinkIcon size={13} />
+                      </button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewDoc && (
+        <DocumentPreview document={previewDoc} onClose={() => setPreviewDoc(null)} />
+      )}
+
+      {/* Link Existing Document Modal */}
+      {linkingDoc && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#241A15]/60 backdrop-blur-sm" onClick={() => setLinkingDoc(null)} />
+          <div className="bg-white border border-[#E8DFD3] rounded-2xl w-full max-w-sm p-5 shadow-2xl relative z-10">
+            <h3 className="font-serif font-bold text-sm text-[#241A15] mb-1">Reuse / Link Document</h3>
+            <p className="text-[10px] text-[#66554A] font-mono mb-4 truncate">{linkingDoc.original_filename}</p>
+
+            <form onSubmit={handleConfirmLink} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1 text-[10px] font-mono font-bold text-[#66554A]">
+                <label>Target Entity Module</label>
+                <select
+                  value={targetType}
+                  onChange={(e) => setTargetType(e.target.value)}
+                  className="bg-[#FAF7F2] border border-[#E8DFD3] rounded-lg p-2 text-xs text-[#241A15] outline-none"
+                >
+                  <option value="expenses">Expense Record</option>
+                  <option value="purchases">Purchase Order</option>
+                  <option value="refund_requests">Refund Request</option>
+                  <option value="wastage_events">Wastage Record</option>
+                  <option value="daily_closings">Daily Closing</option>
+                  <option value="approvals">Approval Request</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 text-[10px] font-mono font-bold text-[#66554A]">
+                <label>Target Record ID</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. exp_1786095000"
+                  value={targetId}
+                  onChange={(e) => setTargetId(e.target.value)}
+                  className="bg-[#FAF7F2] border border-[#E8DFD3] rounded-lg p-2 text-xs text-[#241A15] outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setLinkingDoc(null)}
+                  className="px-3 py-2 rounded-lg bg-[#FAF7F2] text-xs font-mono font-bold text-[#66554A]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLinking}
+                  className="px-4 py-2 rounded-lg bg-[#9A642C] text-white text-xs font-mono font-bold uppercase tracking-wider shadow-sm disabled:opacity-50"
+                >
+                  {isLinking ? 'Linking…' : 'Attach Document'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

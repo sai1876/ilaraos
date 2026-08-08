@@ -5,9 +5,10 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { verifyObject } from '@/server/supabase/storageAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
+import { resolveActorContext } from '@/server/auth/resolveActor';
 
 const confirmSchema = z.object({
-  documentId: z.string().uuid()
+  documentId: z.string().min(1)
 });
 
 export async function POST(req: Request) {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitRes = await rateLimitDurable(`${ip}_confirm_upload`, 30, 60000);
+    const rateLimitRes = await rateLimitDurable(`${ip}_confirm_upload`, 40, 60000);
     if (!rateLimitRes.success) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
     }
@@ -30,8 +31,13 @@ export async function POST(req: Request) {
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(authHeader.slice(7), true);
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const actorRes = await resolveActorContext(adminDb, decodedToken);
+    if (!actorRes.ok) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const bodyText = await req.text();
@@ -42,81 +48,77 @@ export async function POST(req: Request) {
     let parsedBody;
     try {
       parsedBody = confirmSchema.parse(JSON.parse(bodyText));
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
     const { documentId } = parsedBody;
     const docRef = adminDb.collection('documents').doc(documentId);
-    
-    // We use a transaction to attach documentId to the related entity and update status
+
+    // Run transaction adhering strictly to ALL READS FIRST, THEN WRITES
     const result = await adminDb.runTransaction(async (transaction) => {
+      // 1. ALL READS FIRST
       const docSnap = await transaction.get(docRef);
       if (!docSnap.exists) {
-        throw new Error('Document metadata not found');
+        throw new Error('DOCUMENT_NOT_FOUND');
       }
 
       const metadata = docSnap.data()!;
-      
-      const userRole = decodedToken.role || 'customer';
-      if (metadata.uploaded_by !== decodedToken.uid && !['owner', 'manager'].includes(userRole)) {
-        throw new Error('Forbidden');
+
+      if (metadata.uploaded_by !== actorRes.actor.uid && !['owner', 'admin', 'manager'].includes(actorRes.actor.role)) {
+        throw new Error('FORBIDDEN');
       }
 
       if (metadata.status === 'available') {
         return metadata; // Idempotent success
       }
-      
-      if (metadata.status !== 'uploading') {
-        throw new Error(`Invalid status: ${metadata.status}`);
+
+      // Read related entity if specified
+      let entitySnap = null;
+      let entityRef = null;
+      if (metadata.related_entity_type && metadata.related_entity_id) {
+        entityRef = adminDb!.collection(metadata.related_entity_type).doc(metadata.related_entity_id);
+        entitySnap = await transaction.get(entityRef);
       }
 
-      // Verify Supabase Object
+      // Verify Supabase Object exists
       const fileInfo = await verifyObject(metadata.bucket, metadata.object_path);
-      
       if (!fileInfo) {
-        throw new Error('File not found in Supabase Storage');
+        throw new Error('FILE_NOT_FOUND_IN_STORAGE');
       }
 
-      if (fileInfo.metadata?.size === 0) {
-        throw new Error('File is empty');
-      }
-
-      // Mark metadata available
+      // 2. NOW ALL WRITES
       transaction.update(docRef, {
         status: 'available',
-        confirmed_at: new Date()
+        confirmed_at: Date.now(),
+        confirmed_by: actorRes.actor.uid,
       });
 
-      // Attach documentId to the related entity using transaction
-      if (metadata.related_entity_type && metadata.related_entity_id) {
-        const entityRef = adminDb!.collection(metadata.related_entity_type).doc(metadata.related_entity_id);
-        const entitySnap = await transaction.get(entityRef);
-        
-        if (entitySnap.exists) {
-           // Decide how to attach based on type
-           // The prompt said: "Do not append duplicate references"
-           // Example mapping: 
-           // Menu: image_document_id
-           if (metadata.related_entity_type === 'menu') {
-             transaction.update(entityRef, {
-               image_document_id: documentId,
-               updated_at: new Date()
-             });
-           } else if (metadata.related_entity_type === 'config') { // For atmosphere
-             // Custom logic for atmosphere if needed
-           }
+      if (entitySnap && entitySnap.exists && entityRef) {
+        const entityData = entitySnap.data() || {};
+        if (metadata.related_entity_type === 'menu') {
+          transaction.update(entityRef, {
+            image_document_id: documentId,
+            updated_at: Date.now(),
+          });
+        } else {
+          const existingDocIds = Array.isArray(entityData.document_ids) ? entityData.document_ids : [];
+          if (!existingDocIds.includes(documentId)) {
+            transaction.update(entityRef, {
+              document_ids: [...existingDocIds, documentId],
+              updated_at: Date.now(),
+            });
+          }
         }
       }
 
       return { ...metadata, status: 'available' };
     });
 
-    // Record audit event
     await logBusinessEvent({
       event_type: 'file_uploaded',
-      actor_id: decodedToken.uid,
-      actor_type: (decodedToken.role as any) || 'customer',
+      actor_id: actorRes.actor.uid,
+      actor_type: (actorRes.actor.role as any) || 'staff',
       target_type: result.category,
       target_id: documentId,
       severity: 'info',
@@ -126,18 +128,17 @@ export async function POST(req: Request) {
         category: result.category,
         relatedEntityType: result.related_entity_type,
         relatedEntityId: result.related_entity_id,
-        sizeBytes: result.size_bytes
-      }
+        sizeBytes: result.size_bytes,
+      },
     });
 
     return NextResponse.json({ success: true, document: result });
-
   } catch (error: any) {
     console.error('[Confirm Upload Error]', error);
-    if (error.message === 'Forbidden') {
+    if (error.message === 'FORBIDDEN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    if (error.message === 'Document metadata not found') {
+    if (error.message === 'DOCUMENT_NOT_FOUND') {
       return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
