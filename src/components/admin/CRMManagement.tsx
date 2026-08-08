@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Sparkles, Send, MessageSquare, TrendingUp, CheckCircle, RefreshCw,  Check } from 'lucide-react';
 import { fetchReviewsList, fetchComplaintsList, resolveComplaintTicket } from '@/lib/dbService';
-import { auth } from '@/lib/firebase';
+import { apiRequest } from '@/lib/apiClient';
 
 interface Patron {
   id: string;
@@ -41,24 +41,18 @@ export default function CRMManagement({ initialFilter = 'all', userRole }: CRMMa
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadPatrons();
-    loadCRMData();
+    Promise.all([loadPatrons(), loadCRMData()]).catch(err => console.error(err));
   }, []);
 
   const loadPatrons = async () => {
     setLoadingPatrons(true);
     try {
-      const user = auth.currentUser;
-      if (!user) return;
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/crm/patrons', {
-        headers: { Authorization: `Bearer ${idToken}` }
+      const data = await apiRequest<{ success: boolean; patrons: Patron[] }>('/api/crm/patrons', {
+        cacheKey: 'crm:patrons',
+        staleTimeMs: 60 * 1000,
       });
-      const data = await res.json();
       if (data.success) {
         setPatrons(data.patrons);
-      } else {
-        console.error('Failed to load patrons:', data.error);
       }
     } catch (e) {
       console.error('Failed to load patrons:', e);

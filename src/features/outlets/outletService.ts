@@ -19,31 +19,28 @@ const fallbackOutlets: Outlet[] = [
   }
 ];
 
-import { getCachedData, setCachedData } from '@/lib/clientCache';
+import { queryCache } from '@/lib/queryCache';
 
 export const fetchOutlets = async (bypassCache = false): Promise<Outlet[]> => {
-  const cacheKey = 'outlets';
-  if (!bypassCache) {
-    const cached = getCachedData<Outlet[]>(cacheKey, 10 * 60 * 1000);
-    if (cached) return cached;
-  }
-
-  try {
-    const snap = await Promise.race([
-      getDocs(collection(db, OUTLETS_COL)),
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000))
-    ]);
-    const outlets: Outlet[] = [];
-    snap.forEach((doc: any) => {
-      outlets.push(doc.data() as Outlet);
-    });
-    const finalOutlets = outlets.length === 0 ? fallbackOutlets : outlets;
-    setCachedData(cacheKey, finalOutlets);
-    return finalOutlets;
-  } catch (err) {
-    console.error("Failed to fetch outlets from Firestore, falling back to fallbackOutlets: ", err);
-    return fallbackOutlets;
-  }
+  return queryCache.query<Outlet[]>({
+    key: 'outlets:main',
+    forceRefresh: bypassCache,
+    ttlMs: 15 * 60 * 1000,
+    timeoutMs: 3000,
+    fetcher: async () => {
+      try {
+        const snap = await getDocs(collection(db, OUTLETS_COL));
+        const outlets: Outlet[] = [];
+        snap.forEach((docSnap: any) => {
+          outlets.push(docSnap.data() as Outlet);
+        });
+        return outlets.length === 0 ? fallbackOutlets : outlets;
+      } catch (err) {
+        console.error("Failed to fetch outlets from Firestore, returning fallbackOutlets:", err);
+        return fallbackOutlets;
+      }
+    }
+  });
 };
 
 export const getOutletCoordinates = async (outletId: string): Promise<{latitude: number, longitude: number} | null> => {

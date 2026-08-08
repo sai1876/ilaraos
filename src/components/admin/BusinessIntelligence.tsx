@@ -10,6 +10,7 @@ import AgentInsightDrawer from './business-intelligence/AgentInsightDrawer';
 
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { apiRequest } from '@/lib/apiClient';
 
 const BI_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -75,52 +76,58 @@ export default function BusinessIntelligence() {
     setLoading(true);
     setError(null);
 
-    const headers = await getAuthHeaders();
-
     try {
       if (tab === 'overview') {
-        const res = await fetch('/api/business-intelligence/overview', { headers });
-        if (!res.ok) throw new Error('Failed to load overview data');
-        const data = await res.json();
+        const data = await apiRequest<{ snapshot: any; insights: AgentInsightData[] }>('/api/business-intelligence/overview', {
+          cacheKey: 'bi:overview',
+          staleTimeMs: 60 * 1000,
+        });
         setOverviewData(data.snapshot);
         setInsights(data.insights || []);
       } else if (tab === 'gst') {
-        const res = await fetch('/api/business-intelligence/gst', { headers });
-        if (!res.ok) throw new Error('Failed to load GST data');
-        const data = await res.json();
+        const data = await apiRequest<any>('/api/business-intelligence/gst', {
+          cacheKey: 'bi:gst',
+          staleTimeMs: 5 * 60 * 1000,
+        });
         setGstData(data);
       } else if (tab === 'revenue') {
-        const res = await fetch('/api/business-intelligence/revenue', { headers });
-        if (!res.ok) throw new Error('Failed to load revenue data');
-        const data = await res.json();
+        const data = await apiRequest<{ revenue: any }>('/api/business-intelligence/revenue', {
+          cacheKey: 'bi:revenue',
+          staleTimeMs: 2 * 60 * 1000,
+        });
         setRevenueData(data.revenue);
       } else if (tab === 'resource') {
-        const res = await fetch('/api/business-intelligence/resource', { headers });
-        if (!res.ok) throw new Error('Failed to load resource data');
-        const data = await res.json();
-        setResourceData(data);
+        const data = await apiRequest<{ resource: any }>('/api/business-intelligence/resource', {
+          cacheKey: 'bi:resource',
+          staleTimeMs: 2 * 60 * 1000,
+        });
+        setResourceData(data.resource);
       } else if (tab === 'finance') {
-        const res = await fetch('/api/business-intelligence/finance', { headers });
-        if (!res.ok) throw new Error('Failed to load finance data');
-        const data = await res.json();
-        setFinanceData(data);
+        const data = await apiRequest<{ finance: any }>('/api/business-intelligence/finance', {
+          cacheKey: 'bi:finance',
+          staleTimeMs: 2 * 60 * 1000,
+        });
+        setFinanceData(data.finance);
       } else if (tab === 'compliance') {
-        const res = await fetch('/api/business-intelligence/compliance', { headers });
-        if (!res.ok) throw new Error('Failed to load compliance data');
-        const data = await res.json();
-        setComplianceData(data.tasks);
+        const data = await apiRequest<{ compliance: any }>('/api/business-intelligence/compliance', {
+          cacheKey: 'bi:compliance',
+          staleTimeMs: 5 * 60 * 1000,
+        });
+        setComplianceData(data.compliance);
       } else if (tab === 'ca_workspace') {
-        const res = await fetch('/api/business-intelligence/ca', { headers });
-        if (!res.ok) throw new Error('Failed to load CA workspace data');
-        const data = await res.json();
-        setCaData(data.reviews);
+        const data = await apiRequest<{ ca_workspace: any }>('/api/business-intelligence/ca-workspace', {
+          cacheKey: 'bi:ca_workspace',
+          staleTimeMs: 5 * 60 * 1000,
+        });
+        setCaData(data.ca_workspace);
       }
     } catch (err: any) {
-      setError(err.message || 'IlaraOS Intelligence unavailable');
+      console.error(`Failed to fetch BI data for tab: ${tab}`, err);
+      setError(err.message || `Failed to load ${tab} data`);
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   useEffect(() => {
     fetchTabData(activeTab);

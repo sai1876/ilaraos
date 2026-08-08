@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { UserDocument, OrderDocument, MenuItem } from '@/lib/types';
+import { queryCache } from '@/lib/queryCache';
 
 export interface CartItem {
   id: string; // Internal cart ID
@@ -197,18 +198,21 @@ export const useStore = create<AppState>()(
         })
       })),
       
-      resetStore: () => set({
-        user: null,
-        userProfile: null,
-        authLoading: true,
-        cart: [],
-        activeOrders: [],
-        selectedTrackerOrderId: null,
-        isTrackerOpen: false,
-        myBookings: [],
-        activeLobbies: DEFAULT_LOBBIES,
-        currentBooking: null
-      })
+      resetStore: () => {
+        queryCache.clearAll();
+        return set({
+          user: null,
+          userProfile: null,
+          authLoading: true,
+          cart: [],
+          activeOrders: [],
+          selectedTrackerOrderId: null,
+          isTrackerOpen: false,
+          myBookings: [],
+          activeLobbies: DEFAULT_LOBBIES,
+          currentBooking: null
+        });
+      }
     }),
     {
       name: 'ilara-storage',

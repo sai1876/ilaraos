@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, FileText, AlertCircle, RefreshCw, ShoppingBag, Download } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, where, limit } from 'firebase/firestore';
 import { RefundRequestDocument, OrderDocument } from '@/lib/types';
 import { generateRefundsCSV, downloadCSV } from '@/lib/csvExport';
 
@@ -77,27 +77,34 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
         q = query(
           collection(db, 'refund_requests'),
           where('outlet_id', '==', outletId),
-          orderBy('created_at', 'desc')
+          orderBy('created_at', 'desc'),
+          limit(100)
         );
       } else {
-        q = query(collection(db, 'refund_requests'), orderBy('created_at', 'desc'));
+        q = query(
+          collection(db, 'refund_requests'),
+          orderBy('created_at', 'desc'),
+          limit(100)
+        );
       }
       const snap = await getDocs(q);
-      const fetchedRequests: ExtendedRefundRequest[] = [];
-      
-      for (const d of snap.docs) {
-        const reqData = d.data() as RefundRequestDocument;
-        let orderData: OrderDocument | undefined;
-        try {
-          const orderSnap = await getDoc(doc(db, 'orders', reqData.order_id));
-          if (orderSnap.exists()) {
-            orderData = orderSnap.data() as OrderDocument;
-          }
-        } catch (e) {
-          console.warn('Failed to fetch order', reqData.order_id);
-        }
-        fetchedRequests.push({ ...reqData, orderData });
-      }
+      const rawReqs = snap.docs.map(d => d.data() as RefundRequestDocument);
+
+      const uniqueOrderIds = Array.from(new Set(rawReqs.map(r => r.order_id).filter(Boolean)));
+      const orderSnaps = await Promise.all(
+        uniqueOrderIds.map(id => getDoc(doc(db, 'orders', id)).catch(() => null))
+      );
+
+      const ordersMap = new Map<string, OrderDocument>();
+      orderSnaps.forEach(s => {
+        if (s && s.exists()) ordersMap.set(s.id, s.data() as OrderDocument);
+      });
+
+      const fetchedRequests: ExtendedRefundRequest[] = rawReqs.map(reqData => ({
+        ...reqData,
+        orderData: ordersMap.get(reqData.order_id)
+      }));
+
       setRequests(fetchedRequests.length > 0 ? fetchedRequests : fallbackRefunds);
     } catch (error) {
       console.error('Error fetching refund requests:', error);

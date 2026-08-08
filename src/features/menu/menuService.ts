@@ -5,34 +5,27 @@ import { MenuItem } from '@/lib/types';
 import { db, auth } from "@/lib/firebase";
 
 
-import { getCachedData, setCachedData } from '@/lib/clientCache';
+import { queryCache } from '@/lib/queryCache';
 
 export const fetchMenuItems = async (bypassCache = false): Promise<MenuItem[]> => {
-  const cacheKey = 'menu_items';
-  if (!bypassCache) {
-    const cached = getCachedData<MenuItem[]>(cacheKey, 5 * 60 * 1000);
-    if (cached) return cached;
-  }
-
-  try {
-    const q = query(collection(db, MENU_COL), orderBy("sort_order", "asc"));
-    const snap = await Promise.race([
-      getDocs(q),
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000))
-    ]);
-    const items: MenuItem[] = [];
-    snap.forEach((doc: any) => {
-      const data = doc.data();
-      if (!data.deleted) {
-        items.push(data as MenuItem);
-      }
-    });
-    setCachedData(cacheKey, items);
-    return items;
-  } catch (err) {
-    console.error("Failed to fetch menu items from Firestore:", err);
-    throw err;
-  }
+  return queryCache.query<MenuItem[]>({
+    key: 'menu:main',
+    forceRefresh: bypassCache,
+    ttlMs: 5 * 60 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      const q = query(collection(db, MENU_COL), orderBy("sort_order", "asc"));
+      const snap = await getDocs(q);
+      const items: MenuItem[] = [];
+      snap.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        if (!data.deleted) {
+          items.push(data as MenuItem);
+        }
+      });
+      return items;
+    }
+  });
 };
 
 export const saveMenuItem = async (item: MenuItem): Promise<void> => {
@@ -51,6 +44,7 @@ export const saveMenuItem = async (item: MenuItem): Promise<void> => {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.error || 'Failed to save menu item');
   }
+  queryCache.invalidate('menu');
 };
 
 export const deleteMenuItem = async (itemId: string): Promise<void> => {
@@ -69,6 +63,7 @@ export const deleteMenuItem = async (itemId: string): Promise<void> => {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.error || 'Failed to delete menu item');
   }
+  queryCache.invalidate('menu');
 };
 
 // --- Stock Registry CRUD Operations ---

@@ -39,8 +39,10 @@ export const submitOrderFeedback = async (
 
 // --- Smart Refill AI Helper ---
 
+import { queryCache } from '@/lib/queryCache';
+
 export const streamApprovals = (callback: (data: ApprovalRequest[]) => void) => {
-  const q = query(collection(db, APPROVALS_COL));
+  const q = query(collection(db, APPROVALS_COL), limit(50));
   return onSnapshot(q, (snapshot) => {
     const data = snapshot.docs.map(doc => doc.data() as ApprovalRequest);
     data.sort((a, b) => b.timestamp - a.timestamp);
@@ -53,6 +55,7 @@ export const streamApprovals = (callback: (data: ApprovalRequest[]) => void) => 
 export const updateApprovalStatus = async (requestId: string, status: 'approved' | 'rejected' | 'completed') => {
   const ref = doc(db, APPROVALS_COL, requestId);
   await updateDoc(ref, { status });
+  queryCache.invalidate('approvals');
 };
 
 export const submitApprovalRequest = async (request: Omit<ApprovalRequest, 'request_id' | 'timestamp' | 'status'>) => {
@@ -64,25 +67,34 @@ export const submitApprovalRequest = async (request: Omit<ApprovalRequest, 'requ
     status: 'pending'
   };
   await setDoc(doc(db, APPROVALS_COL, requestId), fullRequest);
+  queryCache.invalidate('approvals');
   return requestId;
 };
 
-// --- Dough Conversion Recipes & Batches telemetry ---
-
-
-
 export const fetchReviewsList = async () => {
-  const q = query(collection(db, REVIEWS_COL), orderBy('timestamp', 'desc'), limit(100));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return queryCache.query({
+    key: 'reviews:main',
+    ttlMs: 60 * 1000,
+    timeoutMs: 3000,
+    fetcher: async () => {
+      const q = query(collection(db, REVIEWS_COL), orderBy('timestamp', 'desc'), limit(100));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };
 
-
-
 export const fetchComplaintsList = async () => {
-  const q = query(collection(db, COMPLAINTS_COL), orderBy('created_at', 'desc'), limit(100));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return queryCache.query({
+    key: 'complaints:main',
+    ttlMs: 60 * 1000,
+    timeoutMs: 3000,
+    fetcher: async () => {
+      const q = query(collection(db, COMPLAINTS_COL), orderBy('created_at', 'desc'), limit(100));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };
 
 export const resolveComplaintTicket = async (id: string, resolution: string) => {
@@ -91,4 +103,5 @@ export const resolveComplaintTicket = async (id: string, resolution: string) => 
     resolution,
     resolved_at: new Date().toISOString()
   });
+  queryCache.invalidate('complaints');
 };

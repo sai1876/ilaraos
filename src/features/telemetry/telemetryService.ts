@@ -286,10 +286,19 @@ export const closeCashRegisterSession = async (id: string, closingCash: number, 
   });
 };
 
+import { queryCache } from '@/lib/queryCache';
+
 export const fetchCashRegisterSessions = async () => {
-  const q = query(collection(db, CASH_SESSIONS_COL), orderBy('opened_at', 'desc'), limit(100));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return queryCache.query({
+    key: 'cash_sessions:main',
+    ttlMs: 30 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      const q = query(collection(db, CASH_SESSIONS_COL), orderBy('opened_at', 'desc'), limit(100));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };
 
 export const addExpenseRecord = async (expenseData: any) => {
@@ -297,10 +306,18 @@ export const addExpenseRecord = async (expenseData: any) => {
     ...expenseData,
     timestamp: new Date().toISOString()
   });
+  queryCache.invalidate('expenses');
 };
 
 export const fetchExpensesList = async () => {
-  const q = query(collection(db, EXPENSES_COL), orderBy('timestamp', 'desc'), limit(100));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return queryCache.query({
+    key: 'expenses:main',
+    ttlMs: 30 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      const q = query(collection(db, EXPENSES_COL), orderBy('timestamp', 'desc'), limit(100));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };

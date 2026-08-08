@@ -5,7 +5,10 @@ type OperationalRecord = Record<string, unknown> & { id: string };
 
 export const fetchStaffList = async (outletId?: string): Promise<Staff[]> => {
   const queryString = outletId ? `?outlet_id=${encodeURIComponent(outletId)}` : '';
-  const result = await apiRequest<{ staff: Staff[] }>(`/api/operations/staff-directory${queryString}`);
+  const result = await apiRequest<{ staff: Staff[] }>(`/api/operations/staff-directory${queryString}`, {
+    cacheKey: `staff:${outletId || 'main'}`,
+    staleTimeMs: 60 * 1000,
+  });
   return result.staff;
 };
 
@@ -29,6 +32,10 @@ export const fetchAttendanceLogs = async (date?: string, outletId?: string): Pro
   if (outletId) params.set('outlet_id', outletId);
   const result = await apiRequest<{ attendance: OperationalRecord[] }>(
     `/api/operations/attendance?${params.toString()}`,
+    {
+      cacheKey: `attendance:${date || 'today'}:${outletId || 'main'}`,
+      staleTimeMs: 30 * 1000,
+    }
   );
   return result.attendance;
 };
@@ -53,6 +60,10 @@ export const fetchShiftsForDate = async (date: string, outletId?: string): Promi
   if (outletId) params.set('outlet_id', outletId);
   const result = await apiRequest<{ shifts: OperationalRecord[] }>(
     `/api/operations/shifts?${params.toString()}`,
+    {
+      cacheKey: `shifts:${date}:${outletId || 'main'}`,
+      staleTimeMs: 60 * 1000,
+    }
   );
   return result.shifts;
 };

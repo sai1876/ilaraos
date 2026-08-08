@@ -19,7 +19,16 @@ export default function PerfDebugOverlay() {
   useEffect(() => {
     if (!enabled) return;
     const interval = setInterval(() => {
-      setMetrics(getRecordedMetrics());
+      const recorded = getRecordedMetrics();
+      const ilaraPerf = (typeof window !== 'undefined' && window.__ILARA_PERF__)
+        ? window.__ILARA_PERF__.map(p => ({
+            name: `${p.cacheHit ? '⚡[CACHE] ' : p.deduped ? '🔁[DEDUPE] ' : '🌐[NET] '}${p.name}`,
+            durationMs: p.durationMs,
+            timestamp: p.timestamp,
+            details: { key: p.key, status: p.status }
+          }))
+        : [];
+      setMetrics([...ilaraPerf, ...recorded].sort((a, b) => b.timestamp - a.timestamp));
     }, 500);
     return () => clearInterval(interval);
   }, [enabled]);

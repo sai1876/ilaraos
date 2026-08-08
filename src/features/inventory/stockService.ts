@@ -5,34 +5,45 @@ import { StockItem, ConversionRecipe, DoughBatch } from '@/lib/types';
 import { db } from "@/lib/firebase";
 
 
-export const fetchStocks = async (outletId?: string): Promise<StockItem[]> => {
-  const snap = await getDocs(collection(db, STOCKS_COL));
-  const stocks: StockItem[] = [];
-  snap.forEach((docSnap) => {
-    const data = docSnap.data();
-    if (!data.deleted) {
-      if (!outletId || data.outlet_id === outletId || !data.outlet_id || data.outlet_id === 'main' || (Array.isArray(data.outlets) && data.outlets.includes(outletId))) {
-        stocks.push(data as StockItem);
+import { queryCache } from '@/lib/queryCache';
+
+export const fetchStocks = async (outletId?: string, bypassCache = false): Promise<StockItem[]> => {
+  const key = `inventory:${outletId || 'main'}`;
+  return queryCache.query<StockItem[]>({
+    key,
+    forceRefresh: bypassCache,
+    ttlMs: 30 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      let q;
+      if (outletId) {
+        q = query(collection(db, STOCKS_COL), where('outlet_id', 'in', [outletId, 'main']));
+      } else {
+        q = query(collection(db, STOCKS_COL), limit(200));
       }
+      const snap = await getDocs(q);
+      const stocks: StockItem[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (!data.deleted) {
+          stocks.push(data as StockItem);
+        }
+      });
+      return stocks;
     }
   });
-  if (stocks.length === 0) {
-    snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (!data.deleted) stocks.push(data as StockItem);
-    });
-  }
-  return stocks;
 };
 
 export const saveStockItem = async (item: StockItem): Promise<void> => {
   const docRef = doc(db, STOCKS_COL, item.stock_id);
   await setDoc(docRef, item);
+  queryCache.invalidate('inventory');
 };
 
 export const deleteStockItem = async (stockId: string): Promise<void> => {
   const docRef = doc(db, STOCKS_COL, stockId);
   await updateDoc(docRef, { deleted: true });
+  queryCache.invalidate('inventory');
 };
 
 // --- Offer Campaigns CRUD Operations ---
@@ -121,47 +132,57 @@ export const streamAllBatches = (
 
 
 export const fetchStockMovements = async (outletId?: string) => {
-  let q;
-  if (outletId) {
-    q = query(
-      collection(db, STOCK_MOVEMENTS_COL),
-      where('outlet_id', '==', outletId),
-      orderBy('created_at', 'desc'),
-      limit(100)
-    );
-  } else {
-    q = query(collection(db, STOCK_MOVEMENTS_COL), orderBy('created_at', 'desc'), limit(100));
-  }
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const key = `movements:${outletId || 'main'}`;
+  return queryCache.query({
+    key,
+    ttlMs: 30 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      let q;
+      if (outletId) {
+        q = query(
+          collection(db, STOCK_MOVEMENTS_COL),
+          where('outlet_id', '==', outletId),
+          orderBy('created_at', 'desc'),
+          limit(100)
+        );
+      } else {
+        q = query(collection(db, STOCK_MOVEMENTS_COL), orderBy('created_at', 'desc'), limit(100));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };
-
-
 
 export const addWastageRecord = async (wastageData: any) => {
   await addDoc(collection(db, WASTAGE_COL), {
     ...wastageData,
     created_at: new Date().toISOString()
   });
+  queryCache.invalidate('wastage');
 };
 
 export const fetchWastageList = async (outletId?: string) => {
-  let q;
-  if (outletId) {
-    q = query(
-      collection(db, WASTAGE_COL),
-      where('outlet_id', '==', outletId),
-      orderBy('created_at', 'desc'),
-      limit(100)
-    );
-  } else {
-    q = query(collection(db, WASTAGE_COL), orderBy('created_at', 'desc'), limit(100));
-  }
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const key = `wastage:${outletId || 'main'}`;
+  return queryCache.query({
+    key,
+    ttlMs: 30 * 1000,
+    timeoutMs: 4000,
+    fetcher: async () => {
+      let q;
+      if (outletId) {
+        q = query(
+          collection(db, WASTAGE_COL),
+          where('outlet_id', '==', outletId),
+          orderBy('created_at', 'desc'),
+          limit(100)
+        );
+      } else {
+        q = query(collection(db, WASTAGE_COL), orderBy('created_at', 'desc'), limit(100));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
 };
-
-
-
-
-
