@@ -9,7 +9,7 @@ import { generateMenuDescription } from '@/lib/geminiService';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { uploadFileViaIntent } from '@/lib/fileUpload';
+import { uploadFileViaIntent } from '@/features/documents/documentService';
 
 interface MenuManagementProps {
   userRole?: string;

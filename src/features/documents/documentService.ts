@@ -202,9 +202,46 @@ export async function linkExistingDocumentToEntity(
   documentId: string,
   targetEntityType: string,
   targetEntityId: string
-): Promise<{ success: boolean }> {
-  return apiRequest<{ success: boolean }>('/api/documents/link', {
+): Promise<void> {
+  await apiRequest(`/api/documents/link`, {
     method: 'POST',
-    body: JSON.stringify({ documentId, targetEntityType, targetEntityId }),
+    body: {
+      document_id: documentId,
+      target_entity_type: targetEntityType,
+      target_entity_id: targetEntityId,
+    }
   });
+}
+
+/**
+ * Legacy compatibility function for simple uploads
+ */
+export async function uploadFileViaIntent(
+  file: File,
+  entityType: string,
+  entityId: string,
+  docType: string,
+  customName?: string
+): Promise<string> {
+  const intent = await createDocumentUploadIntent({
+    category: 'document',
+    documentType: docType,
+    relatedEntityType: entityType,
+    relatedEntityId: entityId,
+    originalFilename: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size,
+    description: customName,
+  });
+
+  const { error } = await supabasePublic.storage
+    .from(intent.bucket)
+    .uploadToSignedUrl(intent.objectPath, intent.token, file);
+
+  if (error) {
+    throw new Error(`Upload failed: ${error.message}`);
+  }
+
+  await confirmDocumentUpload(intent.documentId);
+  return intent.documentId;
 }

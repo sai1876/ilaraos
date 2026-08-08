@@ -31,7 +31,7 @@ import {
 import { generateSlideDetails } from '@/lib/geminiService';
 import { MenuItem, UIConfig, SliderItem, GridCard, SummerDrinkItem, SummerCategoryItem } from '@/lib/types';
 import { getCalendarEventConfig, DynamicCalendarEvent, defaultCalendarEvents } from '@/lib/calendarEvents';
-import { uploadFileViaIntent } from '@/lib/fileUpload';
+import { uploadFileViaIntent } from '@/features/documents/documentService';
 
 
 export default function UIAtmosphereManager() {

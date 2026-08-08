@@ -5,7 +5,7 @@ import { auth } from '@/lib/firebase';
 import { DailyClosingDocument } from '@/lib/types';
 import { getBusinessDateContext } from '@/lib/businessDate';
 import { Loader2, CheckCircle2, Lock, FileText, Send, XCircle, Camera, Upload } from 'lucide-react';
-import { uploadFileViaIntent } from '@/lib/fileUpload';
+import { uploadFileViaIntent } from '@/features/documents/documentService';
 import { fetchWithAuth } from '@/lib/auth/getActionToken';
 import { markStart, markEnd } from '@/lib/performance/perf';
 import EntityDocumentsPanel from '@/components/documents/EntityDocumentsPanel';
