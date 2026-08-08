@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Check, Clock, Package, FileText, IndianRupee, RefreshCw, X } from 'lucide-react';
+import { Plus, Clock, IndianRupee, RefreshCw, X } from 'lucide-react';
 import PendingEntityDocuments from '@/components/documents/PendingEntityDocuments';
 import { auth } from '@/lib/firebase';
 

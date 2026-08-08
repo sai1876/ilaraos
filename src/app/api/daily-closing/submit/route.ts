@@ -93,7 +93,6 @@ export async function POST(req: Request) {
           counted_cash: input.counted_cash,
           cash_difference: cashDifference,
           ...(input.manager_cash_note ? { manager_cash_note: input.manager_cash_note } : {}),
-          ...(input.cash_proof_photo_urls ? { cash_proof_photo_urls: input.cash_proof_photo_urls } : {}),
         },
         payment_reconciliation: {
           ...closing.payment_reconciliation,

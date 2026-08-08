@@ -91,11 +91,17 @@ describe('wastage commands', () => {
   it('stores canonical menu data and outlet instead of caller labels and costs', async () => {
     vi.mocked(requireRole).mockResolvedValue({ uid: 'chef-1', role: 'kitchen', outletId: 'outlet-a' } as never);
     state.docs.set('menu/menu-1', { name: 'Canonical Burger', station: 'grill' });
+    state.docs.set('documents/doc-1', {
+      document_type: 'wastage_photo',
+      attachment_state: 'pending_entity',
+      related_entity_id: '11111111-1111-4111-8111-111111111111'
+    });
     const response = await createWastage(request({
       idempotency_key: '11111111-1111-4111-8111-111111111111',
       source_type: 'kitchen_error', event_type: 'remake',
       items: [{ menu_item_id: 'menu-1', item_name: 'Forged', unit_cost_estimate: 9999, quantity: 1, loss_basis: 'menu_item' }],
       reason_category: 'burned', manager_note: 'Reported by kitchen',
+      document_ids: ['doc-1']
     }));
 
     expect(response.status).toBe(201);
@@ -108,11 +114,17 @@ describe('wastage commands', () => {
   it('rejects a stock item from another outlet', async () => {
     vi.mocked(requireRole).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
     state.docs.set('inventory/stock-1', { name: 'Cheese', outlet_id: 'outlet-b', current_quantity: 10 });
+    state.docs.set('documents/doc-2', {
+      document_type: 'wastage_photo',
+      attachment_state: 'pending_entity',
+      related_entity_id: '22222222-2222-4222-8222-222222222222'
+    });
     const response = await createWastage(request({
       idempotency_key: '22222222-2222-4222-8222-222222222222',
       source_type: 'expired_stock', event_type: 'spoilage',
       items: [{ stock_item_id: 'stock-1', quantity: 1, loss_basis: 'stock_item' }],
       reason_category: 'expired', manager_note: 'Expired stock found',
+      document_ids: ['doc-2']
     }));
     expect(response.status).toBe(403);
     expect(state.creates).toHaveLength(0);

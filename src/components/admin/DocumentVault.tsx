@@ -253,33 +253,7 @@ export default function DocumentVault({
                       ) : (
                         <span className="opacity-50">Unlinked</span>
                       )}
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <FileText size={14} className="text-[#9A642C] shrink-0" />
-                          <span className="truncate max-w-[150px] md:max-w-[200px]" title={doc.original_filename || 'Unknown File'}>
-                            {doc.original_filename || 'Unknown File'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded-md bg-[#FAF7F2] border border-[#E8DFD3] text-[9px] uppercase tracking-widest text-[#9A642C]">
-                          {(doc.category || 'unknown').replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {doc.related_entity_type && doc.related_entity_id ? (
-                          <button
-                            onClick={() => onOpenRecord && onOpenRecord(doc.related_entity_type, doc.related_entity_id)}
-                            className="hover:underline text-[#9A642C] font-bold text-left flex items-center gap-1"
-                          >
-                            <span className="uppercase">{doc.related_entity_type}</span>
-                            <span className="text-[10px]">#{doc.related_entity_id.slice(-6)}</span>
-                            <ExternalLink size={10} />
-                          </button>
-                        ) : (
-                          <span className="opacity-50">Unlinked</span>
-                        )}
-                      </td>
+                    </td>
                       <td className="p-3 text-[#66554A]">
                         {formatSize(doc.size_bytes || 0)}
                       </td>

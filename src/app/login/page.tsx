@@ -141,10 +141,20 @@ function StaffLoginContent() {
     setAuthError(null);
 
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        setAuthError('Authentication state lost. Please refresh.');
+        setAuthState('error');
+        verifyInFlightRef.current = false;
+        lastSubmittedCodeRef.current = '';
+        return;
+      }
+      const idToken = await user.getIdToken();
+
       const res = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify', totpCode: codeToSubmit })
+        body: JSON.stringify({ action: 'verify', totpCode: codeToSubmit, idToken })
       });
       const data = await res.json();
       if (!res.ok) {

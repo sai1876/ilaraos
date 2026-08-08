@@ -19,6 +19,9 @@ export interface DocumentRecord {
   uploaded_by_role?: string;
   uploaded_at: number;
   status: 'uploading' | 'available' | 'archived' | 'deleted';
+  attachment_state?: 'pending_entity' | 'attached' | 'finalized';
+  pending_owner_uid?: string;
+  pending_expires_at?: number;
   version: number;
   description?: string;
   invoice_number?: string;
@@ -205,11 +208,11 @@ export async function linkExistingDocumentToEntity(
 ): Promise<void> {
   await apiRequest(`/api/documents/link`, {
     method: 'POST',
-    body: {
+    body: JSON.stringify({
       document_id: documentId,
       target_entity_type: targetEntityType,
       target_entity_id: targetEntityId,
-    }
+    })
   });
 }
 
@@ -218,21 +221,19 @@ export async function linkExistingDocumentToEntity(
  */
 export async function uploadFileViaIntent(
   file: File,
-  entityType: string,
-  entityId: string,
-  docType: string,
-  customName?: string
-): Promise<string> {
-  const intent = await createDocumentUploadIntent({
-    category: 'document',
-    documentType: docType,
-    relatedEntityType: entityType,
-    relatedEntityId: entityId,
-    originalFilename: file.name,
-    mimeType: file.type,
-    sizeBytes: file.size,
-    description: customName,
-  });
+  options: {
+    category: DocumentRecord['category'];
+    documentType?: string;
+    relatedEntityType: string;
+    relatedEntityId: string;
+    originalFilename: string;
+    mimeType: string;
+    sizeBytes: number;
+    description?: string;
+    accessLevel?: string;
+  }
+): Promise<DocumentRecord> {
+  const intent = await createDocumentUploadIntent(options);
 
   const { error } = await supabasePublic.storage
     .from(intent.bucket)
@@ -242,6 +243,6 @@ export async function uploadFileViaIntent(
     throw new Error(`Upload failed: ${error.message}`);
   }
 
-  await confirmDocumentUpload(intent.documentId);
-  return intent.documentId;
+  const result = await confirmDocumentUpload(intent.documentId);
+  return result.document;
 }

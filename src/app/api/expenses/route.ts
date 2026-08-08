@@ -164,7 +164,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Expense ID already exists", code: "ENTITY_ID_ALREADY_EXISTS" }, { status: 409 });
     }
     if (error.message.startsWith("INVALID_EVIDENCE_REFERENCE")) {
-      return NextResponse.json({ success: false, error: error.message, code: "INVALID_EVIDENCE_REFERENCE" }, { status: 422 });
+      return NextResponse.json({ success: false, error: "Invalid evidence reference", code: "INVALID_EVIDENCE_REFERENCE" }, { status: 422 });
     }
     if (error.message === "REQUIRED_EVIDENCE_MISSING") {
       return NextResponse.json({ success: false, error: "Receipt or invoice evidence is required to finalize expense.", code: "REQUIRED_EVIDENCE_MISSING", missing: ["expense_receipt", "expense_invoice"] }, { status: 422 });

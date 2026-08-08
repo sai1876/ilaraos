@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('[PURCHASES POST]', error);
     if (error.message.startsWith('INVALID_EVIDENCE_REFERENCE')) {
-      return NextResponse.json({ error: error.message, code: 'INVALID_EVIDENCE_REFERENCE' }, { status: 422 });
+      return NextResponse.json({ error: 'Invalid evidence reference', code: 'INVALID_EVIDENCE_REFERENCE' }, { status: 422 });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -91,8 +91,8 @@ export async function GET(req: Request) {
     const purchases = snap.docs.map(d => d.data());
     
     return NextResponse.json({ success: true, purchases });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[PURCHASES GET]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

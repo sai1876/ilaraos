@@ -187,9 +187,14 @@ describe('daily closing reconciliation', () => {
     let response = await submitClosing(post({ closing_id: 'close-1', counted_cash: 300, verified_upi: 0 }));
     expect(response.status).toBe(400);
 
+    state.docs.set('documents/doc-1', {
+      document_type: 'cash_count_photo',
+      attachment_state: 'pending_entity',
+      related_entity_id: 'close-1',
+    });
     vi.mocked(requireRole).mockResolvedValueOnce({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
     response = await submitClosing(post({
-      closing_id: 'close-1', counted_cash: 300, verified_upi: 0, manager_cash_note: 'Verified physical cash variance',
+      closing_id: 'close-1', counted_cash: 300, verified_upi: 0, manager_cash_note: 'Verified physical cash variance', document_ids: ['doc-1']
     }));
     expect(response.status).toBe(200);
     expect(state.docs.get('daily_closings/close-1')).toMatchObject({ status: 'submitted' });

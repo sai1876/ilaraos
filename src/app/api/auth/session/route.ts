@@ -25,7 +25,7 @@ const sessionRequestSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('verify'),
-    idToken: z.string().optional(),
+    idToken: z.string().min(1),
     totpCode: z.string().regex(/^\d{6}$/),
   }),
   z.object({
@@ -237,30 +237,34 @@ export async function POST(request: Request) {
     let targetUid: string;
     let targetRole: string;
     let targetStaffId: string;
-    let fallbackIdToken = parsed.data.idToken;
+    const providedIdToken = parsed.data.idToken;
 
-    if (preAuth) {
-      targetUid = preAuth.uid;
-      targetRole = preAuth.role;
-      targetStaffId = preAuth.staffId;
-    } else if (fallbackIdToken) {
-      // Fallback: verify ID token if pre-auth cookie is missing
-      let decodedToken;
-      try {
-        decodedToken = await adminAuth.verifyIdToken(fallbackIdToken, true);
-      } catch (err) {
-        return NextResponse.json({ error: 'Session expired. Please sign in again.', code: 'STALE_TOKEN' }, { status: 401 });
-      }
-      const resolution = await resolveActorContext(adminDb, decodedToken);
-      if (!resolution.ok || resolution.actor.role === 'customer' || !resolution.actor.staffId) {
-        return NextResponse.json({ error: 'Staff access required', code: 'STAFF_RECORD_REQUIRED' }, { status: 403 });
-      }
-      targetUid = resolution.actor.uid;
-      targetRole = resolution.actor.role;
-      targetStaffId = resolution.actor.staffId;
-    } else {
+    if (!preAuth) {
       return NextResponse.json({ error: 'Pre-authentication challenge expired. Please enter password again.', code: 'PREAUTH_EXPIRED' }, { status: 401 });
     }
+    if (!providedIdToken) {
+      return NextResponse.json({ error: 'ID token required', code: 'ID_TOKEN_REQUIRED' }, { status: 401 });
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(providedIdToken, true);
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid or expired session. Please sign in again.', code: 'INVALID_SESSION_ID_TOKEN' }, { status: 401 });
+    }
+
+    if (decodedToken.uid !== preAuth.uid) {
+      return NextResponse.json({ error: 'Identity mismatch', code: 'AUTH_IDENTITY_MISMATCH' }, { status: 403 });
+    }
+
+    const authAgeSeconds = (Date.now() / 1000) - decodedToken.auth_time;
+    if (authAgeSeconds > 300) {
+      return NextResponse.json({ error: 'Recent login required', code: 'RECENT_LOGIN_REQUIRED' }, { status: 401 });
+    }
+
+    targetUid = preAuth.uid;
+    targetRole = preAuth.role;
+    targetStaffId = preAuth.staffId;
 
     // Rate Limit Guard
     const attemptLimit = await rateLimitDurable(`staff-totp:${targetUid}`, 5, 5 * 60 * 1000);
@@ -330,17 +334,9 @@ export async function POST(request: Request) {
 
     // Session Cookie Creation
     const sessionCookieStart = Date.now();
-
-    // If fallbackIdToken is available, create session cookie with it, else mint custom token session
-    let sessionCookie: string;
-    if (fallbackIdToken) {
-      sessionCookie = await adminAuth!.createSessionCookie(fallbackIdToken, { expiresIn: SESSION_EXPIRES_IN_MS });
-    } else {
-      const customToken = await adminAuth!.createCustomToken(targetUid, { role: targetRole });
-      sessionCookie = await adminAuth!.createSessionCookie(customToken, { expiresIn: SESSION_EXPIRES_IN_MS }).catch(async () => {
-        return adminAuth!.createSessionCookie(await adminAuth!.createCustomToken(targetUid), { expiresIn: SESSION_EXPIRES_IN_MS });
-      });
-    }
+    
+    // Explicitly pass the verified ID token to createSessionCookie. Do NOT use createCustomToken.
+    const sessionCookie = await adminAuth.createSessionCookie(providedIdToken, { expiresIn: SESSION_EXPIRES_IN_MS });
     timings.session_cookie = Date.now() - sessionCookieStart;
 
     const redirectUrl = getHomeRouteForRole(targetRole);

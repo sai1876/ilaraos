@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowUpRight, Ban, CheckCircle2, ChevronRight, Clock, MapPin, Receipt, ShieldCheck, Thermometer, UserCog, UserSquare2, Utensils, DollarSign, ShoppingBag, Users, TrendingUp, Calendar } from 'lucide-react';
+import { Clock, MapPin, DollarSign, ShoppingBag, Users, TrendingUp, Calendar } from 'lucide-react';
 import PendingEntityDocuments from '@/components/documents/PendingEntityDocuments';
 import { streamTelemetryData, fetchOutlets, fetchStaffList } from '@/lib/dbService';
 import { auth } from '@/lib/firebase';

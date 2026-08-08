@@ -10,7 +10,7 @@ import { fetchLocalizedWeather, analyzeSmartRefill } from '@/lib/geminiService';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, query, collection, where, onSnapshot } from 'firebase/firestore';
-import PurchasesPanel from './PurchasesPanel';
+
 
 interface InventoryManagementProps {
   userRole?: string;

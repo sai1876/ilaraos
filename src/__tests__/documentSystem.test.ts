@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/firebaseAdmin', () => {
   const docsMap = new Map<string, any>();
   const entityMap = new Map<string, any>();
+  
+  docsMap.set('staff/user-owner', { role: 'owner', outlet_id: 'main', status: 'active' });
+  docsMap.set('staff/user-manager', { role: 'manager', outlet_id: 'main', status: 'active' });
 
   const createQueryMock = () => ({
     where: vi.fn().mockImplementation(() => createQueryMock()),
@@ -128,6 +131,7 @@ describe('Document Infrastructure & Evidence System', () => {
 
   it('rejects expense submission when required evidence is missing with HTTP 422', async () => {
     const body = {
+      expense_id: 'exp-stable-1',
       category: 'food',
       amount: 1500,
       description: 'Vendor vegetables without receipt',
@@ -145,6 +149,7 @@ describe('Document Infrastructure & Evidence System', () => {
     });
 
     const res = await expensesHandler(req);
+    console.log('EXPENSE TEST RES', res.status, await res.clone().json().catch(()=>null));
     expect(res.status).toBe(422);
 
     const json = await res.json();
@@ -154,6 +159,7 @@ describe('Document Infrastructure & Evidence System', () => {
 
   it('allows expense draft submission without required evidence', async () => {
     const body = {
+      expense_id: 'exp-stable-2',
       category: 'food',
       amount: 1500,
       description: 'Draft vegetable purchase',

@@ -90,7 +90,7 @@ export async function POST(req: Request, { params }: { params: { purchaseId: str
   } catch (error: any) {
     console.error('[INVOICE POST]', error);
     if (error.message.startsWith('INVALID_EVIDENCE_REFERENCE') || error.message === 'REQUIRED_EVIDENCE_MISSING') {
-      return NextResponse.json({ error: error.message, code: error.message.split(':')[0] }, { status: 422 });
+      return NextResponse.json({ error: 'Invalid evidence reference or missing required evidence', code: error.message.split(':')[0] }, { status: 422 });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

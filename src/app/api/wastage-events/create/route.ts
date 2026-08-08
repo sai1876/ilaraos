@@ -162,7 +162,9 @@ export async function POST(req: Request) {
         if (!docSnap.exists) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
         const docData = docSnap.data()!;
         if (docData.attachment_state !== 'pending_entity') throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
-        if (docData.related_entity_id !== eventId) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: relation mismatch`);
+        if (docData.related_entity_id !== eventId && docData.related_entity_id !== input.idempotency_key) {
+          throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: relation mismatch`);
+        }
         if (docData.document_type === 'wastage_photo') foundPhoto = true;
         validDocRefs.push(docRef);
       }
