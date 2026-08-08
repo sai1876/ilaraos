@@ -61,11 +61,15 @@ async function executeRawFetch<T>(
   overrideTimeoutMs?: number
 ): Promise<T> {
   const timeoutMs = overrideTimeoutMs || options.timeoutMs || 8000;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let activeSignal: AbortSignal;
+  let timeoutId: NodeJS.Timeout | undefined;
 
   if (parentSignal) {
-    parentSignal.addEventListener('abort', () => controller.abort());
+    activeSignal = parentSignal;
+  } else {
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    activeSignal = controller.signal;
   }
 
   const headers = new Headers(options.headers || {});
@@ -81,20 +85,28 @@ async function executeRawFetch<T>(
     } catch {}
   }
 
+  const isGet = (options.method || 'GET').toUpperCase() === 'GET';
+
   try {
     const res = await fetch(urlString, {
       ...options,
       headers,
-      signal: controller.signal,
+      signal: activeSignal,
     });
 
-    // On 401, attempt forced token refresh retry ONCE
+    // On 401, attempt forced token refresh retry ONCE if not bypassed
     if (res.status === 401 && !options.bypassAuth && retriesLeft > 0) {
       try {
         const freshToken = await getActionToken(true);
         headers.set('Authorization', `Bearer ${freshToken}`);
         return executeRawFetch<T>(urlString, { ...options, headers }, parentSignal, retriesLeft - 1, timeoutMs);
       } catch {}
+    }
+
+    // Classified retry logic for status codes: 502, 503, 504, 429
+    const isRetryableStatus = [502, 503, 504, 429].includes(res.status);
+    if (!res.ok && isRetryableStatus && isGet && retriesLeft > 0) {
+      return executeRawFetch<T>(urlString, options, parentSignal, retriesLeft - 1, timeoutMs);
     }
 
     let payload: unknown = null;
@@ -111,11 +123,21 @@ async function executeRawFetch<T>(
 
     return payload as T;
   } catch (err: any) {
-    if (retriesLeft > 0 && (options.method || 'GET').toUpperCase() === 'GET' && err.name !== 'AbortError') {
+    // Convert timeout / AbortError into clean ApiError 408
+    if (err.name === 'AbortError' || activeSignal.aborted) {
+      throw new ApiError('Request timed out.', 408, { code: 'REQUEST_TIMEOUT' });
+    }
+
+    // Network transport error retry (only if fetch failed before response and status code wasn't received)
+    if (retriesLeft > 0 && isGet && !(err instanceof ApiError)) {
       return executeRawFetch<T>(urlString, options, parentSignal, retriesLeft - 1, timeoutMs);
     }
+
     throw err;
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
+

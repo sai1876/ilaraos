@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/apiClient';
+import { supabasePublic } from '@/lib/supabaseClient';
 
 export interface DocumentRecord {
   document_id: string;
@@ -35,7 +36,6 @@ export interface UploadIntentResponse {
   documentId: string;
   bucket: string;
   objectPath: string;
-  signedUrl: string;
   token: string;
   document: DocumentRecord;
 }
@@ -76,17 +76,22 @@ export async function createDocumentUploadIntent(payload: {
 /**
  * Step 2: Upload file bytes directly to Supabase storage signed URL
  */
-export async function uploadFileBytesToSupabase(signedUrl: string, file: File): Promise<void> {
-  const response = await fetch(signedUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type,
-    },
-    body: file,
-  });
+export async function uploadFileBytesToSupabase(
+  bucket: string,
+  objectPath: string,
+  token: string,
+  file: File
+): Promise<void> {
+  const { error } = await supabasePublic.storage
+    .from(bucket)
+    .uploadToSignedUrl(objectPath, token, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+      upsert: false,
+    });
 
-  if (!response.ok) {
-    throw new Error(`Storage upload failed with HTTP status ${response.status}`);
+  if (error) {
+    throw new Error(`Storage upload failed: ${error.message}`);
   }
 }
 
@@ -132,7 +137,7 @@ export async function uploadAndAttachDocument(
     amountPaise: metadata.amountPaise,
   });
 
-  await uploadFileBytesToSupabase(intent.signedUrl, file);
+  await uploadFileBytesToSupabase(intent.bucket, intent.objectPath, intent.token, file);
   const confirm = await confirmDocumentUpload(intent.documentId);
   return confirm.document;
 }

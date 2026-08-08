@@ -27,8 +27,7 @@ const schema = z.object({
   }).strict()).min(1).max(50),
   reason_category: z.string().trim().min(2).max(100),
   manager_note: z.string().trim().min(1).max(500),
-  photo_urls: z.array(z.string().url().max(2048)).max(5).optional(),
-  document_ids: z.array(z.string()).optional(),
+  document_ids: z.array(z.string()).min(1).max(5),
 }).strict().superRefine((data, context) => {
   data.items.forEach((item, index) => {
     if (item.loss_basis === 'menu_item') {
@@ -154,6 +153,24 @@ export async function POST(req: Request) {
       }
 
       const now = Date.now();
+      
+      const validDocRefs = [];
+      let foundPhoto = false;
+      for (const docId of input.document_ids) {
+        const docRef = db.collection('documents').doc(docId);
+        const docSnap = await transaction.get(docRef);
+        if (!docSnap.exists) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
+        const docData = docSnap.data()!;
+        if (docData.attachment_state !== 'pending_entity') throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
+        if (docData.related_entity_id !== eventId) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: relation mismatch`);
+        if (docData.document_type === 'wastage_photo') foundPhoto = true;
+        validDocRefs.push(docRef);
+      }
+      
+      if (!foundPhoto) {
+         throw new WastageCommandError(422, 'REQUIRED_EVIDENCE_MISSING: wastage_photo is required');
+      }
+
       transaction.create(eventRef, {
         event_id: eventId,
         outlet_id: outletId,
@@ -163,8 +180,7 @@ export async function POST(req: Request) {
         items: canonicalItems,
         reason_category: input.reason_category,
         manager_note: input.manager_note,
-        ...(input.photo_urls ? { photo_urls: input.photo_urls } : {}),
-        ...(input.document_ids ? { document_ids: input.document_ids } : {}),
+        document_ids: input.document_ids,
         reported_by: actor.uid,
         status: 'reported',
         deduct_inventory: deductInventory,
@@ -173,6 +189,16 @@ export async function POST(req: Request) {
         created_at: now,
         updated_at: now,
       });
+
+      for (const docRef of validDocRefs) {
+        transaction.update(docRef, {
+          attachment_state: 'attached',
+          vault_visible: true,
+          pending_owner_uid: null,
+          pending_expires_at: null,
+        });
+      }
+
       return { replayed: false, outletId };
     });
 

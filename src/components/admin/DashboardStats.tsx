@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, ShoppingBag, Users, Clock, TrendingUp, MapPin, Calendar } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, Ban, CheckCircle2, ChevronRight, Clock, MapPin, Receipt, ShieldCheck, Thermometer, UserCog, UserSquare2, Utensils, DollarSign, ShoppingBag, Users, TrendingUp, Calendar } from 'lucide-react';
+import PendingEntityDocuments from '@/components/documents/PendingEntityDocuments';
 import { streamTelemetryData, fetchOutlets, fetchStaffList } from '@/lib/dbService';
 import { auth } from '@/lib/firebase';
 import { Outlet } from '@/lib/types';
@@ -52,6 +53,9 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
   const [expenseMethod, setExpenseMethod] = useState('upi');
   const [expenseStaffId, setExpenseStaffId] = useState('');
   const [isLoggingExpense, setIsLoggingExpense] = useState(false);
+  const [expenseId, setExpenseId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  const [expenseDocs, setExpenseDocs] = useState<any[]>([]);
+  const [expenseEvidenceMet, setExpenseEvidenceMet] = useState(false);
 
   // Inline toast state (replaces native alert)
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -179,6 +183,10 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
   const handleLogExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseAmount || !expenseDesc || !expenseStaffId) return;
+    if (!expenseEvidenceMet) {
+      showToast('Please attach required receipt or invoice evidence first.', 'error');
+      return;
+    }
     setIsLoggingExpense(true);
     try {
       const token = await getToken();
@@ -186,12 +194,15 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          expense_id: expenseId,
           outlet: selectedOutlet === 'All' ? 'Oasis College Hatch' : selectedOutlet,
           category: expenseCategory,
           amount: parseFloat(expenseAmount),
           description: expenseDesc,
           payment_method: expenseMethod,
           staff_id: expenseStaffId,
+          document_ids: expenseDocs.map(d => d.document_id),
+          status: 'submitted',
         }),
       });
       const data = await res.json();
@@ -199,9 +210,12 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
       showToast('Expense logged successfully!', 'success');
       setExpenseAmount('');
       setExpenseDesc('');
+      setExpenseId(typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+      setExpenseDocs([]);
+      setExpenseEvidenceMet(false);
       await loadCashAndExpenses();
-    } catch (err) {
-      showToast('Failed to log expense.', 'error');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to log expense.', 'error');
     } finally {
       setIsLoggingExpense(false);
     }
@@ -845,9 +859,22 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
               />
             </div>
 
+            <PendingEntityDocuments
+              entityType="expenses"
+              entityId={expenseId}
+              category="evidence"
+              allowedDocumentTypes={['expense_receipt', 'expense_invoice', 'payment_proof']}
+              requirements={[{ label: 'Receipt or Invoice', anyOf: ['expense_receipt', 'expense_invoice'], min: 1 }]}
+              onDocumentsChanged={(docs, satisfied) => {
+                setExpenseDocs(docs);
+                setExpenseEvidenceMet(satisfied);
+              }}
+              title="Expense Evidence"
+            />
+
             <button
               type="submit"
-              disabled={isLoggingExpense}
+              disabled={isLoggingExpense || !expenseEvidenceMet}
               className="bg-amber-500 text-white hover:bg-amber-600 transition-colors rounded-lg py-2.5 font-bold uppercase tracking-widest text-[10px] mt-1"
             >
               {isLoggingExpense ? "Logging purchase..." : "Submit Expense"}

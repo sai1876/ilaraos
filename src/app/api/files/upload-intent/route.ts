@@ -6,6 +6,7 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { createUploadIntent } from '@/server/supabase/storageAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
 import { resolveActorContext } from '@/server/auth/resolveActor';
+import { DOCUMENT_POLICIES } from '@/server/documents/documentPolicies';
 
 const requestSchema = z.object({
   category: z.enum(['evidence', 'invoice', 'receipt', 'document', 'report', 'media', 'menu', 'atmosphere']),
@@ -84,9 +85,50 @@ export async function POST(req: Request) {
       amountPaise,
     } = parsedBody;
 
-    const isPublic = category === 'menu' || category === 'atmosphere' || category === 'media';
-    const bucket = isPublic ? 'ilara-public-media' : 'ilara-private-files';
-    const accessLevel = isPublic ? 'public' : 'private';
+    const policy = DOCUMENT_POLICIES[relatedEntityType];
+    if (!policy) {
+      return NextResponse.json({ error: 'Invalid relatedEntityType' }, { status: 400 });
+    }
+
+    const docType = documentType || category;
+
+    if (!policy.allowedRoles.includes(actorRes.actor.role)) {
+      return NextResponse.json({ error: 'Role not authorized for this entity type' }, { status: 403 });
+    }
+    if (!policy.allowedCategories.includes(category)) {
+      return NextResponse.json({ error: 'Category not allowed for this entity type' }, { status: 400 });
+    }
+    if (!policy.allowedDocumentTypes.includes(docType)) {
+      return NextResponse.json({ error: 'Document type not allowed for this entity type' }, { status: 400 });
+    }
+    if (!policy.allowedMimeTypes.includes(mimeType)) {
+      return NextResponse.json({ error: 'MIME type not allowed' }, { status: 400 });
+    }
+    if (sizeBytes > policy.maxSizeBytes) {
+      return NextResponse.json({ error: 'File size exceeds limit' }, { status: 400 });
+    }
+
+    const bucket = policy.bucket;
+    const accessLevel = policy.accessLevel;
+
+    // Determine if entity exists
+    let entityExists = false;
+    try {
+      // The collection name is usually the relatedEntityType.
+      const snap = await adminDb.collection(relatedEntityType).doc(relatedEntityId).get();
+      entityExists = snap.exists;
+    } catch (e) {
+      console.warn('Could not check entity existence:', e);
+    }
+
+    if (!entityExists && !policy.supportsPendingEntity) {
+      return NextResponse.json({ error: 'Entity does not exist and pending uploads are not supported for this type' }, { status: 404 });
+    }
+
+    const attachmentState = entityExists ? 'attached' : 'pending_entity';
+    const vaultVisible = entityExists;
+    const pendingOwnerUid = entityExists ? null : actorRes.actor.uid;
+    const pendingExpiresAt = entityExists ? null : Date.now() + 24 * 60 * 60 * 1000;
 
     const documentId = randomUUID();
     const safeFilename = sanitizeFilename(originalFilename);
@@ -115,6 +157,10 @@ export async function POST(req: Request) {
       upload_expires_at: Date.now() + 15 * 60 * 1000,
       version: 1,
       status: 'uploading',
+      attachment_state: attachmentState,
+      vault_visible: vaultVisible,
+      pending_owner_uid: pendingOwnerUid,
+      pending_expires_at: pendingExpiresAt,
     };
 
     if (description) docData.description = description;

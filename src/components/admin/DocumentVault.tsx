@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Eye, 
-  Download, 
-  RefreshCw, 
-  FileText, 
   Search, 
-  Link as LinkIcon,
-  ExternalLink
+  FileText, 
+  Download, 
+  Eye, 
+  RefreshCw, 
+  Link as LinkIcon, 
+  ExternalLink 
 } from 'lucide-react';
 import { 
   fetchVaultDocuments, 
@@ -17,6 +17,7 @@ import {
   DocumentRecord 
 } from '@/features/documents/documentService';
 import DocumentPreview from '@/components/documents/DocumentPreview';
+import DocumentUploader from '@/components/documents/DocumentUploader';
 import DocumentTypeBadge from '@/components/documents/DocumentTypeBadge';
 
 const TABS = [
@@ -43,6 +44,11 @@ export default function DocumentVault({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('available');
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
+  
+  // Upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [generalDocId, setGeneralDocId] = useState<string | null>(null);
+  const [isCreatingContainer, setIsCreatingContainer] = useState(false);
 
   // Link existing modal state
   const [linkingDoc, setLinkingDoc] = useState<DocumentRecord | null>(null);
@@ -61,7 +67,7 @@ export default function DocumentVault({
       setDocuments(res.documents || []);
     } catch (err) {
       console.error('Failed to fetch Document Vault files:', err);
-    } fontally: {
+    } finally {
       setLoading(false);
     }
   };
@@ -81,6 +87,24 @@ export default function DocumentVault({
       window.open(res.url, '_blank');
     } catch (err: any) {
       alert(err.message || 'Failed to download document');
+    }
+  };
+
+  const handleOpenUpload = async () => {
+    setIsCreatingContainer(true);
+    setShowUploadModal(true);
+    try {
+      // We must get auth token manually since we aren't using a helper hook that provides it here.
+      // But we can just use relative fetch if the middleware handles it, or wait, we just use fetch
+      const res = await fetch('/api/general-documents', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to init general document');
+      const data = await res.json();
+      setGeneralDocId(data.document_id);
+    } catch (e: any) {
+      alert(e.message);
+      setShowUploadModal(false);
+    } finally {
+      setIsCreatingContainer(false);
     }
   };
 
@@ -119,13 +143,21 @@ export default function DocumentVault({
           <p className="text-xs text-[#66554A] mt-1">Centralized operational evidence & financial document repository.</p>
         </div>
 
-        <button
-          onClick={loadVault}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs font-mono font-bold text-[#66554A] hover:bg-[#F3ECE3] transition-colors self-start md:self-auto cursor-pointer"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Vault</span>
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <button
+            onClick={handleOpenUpload}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#9A642C] text-white text-xs font-mono font-bold uppercase tracking-wider hover:bg-[#855300] transition-colors shadow-sm cursor-pointer"
+          >
+            <span>+ Upload Document</span>
+          </button>
+          <button
+            onClick={loadVault}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs font-mono font-bold text-[#66554A] hover:bg-[#F3ECE3] transition-colors cursor-pointer"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -221,14 +253,45 @@ export default function DocumentVault({
                       ) : (
                         <span className="opacity-50">Unlinked</span>
                       )}
-                    </td>
-                    <td className="p-3 text-[#66554A]">{formatSize(doc.size_bytes)}</td>
-                    <td className="p-3 text-[#66554A] font-sans">
-                      {doc.uploaded_by_role || 'staff'} ({doc.uploaded_by.slice(0, 6)})
-                    </td>
-                    <td className="p-3 text-[#66554A] text-[10px]">
-                      {new Date(doc.uploaded_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
-                    </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <FileText size={14} className="text-[#9A642C] shrink-0" />
+                          <span className="truncate max-w-[150px] md:max-w-[200px]" title={doc.original_filename || 'Unknown File'}>
+                            {doc.original_filename || 'Unknown File'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded-md bg-[#FAF7F2] border border-[#E8DFD3] text-[9px] uppercase tracking-widest text-[#9A642C]">
+                          {(doc.category || 'unknown').replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {doc.related_entity_type && doc.related_entity_id ? (
+                          <button
+                            onClick={() => onOpenRecord && onOpenRecord(doc.related_entity_type, doc.related_entity_id)}
+                            className="hover:underline text-[#9A642C] font-bold text-left flex items-center gap-1"
+                          >
+                            <span className="uppercase">{doc.related_entity_type}</span>
+                            <span className="text-[10px]">#{doc.related_entity_id.slice(-6)}</span>
+                            <ExternalLink size={10} />
+                          </button>
+                        ) : (
+                          <span className="opacity-50">Unlinked</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-[#66554A]">
+                        {formatSize(doc.size_bytes || 0)}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold">{doc.uploaded_by_role || 'Staff'}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-muted-foreground truncate max-w-[100px]">{doc.uploaded_by || 'Unknown User'}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-muted-foreground whitespace-nowrap">
+                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Unknown Date'}
+                      </td>
                     <td className="p-3 text-right space-x-1.5">
                       <button
                         onClick={() => setPreviewDoc(doc)}
@@ -319,6 +382,50 @@ export default function DocumentVault({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Standalone Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#241A15]/60 backdrop-blur-sm" onClick={() => setShowUploadModal(false)} />
+          <div className="bg-[#FFFDFC] border border-[#E8DFD3] rounded-2xl w-full max-w-md p-6 shadow-2xl relative z-10 flex flex-col gap-4">
+            <h3 className="font-serif font-bold text-lg text-[#241A15]">Upload General Document</h3>
+            <p className="text-xs text-[#66554A]">
+              Upload standalone documents, supplier invoices, or certificates. You can link them to specific business records later.
+            </p>
+            
+            {isCreatingContainer ? (
+              <div className="flex flex-col items-center py-6 gap-2">
+                <RefreshCw size={20} className="animate-spin text-[#9A642C]" />
+                <span className="text-xs font-mono text-[#66554A]">Preparing secure container...</span>
+              </div>
+            ) : generalDocId ? (
+              <div className="mt-2">
+                <DocumentUploader
+                  entityType="general_documents"
+                  entityId={generalDocId}
+                  category="document"
+                  allowedDocumentTypes={['general_document', 'supplier_invoice', 'expense_receipt', 'expense_invoice']}
+                  onUploadSuccess={() => {
+                    // Refresh in background
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="text-xs text-red-600 font-mono text-center">Failed to create document container.</div>
+            )}
+            
+            <button
+              onClick={() => {
+                setShowUploadModal(false);
+                if (generalDocId) loadVault();
+              }}
+              className="mt-2 px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] hover:bg-[#F3ECE3] text-[#241A15] font-mono font-bold text-xs transition-colors self-end"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

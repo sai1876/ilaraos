@@ -46,6 +46,9 @@ export const fetchCricketAvailability = async (dateStr?: string): Promise<Cricke
   return apiRequest<CricketAvailabilityResponse>(`/api/cricket/availability${query}`, {
     cacheKey: `cricket_avail:${dateStr || 'today'}`,
     staleTimeMs: 15 * 1000,
+    timeoutMs: 3000,
+    retry: 0,
+    bypassAuth: true,
   });
 };
 

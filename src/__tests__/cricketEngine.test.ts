@@ -96,4 +96,34 @@ describe('Box Cricket — Canonical Time & Slot Engine (Asia/Kolkata)', () => {
     const jan1Date = getKolkataDateString(dec31 + 2 * 60 * 1000);
     expect(jan1Date).toBe('2027-01-01');
   });
+
+  it('correctly evaluates held slots and active blocks', () => {
+    const now = getKolkataTimestamp('2026-08-08', '14:00');
+    const slots = generateSlotsForDate('2026-08-08', DEFAULT_CRICKET_CONFIG);
+
+    const slot1600 = slots.find((s) => s.timeStr === '16:00')!;
+    const heldKeys = new Set<string>([slot1600.slotKey]);
+
+    const evalHeld = evaluateSlotStatus(slot1600, now, DEFAULT_CRICKET_CONFIG, new Set(), heldKeys, new Set());
+    expect(evalHeld.status).toBe('held');
+    expect(evalHeld.bookable).toBe(false);
+  });
+
+  it('evaluates status at 2026-08-08 15:06 IST correctly', () => {
+    const now = getKolkataTimestamp('2026-08-08', '15:06');
+    const slots = generateSlotsForDate('2026-08-08', DEFAULT_CRICKET_CONFIG);
+
+    // 15:00-16:00 slot started at 15:00 (<= 15:06) -> past
+    const slot1500 = slots.find((s) => s.timeStr === '15:00')!;
+    const eval1500 = evaluateSlotStatus(slot1500, now, DEFAULT_CRICKET_CONFIG, new Set(), new Set(), new Set());
+    expect(eval1500.status).toBe('past');
+    expect(eval1500.bookable).toBe(false);
+
+    // 16:00-17:00 slot starts at 16:00 (now + 15m is 15:21 <= 16:00) -> available
+    const slot1600 = slots.find((s) => s.timeStr === '16:00')!;
+    const eval1600 = evaluateSlotStatus(slot1600, now, DEFAULT_CRICKET_CONFIG, new Set(), new Set(), new Set());
+    expect(eval1600.status).toBe('available');
+    expect(eval1600.bookable).toBe(true);
+  });
 });
+

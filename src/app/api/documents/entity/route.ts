@@ -40,7 +40,15 @@ export async function GET(request: Request) {
 
     const documents = snap.docs
       .map((doc) => doc.data())
-      .filter((d: any) => d.status !== 'deleted')
+      .filter((d: any) => {
+        if (d.status === 'deleted') return false;
+        if (d.attachment_state === 'pending_entity') {
+          const isOwner = d.pending_owner_uid === actorRes.actor.uid;
+          const isAdmin = ['owner', 'admin'].includes(actorRes.actor.role);
+          if (!isOwner && !isAdmin) return false;
+        }
+        return true;
+      })
       .sort((a: any, b: any) => b.uploaded_at - a.uploaded_at);
 
     return NextResponse.json({ success: true, documents });

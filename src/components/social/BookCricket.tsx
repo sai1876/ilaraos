@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   MapPin, 
   Clock, 
   Star, 
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
 import { 
@@ -29,31 +30,71 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
   const [selectedDateIndex, setSelectedDateIndex] = useState(0);
   const selectedDate = horizonDates[selectedDateIndex];
 
+  // Request sequence ref to prevent out-of-order race conditions
+  const requestIdRef = useRef(0);
+
   // API Availability state
   const [availData, setAvailData] = useState<CricketAvailabilityResponse | null>(null);
   const [loadingAvail, setLoadingAvail] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [staleWarning, setStaleWarning] = useState(false);
+  const [deselectedNotice, setDeselectedNotice] = useState<string | null>(null);
 
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [isHolding, setIsHolding] = useState(false);
 
-  // Load server availability whenever date changes or every 30 seconds
+  // Load server availability with request sequence validation
   const loadAvailability = async (isSilent = false) => {
-    if (!isSilent) setLoadingAvail(true);
+    const requestId = ++requestIdRef.current;
+    const targetDateStr = selectedDate.dateStr;
+
+    if (!isSilent && availData === null) {
+      setLoadingAvail(true);
+    }
     setErrorMsg(null);
+
     try {
-      const data = await fetchCricketAvailability(selectedDate.dateStr);
-      setAvailData(data);
+      const data = await fetchCricketAvailability(targetDateStr);
+
+      // Verify request sequence and current date selection
+      if (requestId === requestIdRef.current && targetDateStr === selectedDate.dateStr) {
+        setAvailData(data);
+        setErrorMsg(null);
+        setStaleWarning(false);
+
+        // Validate any currently selected slots against fresh availability
+        if (selectedSlots.length > 0) {
+          const availableKeys = new Set(
+            data.slots.filter((s) => s.status === 'available').map((s) => s.slotKey)
+          );
+          const validSelected = selectedSlots.filter((key) => availableKeys.has(key));
+          if (validSelected.length !== selectedSlots.length) {
+            setSelectedSlots(validSelected);
+            setDeselectedNotice('One or more selected slots are no longer available and were unselected.');
+          }
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load cricket availability:', err);
-      setErrorMsg(err.message || 'Failed to load live slot availability');
+      if (requestId === requestIdRef.current && targetDateStr === selectedDate.dateStr) {
+        if (availData !== null) {
+          // Preserve stale data on refresh failure
+          setStaleWarning(true);
+        } else {
+          setErrorMsg(err.message || 'Unable to load live availability.');
+        }
+      }
     } finally {
-      if (!isSilent) setLoadingAvail(false);
+      if (requestId === requestIdRef.current) {
+        setLoadingAvail(false);
+      }
     }
   };
 
   useEffect(() => {
     setSelectedSlots([]);
+    setStaleWarning(false);
+    setDeselectedNotice(null);
     loadAvailability();
 
     const interval = setInterval(() => {
@@ -61,10 +102,11 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [selectedDateIndex]);
+  }, [selectedDate.dateStr]);
 
   const handleSlotClick = (slotKey: string) => {
     setErrorMsg(null);
+    setDeselectedNotice(null);
     if (selectedSlots.includes(slotKey)) {
       setSelectedSlots(selectedSlots.filter((k) => k !== slotKey));
       return;
@@ -142,8 +184,30 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
   };
 
   const currentSlots = availData?.slots || [];
+  // For Today: hide past customer slots so user doesn't scroll through expired hours
+  const visibleSlots = selectedDate.isToday
+    ? currentSlots.filter((slot) => slot.status !== 'past')
+    : currentSlots;
+
   const basePriceRupees = (availData?.config?.base_price_paise || 80000) / 100;
   const totalPriceRupees = selectedSlots.length * basePriceRupees;
+
+  const getStatusBadgeLabel = (status: string) => {
+    switch (status) {
+      case 'lead_time':
+        return 'Too Soon';
+      case 'booked':
+        return 'Booked';
+      case 'held':
+        return 'Held';
+      case 'blocked':
+        return 'Blocked';
+      case 'closed':
+        return 'Closed';
+      default:
+        return 'Unavailable';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#241A15] pb-24 font-sans no-scrollbar">
@@ -239,25 +303,60 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
             </span>
           </div>
 
-          {errorMsg && (
+          {/* Stale Data Warning Banner */}
+          {staleWarning && (
+            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 p-3 rounded-2xl text-xs flex items-center gap-2">
+              <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+              <span>Live refresh failed — showing last known availability.</span>
+            </div>
+          )}
+
+          {/* Slot Deselected Notice */}
+          {deselectedNotice && (
+            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 p-3 rounded-2xl text-xs flex items-center gap-2">
+              <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+              <span>{deselectedNotice}</span>
+            </div>
+          )}
+
+          {/* Explicit Error State without previous data */}
+          {errorMsg && !availData && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-700 p-5 rounded-3xl text-xs flex flex-col items-center gap-3 text-center">
+              <AlertCircle size={24} className="shrink-0 text-red-600" />
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-sm">Unable to load live availability.</span>
+                <span className="text-[11px] text-red-600/80">{errorMsg}</span>
+              </div>
+              <button
+                onClick={() => loadAvailability()}
+                className="mt-1 bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-700 transition-colors flex items-center gap-1.5"
+              >
+                <RefreshCw size={14} />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
+          {/* Generic Error message when data is present */}
+          {errorMsg && availData && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-700 p-3.5 rounded-2xl text-xs flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0 text-red-600" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {loadingAvail ? (
+          {loadingAvail && !availData ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#66554A]">
               <RefreshCw size={24} className="animate-spin text-[#9A642C]" />
               <span className="text-xs font-mono">Fetching live slot availability…</span>
             </div>
-          ) : currentSlots.length === 0 ? (
+          ) : availData !== null && visibleSlots.length === 0 ? (
             <div className="text-center py-8 text-xs text-[#66554A] bg-[#FFFDFC] rounded-2xl border border-[#E8DFD3]">
               No operational slots for this date.
             </div>
-          ) : (
+          ) : availData !== null ? (
             <div className="grid grid-cols-2 gap-2.5">
-              {currentSlots.map((slot) => {
+              {visibleSlots.map((slot) => {
                 const isSelected = selectedSlots.includes(slot.slotKey);
                 const isAvailable = slot.status === 'available';
 
@@ -268,7 +367,7 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
                     onClick={() => handleSlotClick(slot.slotKey)}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs font-mono transition-all duration-200 ${
                       !isAvailable
-                        ? 'bg-[#F3ECE3]/60 border-[#E8DFD3] text-[#66554A]/40 cursor-not-allowed opacity-60'
+                        ? 'bg-[#F3ECE3]/60 border-[#E8DFD3] text-[#66554A]/50 cursor-not-allowed opacity-70'
                         : isSelected
                         ? 'bg-[#2F6B54] border-[#2F6B54] text-white font-bold shadow-md'
                         : 'bg-[#FFFDFC] border-[#E8DFD3] text-[#241A15] hover:border-[#2F6B54]/50'
@@ -276,8 +375,8 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
                   >
                     <span>{slot.displayStart}</span>
                     {!isAvailable ? (
-                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#66554A]/10 text-[#66554A]">
-                        {slot.status === 'past' ? 'Past' : slot.status === 'booked' ? 'Booked' : 'Unavailable'}
+                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#66554A]/10 text-[#66554A] font-bold">
+                        {getStatusBadgeLabel(slot.status)}
                       </span>
                     ) : (
                       <span className={`text-[10px] font-bold ${isSelected ? 'text-white' : 'text-[#2F6B54]'}`}>
@@ -288,7 +387,7 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -308,7 +407,7 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
             <button
               onClick={handleProceed}
               disabled={isHolding}
-              className="bg-[#2F6B54] hover:bg-[#204a3a] text-white px-6 py-3.5 rounded-2xl font-sans font-bold text-xs uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center gap-2"
+              className="bg-[#2F6B54] hover:bg-[#204a3a] text-white px-6 py-3.5 rounded-2xl font-sans font-bold text-xs uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
               {isHolding ? (
                 <>
@@ -325,3 +424,4 @@ export default function BookCricket({ onNavigate }: BookCricketProps) {
     </div>
   );
 }
+

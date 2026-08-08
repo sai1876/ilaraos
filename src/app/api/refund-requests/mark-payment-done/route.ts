@@ -12,6 +12,7 @@ const schema = z.object({
   payment_method: z.enum(['cash', 'upi', 'bank_transfer', 'wallet', 'manual']),
   payment_reference: z.string().trim().min(1).max(160).optional(),
   payment_note: z.string().trim().max(500).optional(),
+  document_ids: z.array(z.string().trim()).max(5).optional(),
 }).strict();
 
 class SettlementError extends Error {
@@ -63,6 +64,9 @@ export async function POST(req: Request) {
     if (['upi', 'bank_transfer'].includes(input.payment_method) && !input.payment_reference) {
       return NextResponse.json({ success: false, error: 'Payment reference is required' }, { status: 400 });
     }
+    if (input.payment_method === 'manual' && (!input.document_ids || input.document_ids.length === 0)) {
+      return NextResponse.json({ success: false, error: 'Evidence is required for manual payments', code: 'REQUIRED_EVIDENCE_MISSING' }, { status: 422 });
+    }
 
     const db = adminDb;
     const requestRef = db.collection('refund_requests').doc(input.request_id);
@@ -113,6 +117,28 @@ export async function POST(req: Request) {
           : {}),
       };
 
+      const validDocRefs = [];
+      if (input.document_ids && input.document_ids.length > 0) {
+        let foundProof = false;
+        for (const docId of input.document_ids) {
+          const docRef = db.collection('documents').doc(docId);
+          const docSnap = await transaction.get(docRef);
+          if (!docSnap.exists) throw new SettlementError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
+          
+          const docData = docSnap.data()!;
+          if (docData.attachment_state !== 'pending_entity') throw new SettlementError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
+          // We attach the document to the refund request ID
+          if (docData.related_entity_id !== input.request_id) throw new SettlementError(422, `INVALID_EVIDENCE_REFERENCE: relation mismatch`);
+          
+          if (docData.document_type === 'payment_proof') foundProof = true;
+
+          validDocRefs.push(docRef);
+        }
+        if (input.payment_method === 'manual' && !foundProof) {
+          throw new SettlementError(422, 'REQUIRED_EVIDENCE_MISSING: payment_proof is required for manual refunds');
+        }
+      }
+
       let paidRefundPaise = 0;
       let pendingCount = 0;
       allLedgersSnap.docs.forEach((document: FirebaseFirestore.QueryDocumentSnapshot) => {
@@ -142,6 +168,15 @@ export async function POST(req: Request) {
           updated_at: settledAt,
         });
         transaction.update(ledgerRef, ledgerUpdates);
+
+        for (const docRef of validDocRefs) {
+          transaction.update(docRef, {
+            attachment_state: 'attached',
+            vault_visible: true,
+            pending_owner_uid: null,
+            pending_expires_at: null,
+          });
+        }
       }
       transaction.update(orderRef, {
         last_refund_paid_at: settledAt,

@@ -18,16 +18,27 @@ interface SocialHubProps {
 
 export default function SocialHub({ onNavigate }: SocialHubProps) {
   const [avail, setAvail] = useState<any>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   // Fetch live cricket availability on mount
   useEffect(() => {
-    fetchCricketAvailability().then((data) => {
-      setAvail(data);
-    }).catch(err => console.error('Failed to load cricket availability for SocialHub:', err));
+    fetchCricketAvailability()
+      .then((data) => {
+        setAvail(data);
+        setFetchError(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load cricket availability for SocialHub:', err);
+        setFetchError(true);
+      });
   }, []);
 
   const firstAvailableSlot = avail?.slots?.find((s: any) => s.status === 'available');
-  const nextSlotDisplay = firstAvailableSlot ? `Next: ${firstAvailableSlot.displayStart}` : 'Fully booked today';
+  const nextSlotDisplay = fetchError
+    ? 'Availability temporarily unavailable'
+    : firstAvailableSlot
+    ? `Next: ${firstAvailableSlot.displayStart}`
+    : 'Fully booked today';
   const openSlotsCount = avail?.slotsLeft ?? 0;
   const hourlyRateRupees = (avail?.config?.base_price_paise || 80000) / 100;
 
@@ -48,19 +59,25 @@ export default function SocialHub({ onNavigate }: SocialHubProps) {
         <div className="bg-white border border-[#E8DFD3] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm mt-2">
           <div className="flex items-center gap-2.5">
             <div className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${fetchError ? 'bg-amber-400' : 'bg-emerald-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${fetchError ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
             </div>
             <div>
               <p className="font-sans font-bold text-xs text-[#241A15]">Box Cricket Turf: Open</p>
               <p className="font-sans text-[10px] text-[#66554A]">
-                {firstAvailableSlot ? `Next slot available today at ${firstAvailableSlot.displayStart}` : 'Fully booked today'}
+                {fetchError
+                  ? 'Availability temporarily unavailable'
+                  : firstAvailableSlot
+                  ? `Next slot available today at ${firstAvailableSlot.displayStart}`
+                  : 'Fully booked today'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#E8DFD3] rounded-full px-3 py-1 self-start md:self-auto">
             <Users size={12} className="text-[#9A642C]" />
-            <p className="text-[10px] font-mono font-bold text-[#66554A]">{openSlotsCount} slots open today</p>
+            <p className="text-[10px] font-mono font-bold text-[#66554A]">
+              {fetchError ? '—' : `${openSlotsCount} slots open today`}
+            </p>
           </div>
         </div>
       </section>

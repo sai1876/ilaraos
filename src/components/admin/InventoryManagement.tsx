@@ -10,6 +10,7 @@ import { fetchLocalizedWeather, analyzeSmartRefill } from '@/lib/geminiService';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, query, collection, where, onSnapshot } from 'firebase/firestore';
+import PurchasesPanel from './PurchasesPanel';
 
 interface InventoryManagementProps {
   userRole?: string;
@@ -53,7 +54,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [filterDiscrepancyOnly, setFilterDiscrepancyOnly] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stocks' | 'batches' | 'logs' | 'wastage' | 'movements'>('stocks');
+  const [activeTab, setActiveTab] = useState<'stocks' | 'batches' | 'logs' | 'wastage' | 'movements' | 'purchases'>('stocks');
   
   // Wastage and movements states
   const [wastageList, setWastageList] = useState<any[]>([]);
@@ -756,6 +757,12 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'movements' ? 'bg-[#f8bc51] text-[#0A0604]' : 'text-[#d4c4b0] hover:text-white'}`}
               >
                 Movements
+              </button>
+              <button
+                onClick={() => setActiveTab('purchases')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'purchases' ? 'bg-[#f8bc51] text-[#0A0604]' : 'text-[#d4c4b0] hover:text-white'}`}
+              >
+                Purchases & PO
               </button>
             </div>
           </div>
