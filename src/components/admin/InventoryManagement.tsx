@@ -784,7 +784,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
                         type="button"
                         onClick={() => {
                           localStorage.removeItem('ilara_owner_session');
-                          window.location.reload();
+                          window.location.href = '/login';
                         }}
                         className="bg-[#f8bc51] text-[#0A0604] hover:bg-[#ffce7b] px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider"
                       >

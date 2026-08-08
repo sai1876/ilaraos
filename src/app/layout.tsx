@@ -47,6 +47,7 @@ export const viewport: Viewport = {
 import { MotionProvider } from "@/components/ui/motion-provider";
 import { OnlineState } from "@/components/ui/online-state";
 import Footer from "@/components/Footer";
+import PerfDebugOverlay from "@/components/common/PerfDebugOverlay";
 
 export default function RootLayout({
   children,
@@ -62,6 +63,7 @@ export default function RootLayout({
           {children}
           <Footer />
         </MotionProvider>
+        <PerfDebugOverlay />
       </body>
     </html>
   );

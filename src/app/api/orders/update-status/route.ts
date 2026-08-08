@@ -7,6 +7,7 @@ import { requireRole } from '@/server/auth/requireRole';
 import { logBusinessEvent, type ActorType } from '@/server/events/logBusinessEvent';
 import { awardFulfillmentRewards } from '@/server/orders/awardFulfillmentRewards';
 import { readCanonicalMoneyPaise } from '@/server/database/canonicalMoney';
+import { ServerTiming } from '@/lib/performance/serverTiming';
 
 const schema = z.object({
   order_id: z.string().trim().min(1).max(128),
@@ -52,6 +53,7 @@ class StatusCommandError extends Error {
 }
 
 export async function POST(req: Request) {
+  const timing = new ServerTiming();
   try {
     const actor = await requireRole(req, ['staff', 'manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
@@ -273,31 +275,39 @@ export async function POST(req: Request) {
     });
 
     if (Object.keys(result.changes).length > 0) {
-      await logBusinessEvent({
-        event_type: 'order_status_changed',
-        actor_type: actor.role as ActorType,
-        actor_id: actor.uid,
-        target_type: 'order',
-        target_id: data.order_id,
-        order_id: data.order_id,
-        ...(result.outletId ? { outlet_id: result.outletId } : {}),
-        severity: data.next_status && ['cancelled', 'rejected'].includes(data.next_status) ? 'warning' : 'info',
-        source: 'api',
-        metadata: {
-          previous_status: result.previousStatus,
-          next_status: result.nextStatus,
-          changed_fields: Object.keys(result.changes),
-          ...(data.reason ? { reason: data.reason } : {}),
-          ...(result.pointsEarned > 0 ? { points_earned: result.pointsEarned } : {}),
-        },
-      });
+      try {
+        const resPromise = logBusinessEvent({
+          event_type: 'order_status_changed',
+          actor_type: actor.role as ActorType,
+          actor_id: actor.uid,
+          target_type: 'order',
+          target_id: data.order_id,
+          order_id: data.order_id,
+          ...(result.outletId ? { outlet_id: result.outletId } : {}),
+          severity: data.next_status && ['cancelled', 'rejected'].includes(data.next_status) ? 'warning' : 'info',
+          source: 'api',
+          metadata: {
+            previous_status: result.previousStatus,
+            next_status: result.nextStatus,
+            changed_fields: Object.keys(result.changes),
+            ...(data.reason ? { reason: data.reason } : {}),
+            ...(result.pointsEarned > 0 ? { points_earned: result.pointsEarned } : {}),
+          },
+        });
+        if (resPromise && typeof (resPromise as any).catch === 'function') {
+          (resPromise as any).catch((err: any) => console.error('[LOG BUSINESS EVENT ASYNC ERROR]', err));
+        }
+      } catch (err) {
+        console.error('[LOG BUSINESS EVENT ERROR]', err);
+      }
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       order_id: data.order_id,
       changed_fields: Object.keys(result.changes),
     });
+    return timing.applyToResponse(res);
   } catch (error) {
     if (error instanceof StatusCommandError) {
       return NextResponse.json({ success: false, error: error.publicMessage }, { status: error.status });

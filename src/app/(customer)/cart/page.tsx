@@ -13,6 +13,7 @@ import { calculatePricingPreview, roundCurrency } from '@/features/checkout/clie
 import { reconcileCartCustomizations } from '@/features/checkout/reconcileCartCustomizations';
 import { MenuItem, SavedAddress } from '@/lib/types';
 import AuthWorkspace from '@/components/auth/AuthWorkspace';
+import { getActionToken } from '@/lib/auth/getActionToken';
 
 const formatPrice = (price: number) => `₹${price.toFixed(2)}`;
 
@@ -377,11 +378,11 @@ export default function CartPage() {
   const [promoFocused, setPromoFocused] = useState(false);
   const [showFeeTooltip, setShowFeeTooltip] = useState(false);
 
-  // Undo delete states (Fix #10)
-  const [undoItem, setUndoItem] = useState<any | null>(null);
-  const [undoTimer, setUndoTimer] = useState<NodeJS.Timeout | null>(null);
+  // Undo delete states using ref handle
+  const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [undoSnapshot, setUndoSnapshot] = useState<{ item: any; index: number } | null>(null);
 
-  // Auth sheet modal state (Fix #12)
+  // Auth sheet modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
@@ -396,9 +397,9 @@ export default function CartPage() {
       });
     return () => {
       cancelled = true;
-      if (undoTimer) clearTimeout(undoTimer);
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     };
-  }, [undoTimer]);
+  }, []);
 
   useEffect(() => {
     if (userProfile?.user_id) {
@@ -573,41 +574,44 @@ export default function CartPage() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, [showFeeTooltip]);
 
-  // Handle undo action (Fix #10)
+  // Handle undo action
   const handleUndoDelete = () => {
-    if (undoTimer) {
-      clearTimeout(undoTimer);
-      setUndoTimer(null);
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
     }
-    setUndoItem(null);
-    triggerToast("Item restored to cart", "success");
+    if (undoSnapshot) {
+      const newCart = [...cart];
+      const insertIdx = Math.min(undoSnapshot.index, newCart.length);
+      newCart.splice(insertIdx, 0, undoSnapshot.item);
+      setCart(newCart);
+      setUndoSnapshot(null);
+      triggerToast("Item restored to cart", "success");
+    }
   };
 
-  // Handle actual/optimistic deletion of cart item
+  // Immediate cart deletion with 4s undo window
   const handleDeleteItem = (item: any) => {
-    // If there is already an item in the undo state, commit it immediately
-    if (undoItem) {
-      if (undoTimer) clearTimeout(undoTimer);
-      removeFromCart(undoItem.id);
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
     }
 
-    // Set the new item to be deleted optimistically
-    setUndoItem(item);
+    const itemIndex = cart.findIndex(i => i.id === item.id);
+    setUndoSnapshot({ item, index: itemIndex >= 0 ? itemIndex : 0 });
 
-    // Set a timer for 4 seconds to commit the deletion to the store
-    const timer = setTimeout(() => {
-      removeFromCart(item.id);
-      setUndoItem(null);
-      setUndoTimer(null);
+    // Instantly remove item from Zustand cart store (< 10ms)
+    removeFromCart(item.id);
+
+    undoTimerRef.current = setTimeout(() => {
+      setUndoSnapshot(null);
+      undoTimerRef.current = null;
     }, 4000);
-
-    setUndoTimer(timer);
   };
 
   // Quantity decrement logic
   const handleDecrement = (itemId: string, currentQty: number) => {
     if (currentQty <= 1) {
-      // Find the item to be deleted
       const itemToDelete = cart.find(i => i.id === itemId);
       if (itemToDelete) {
         handleDeleteItem(itemToDelete);
@@ -617,8 +621,8 @@ export default function CartPage() {
     }
   };
 
-  // Derived state: Cart items that are not currently under optimistic "undo delete" state
-  const visibleCart = cart.filter(item => !undoItem || item.id !== undoItem.id);
+  // Cart items represent the UI immediately
+  const visibleCart = cart;
 
   // Totals calculation using shared helper (using visibleCart for instant UI update when deleted)
   const {
@@ -772,7 +776,8 @@ export default function CartPage() {
 
       let idToken: string;
       try {
-        idToken = await firebaseUser.getIdToken(true);
+        idToken = await getActionToken(false);
+        // Optimized: cached token acquired via getActionToken instead of await firebaseUser.getIdToken(true)
       } catch (error) {
         console.error('[order placement] Failed to retrieve Firebase ID token:', error);
         throw new OrderPlacementError('Firebase session token could not be retrieved', 401, 'authentication');
@@ -1768,7 +1773,7 @@ export default function CartPage() {
 
       {/* Undo Delete Snackbar — Fix #10 */}
       <AnimatePresence>
-        {undoItem && (
+        {undoSnapshot && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1777,7 +1782,7 @@ export default function CartPage() {
           >
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-medium font-sans">
-                Removed <span className="font-bold text-[#9A642C]">{undoItem.name}</span>
+                Removed <span className="font-bold text-[#9A642C]">{undoSnapshot.item.name}</span>
               </span>
             </div>
             <button

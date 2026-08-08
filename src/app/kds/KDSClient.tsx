@@ -11,6 +11,8 @@ import KDSProfileModal from '@/components/kds/KDSProfileModal';
 import { User } from 'lucide-react';
 import { canAccessKdsStation } from '@/lib/auth/roles';
 import { useStore } from '@/store/useStore';
+import { fetchWithAuth } from '@/lib/auth/getActionToken';
+import { markStart, markEnd } from '@/lib/performance/perf';
 
 function getNextKdsStatus(status: string): string | null {
   if (status === 'ordered') return 'preparing';
@@ -156,9 +158,10 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
     return role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
-  // Toggle KDS item status via API
+  // Toggle KDS item status via API with immediate Optimistic UI
   const toggleItemReady = async (orderId: string, itemId: string, currentStatus: string) => {
     if (pendingMutations[itemId]) return;
+    const startMark = markStart('kds_item_update');
     setPendingMutations(prev => ({ ...prev, [itemId]: true }));
 
     const rawOrder = orders.find(o => o.order_id === orderId);
@@ -178,20 +181,20 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
       setPendingMutations(prev => ({ ...prev, [itemId]: false }));
       return;
     }
-    const idToken = await auth.currentUser?.getIdToken();
-    if (!idToken) {
-      showToast("Authentication required. Please refresh.", "error");
-      setPendingMutations(prev => ({ ...prev, [itemId]: false }));
-      return;
-    }
+
+    // 1. Instantly update local state optimistically (< 10ms)
+    setOrders(prev => prev.map(o => {
+      if (o.order_id !== orderId) return o;
+      const updatedItems = o.items.map((item, idx) => 
+        idx === itemIndex ? { ...item, item_status: nextStatus as any } : item
+      );
+      return { ...o, items: updatedItems };
+    }));
 
     try {
-      const res = await fetch('/api/orders/update-kds-item-status', {
+      const res = await fetchWithAuth('/api/orders/update-kds-item-status', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id: orderId,
           item_index: itemIndex,
@@ -202,28 +205,32 @@ export default function KDSClient({ role, staffDetails }: KDSClientProps) {
 
       if (!res.ok) {
         if (res.status === 409) {
-          showToast('Order changed in background, refresh KDS', 'error');
+          showToast('Order changed in background', 'error');
         } else {
-          const json = await res.json();
+          const json = await res.json().catch(() => ({}));
           showToast(json.error || 'Failed to update item status', 'error');
         }
+        // Rollback state if rejected
+        setOrders(prev => prev.map(o => {
+          if (o.order_id !== orderId) return o;
+          const revertedItems = o.items.map((item, idx) => 
+            idx === itemIndex ? { ...item, item_status: currentStatus as any } : item
+          );
+          return { ...o, items: revertedItems };
+        }));
         return;
       }
 
-      await fetch('/api/orders/recalculate-kds-order-status', {
+      // Fire recalculation asynchronously without blocking UI return
+      fetchWithAuth('/api/orders/recalculate-kds-order-status', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId })
-      });
-      
-      showToast('Item status updated', 'success');
-    } catch (e) {
-      console.error("Failed to toggle item ready status: ", e);
-      showToast('Failed to update status', 'error');
+      }).catch(err => console.error('[KDS] Recalculate status error:', err));
+    } catch (err) {
+      console.error('[KDS] Update item error:', err);
     } finally {
+      markEnd('kds_item_update', startMark);
       setPendingMutations(prev => ({ ...prev, [itemId]: false }));
     }
   };

@@ -6,6 +6,8 @@ import { DailyClosingDocument } from '@/lib/types';
 import { getBusinessDateContext } from '@/lib/businessDate';
 import { Loader2, CheckCircle2, Lock, FileText, Send, XCircle, Camera, Upload } from 'lucide-react';
 import { uploadFileViaIntent } from '@/lib/fileUpload';
+import { fetchWithAuth } from '@/lib/auth/getActionToken';
+import { markStart, markEnd } from '@/lib/performance/perf';
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════
@@ -116,36 +118,30 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
   };
 
   const handleGenerate = async () => {
+    const startMark = markStart('daily_closing_generate');
     try {
       setGenerating(true);
-      const user = auth.currentUser;
-      if (!user) return;
-      const token = await user.getIdToken();
-
       const { business_date } = getBusinessDateContext();
-
       const body: Record<string, string> = { business_date };
-      if (outletId) body.outlet_id = outletId; // omit if empty — server uses actor.outletId
+      if (outletId) body.outlet_id = outletId;
 
-      const res = await fetch('/api/daily-closing/generate', {
+      const res = await fetchWithAuth('/api/daily-closing/generate', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.closing) {
         toast.success('Generated successfully');
-        fetchClosings();
+        setClosings(prev => [data.closing, ...prev.filter(c => c.closing_id !== data.closing.closing_id)]);
       } else {
         toast.error(data.error || 'Generation failed');
       }
     } catch (err: any) {
       toast.error('Error generating closing');
     } finally {
+      markEnd('daily_closing_generate', startMark);
       setGenerating(false);
     }
   };
@@ -184,6 +180,7 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
   };
 
   const handleSubmit = async (closing: DailyClosingDocument) => {
+    const startMark = markStart('daily_closing_submit');
     const cashRaw = countedCash[closing.closing_id];
     const upiRaw = verifiedUpi[closing.closing_id];
     const note = managerNotes[closing.closing_id] || '';
@@ -195,16 +192,10 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
 
     try {
       setSubmittingId(closing.closing_id);
-      const user = auth.currentUser;
-      if (!user) return;
-      const token = await user.getIdToken();
 
-      const res = await fetch('/api/daily-closing/submit', {
+      const res = await fetchWithAuth('/api/daily-closing/submit', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           closing_id: closing.closing_id,
           counted_cash: Number(cash),
@@ -219,31 +210,28 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
       const data = await res.json();
       if (data.success) {
         toast.success('Submitted for review');
-        fetchClosings();
+        const updatedDoc = { ...closing, status: 'submitted' as const, ...(data.updated || {}) };
+        setClosings(prev => prev.map(c => c.closing_id === closing.closing_id ? updatedDoc : c));
       } else {
         toast.error(data.error || 'Submission failed');
       }
     } catch (err: any) {
       toast.error('Error submitting closing');
     } finally {
+      markEnd('daily_closing_submit', startMark);
       setSubmittingId(null);
     }
   };
 
   const handleReview = async (closing_id: string, decision: 'approved' | 'rejected') => {
+    const startMark = markStart('daily_closing_review');
     try {
       setSubmittingId(closing_id);
-      const user = auth.currentUser;
-      if (!user) return;
-      const token = await user.getIdToken();
       const note = founderNotes[closing_id];
 
-      const res = await fetch('/api/daily-closing/review', {
+      const res = await fetchWithAuth('/api/daily-closing/review', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           closing_id,
           decision,
@@ -254,13 +242,15 @@ export default function DailyClosingManagement({ outletId, userRole }: DailyClos
       const data = await res.json();
       if (data.success) {
         toast.success(decision === 'approved' ? 'Closing Locked' : 'Closing Rejected');
-        fetchClosings();
+        const newStatus = decision === 'approved' ? 'locked' : 'rejected';
+        setClosings(prev => prev.map(c => c.closing_id === closing_id ? { ...c, status: newStatus as any, ...(data.updated || {}) } : c));
       } else {
         toast.error(data.error || 'Review failed');
       }
     } catch (err: any) {
       toast.error('Error reviewing closing');
     } finally {
+      markEnd('daily_closing_review', startMark);
       setSubmittingId(null);
     }
   };

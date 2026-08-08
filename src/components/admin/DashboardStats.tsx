@@ -6,6 +6,7 @@ import { DollarSign, ShoppingBag, Users, Clock, TrendingUp, MapPin, Calendar } f
 import { streamTelemetryData, fetchOutlets, fetchStaffList } from '@/lib/dbService';
 import { auth } from '@/lib/firebase';
 import { Outlet } from '@/lib/types';
+import { markStart, markEnd } from '@/lib/performance/perf';
 
 interface DashboardStatsProps {
   onNavigate?: (tab: any, filter?: string) => void;
@@ -114,6 +115,7 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     e.preventDefault();
     if (!openingCash || !cashStaffId) return;
     setIsOpeningTill(true);
+    const startMark = markStart('open_till_total');
     try {
       const token = await getToken();
       const res = await fetch('/api/cash-sessions', {
@@ -130,10 +132,14 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
       if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Till session opened successfully!', 'success');
       setOpeningCash('');
-      await loadCashAndExpenses();
+      if (data.session) {
+        setCashSessions(prev => [data.session, ...prev]);
+        setActiveSession(data.session);
+      }
     } catch (err) {
       showToast('Failed to open till session.', 'error');
     } finally {
+      markEnd('open_till_total', startMark);
       setIsOpeningTill(false);
     }
   };
@@ -142,6 +148,7 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     e.preventDefault();
     if (!activeSession || !closingCash || !expectedCash) return;
     setIsClosingTill(true);
+    const startMark = markStart('close_till_total');
     try {
       const token = await getToken();
       const res = await fetch(`/api/cash-sessions/${activeSession.id}`, {
@@ -157,10 +164,14 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
       if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Till session closed successfully!', 'success');
       setClosingCash(''); setExpectedCash(''); setCashNote('');
-      await loadCashAndExpenses();
+      if (data.session) {
+        setCashSessions(prev => prev.map(s => s.id === data.session.id ? data.session : s));
+      }
+      setActiveSession(null);
     } catch (err) {
       showToast('Failed to close till session.', 'error');
     } finally {
+      markEnd('close_till_total', startMark);
       setIsClosingTill(false);
     }
   };

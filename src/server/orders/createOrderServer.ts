@@ -508,11 +508,11 @@ export const createOrderServer = async (command: CreateOrderCommand): Promise<Cr
     return { created: true, order: orderData, alerts };
   });
 
-  if (transactionResult.created) {
+  if (transactionResult.created && transactionResult.alerts.length > 0) {
     const outletName = String(transactionResult.order.outlet || command.outlet);
-    await Promise.allSettled(
+    Promise.allSettled(
       transactionResult.alerts.map(alert => triggerLowStockAlert(alert, outletName)),
-    );
+    ).catch(err => console.error('[LOW STOCK ALERT ASYNC ERROR]', err));
   }
 
   const order = { ...transactionResult.order };

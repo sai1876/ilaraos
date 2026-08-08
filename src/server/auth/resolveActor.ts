@@ -69,17 +69,42 @@ export function isRoleAllowed(role: string, allowedRoles: string[]): boolean {
   return false;
 }
 
+interface CachedActor {
+  actor: ActorContext;
+  cachedAt: number;
+}
+
+const ACTOR_CACHE = new Map<string, CachedActor>();
+const CACHE_TTL_MS = 20_000; // 20s TTL for hot-path staff requests
+
+export function clearActorCache(uid?: string) {
+  if (uid) {
+    ACTOR_CACHE.delete(uid);
+  } else {
+    ACTOR_CACHE.clear();
+  }
+}
+
 /** Resolve current authority from server-side documents; token role claims are never authoritative. */
 export async function resolveActorContext(
   db: Firestore,
   decodedToken: DecodedIdToken,
 ): Promise<ActorResolution> {
   const uid = decodedToken.uid;
+  const tokenVersion = decodedToken.token_version ?? 0;
+  const cacheKey = `${uid}:${tokenVersion}`;
+  const cached = ACTOR_CACHE.get(cacheKey);
+
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return { ok: true, actor: cached.actor };
+  }
+
   const userDoc = await db.collection(USERS_COL).doc(uid).get();
   const userData = userDoc.exists ? userDoc.data() : undefined;
   const userStatus = documentStatus(userData);
 
   if (userStatus && BLOCKED_STATUSES.has(userStatus)) {
+    ACTOR_CACHE.delete(cacheKey);
     return { ok: false, reason: 'account_inactive' };
   }
 
@@ -95,17 +120,16 @@ export async function resolveActorContext(
     if (tokenVersion !== undefined && decodedToken.token_version !== undefined && decodedToken.token_version !== tokenVersion) {
       return { ok: false, reason: 'stale_token' };
     }
-    return {
-      ok: true,
-      actor: {
-        uid,
-        email: decodedToken.email,
-        role,
-        staffId: access?.staff_id || uid,
-        outletId: access?.outlet_id || 'main',
-        tokenVersion,
-      },
+    const actor: ActorContext = {
+      uid,
+      email: decodedToken.email,
+      role,
+      staffId: access?.staff_id || uid,
+      outletId: access?.outlet_id || 'main',
+      tokenVersion,
     };
+    ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
+    return { ok: true, actor };
   }
 
   const staffDoc = await findStaffDocument(db, uid, decodedToken.email);
@@ -122,17 +146,16 @@ export async function resolveActorContext(
       return { ok: false, reason: 'stale_token' };
     }
 
-    return {
-      ok: true,
-      actor: {
-        uid,
-        email: decodedToken.email,
-        role,
-        staffId: staffDoc.id,
-        outletId: staffData?.outlet_id || 'main',
-        tokenVersion,
-      },
+    const actor: ActorContext = {
+      uid,
+      email: decodedToken.email,
+      role,
+      staffId: staffDoc.id,
+      outletId: staffData?.outlet_id || 'main',
+      tokenVersion,
     };
+    ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
+    return { ok: true, actor };
   }
 
   if (!userDoc.exists) return { ok: false, reason: 'profile_not_found' };
@@ -142,13 +165,12 @@ export async function resolveActorContext(
     return { ok: false, reason: 'staff_record_required' };
   }
 
-  return {
-    ok: true,
-    actor: {
-      uid,
-      email: decodedToken.email,
-      role: CUSTOMER_ROLE,
-      tokenVersion: userData?.token_version,
-    },
+  const actor: ActorContext = {
+    uid,
+    email: decodedToken.email,
+    role: CUSTOMER_ROLE,
+    tokenVersion: userData?.token_version,
   };
+  ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
+  return { ok: true, actor };
 }

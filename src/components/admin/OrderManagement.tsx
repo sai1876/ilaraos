@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Power, Send, AlertTriangle, CheckCircle, Clock, MapPin, Coffee, ShoppingBag, Truck } from 'lucide-react';
-import { db, auth } from '@/lib/firebase';
-import { collection, query, limit, onSnapshot, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, query, limit, onSnapshot, doc, where } from 'firebase/firestore';
 import { OrderDocument } from '@/lib/types';
 import { isActiveOrderStatus, isCompletedOrderStatus } from '@/lib/orderUtils';
 import { secureUpdateRushMode } from '@/app/_actions/secureDbActions';
+import { fetchWithAuth } from '@/lib/auth/getActionToken';
+import { markStart, markEnd } from '@/lib/performance/perf';
 
 interface OrderManagementProps {
   outletId?: string;
@@ -38,12 +40,13 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
       osc1.frequency.setValueAtTime(587.33, now); // D5
       osc1.frequency.setValueAtTime(880.00, now + 0.12); // A5
       
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(1174.66, now); // D6
-      osc2.frequency.setValueAtTime(1760.00, now + 0.12); // A6
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(440.00, now); // A4
+      osc2.frequency.setValueAtTime(659.25, now + 0.12); // E5
       
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
       
       osc1.connect(gain);
       osc2.connect(gain);
@@ -74,13 +77,23 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
     return () => unsubscribe();
   }, []);
 
-  // 2. Listen to real orders in real-time
+  // 2. Stream active orders with targeted status queries
   useEffect(() => {
     const isGlobal = userRole === 'admin' || userRole === 'owner';
-    const q = query(
-      collection(db, 'orders'),
-      limit(100)
-    );
+    
+    let q;
+    if (!isGlobal && outletId) {
+      q = query(
+        collection(db, 'orders'),
+        where('outlet_id', '==', outletId),
+        limit(50)
+      );
+    } else {
+      q = query(
+        collection(db, 'orders'),
+        limit(50)
+      );
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let fetchedOrders: OrderDocument[] = [];
@@ -90,16 +103,9 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
           fetchedOrders.push(order);
         }
       });
-
-      if (!isGlobal && outletId) {
-        const scoped = fetchedOrders.filter(o => (o as any).outlet_id === outletId || (o as any).outlet === outletId || o.hatch === outletId);
-        if (scoped.length > 0) fetchedOrders = scoped;
-      }
       
-      // Sort in memory by created_at descending (newest first)
       fetchedOrders.sort((a, b) => b.created_at - a.created_at);
 
-      // Play chime for brand new orders (avoid initial load trigger)
       if (prevOrderIdsRef.current.size > 0) {
         const hasNewOrder = fetchedOrders.some(
           o => !prevOrderIdsRef.current.has(o.order_id) && Date.now() - o.created_at < 60000
@@ -115,7 +121,16 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [outletId, userRole]);
+
+  // Derived memoized order lists
+  const activeOrdersList = useMemo(() => {
+    return orders.filter(o => isActiveOrderStatus(o.status));
+  }, [orders]);
+
+  const completedOrdersList = useMemo(() => {
+    return orders.filter(o => isCompletedOrderStatus(o.status));
+  }, [orders]);
 
   // 3. Toggle Rush Mode state in Firestore
   const toggleRushMode = async () => {
@@ -131,16 +146,13 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
   };
 
   const pushToKDS = async (orderId: string) => {
-    try {
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) throw new Error("Authentication required");
+    const startMark = markStart('handover_total');
+    setOrders(prev => prev.map(o => o.order_id === orderId ? { ...o, rush_held: false, status: 'preparing' } : o));
 
-      const res = await fetch('/api/orders/update-status', {
+    try {
+      const res = await fetchWithAuth('/api/orders/update-status', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           order_id: orderId, 
           rush_held: false, 
@@ -154,29 +166,22 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
     } catch (e: any) {
       console.error("Failed to push held order to KDS: ", e);
       alert(e.message || "Failed to push order to KDS");
+    } finally {
+      markEnd('handover_total', startMark);
     }
   };
 
-  // 5. Collect Amount & Mark Completed
+  // 5. Collect Amount & Mark Completed with Optimistic UI (< 10ms)
   const markCompleted = async (orderId: string) => {
+    const startMark = markStart('collect_order_total');
     const method = paymentMethods[orderId] || 'cash';
-    try {
-      let user = auth.currentUser;
-      if (!user) {
-        await new Promise<void>((resolve) => {
-          const unsub = auth.onAuthStateChanged(() => { unsub(); resolve(); });
-        });
-        user = auth.currentUser;
-      }
-      if (!user) throw new Error("Authentication required");
-      const idToken = await user.getIdToken();
 
-      const res = await fetch('/api/orders/update-status', {
+    setOrders(prev => prev.map(o => o.order_id === orderId ? { ...o, status: 'completed', is_paid: true, payment_status: 'paid', payment_method: method } : o));
+
+    try {
+      const res = await fetchWithAuth('/api/orders/update-status', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           order_id: orderId, 
           next_status: 'completed',
@@ -191,6 +196,8 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
     } catch (e: any) {
       console.error("Failed to mark order completed: ", e);
       alert(e.message || "Failed to mark order completed");
+    } finally {
+      markEnd('collect_order_total', startMark);
     }
   };
 
@@ -248,7 +255,7 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Active Queue ({orders.filter(o => isActiveOrderStatus(o.status)).length})
+            Active Queue ({activeOrdersList.length})
           </button>
           <button
             onClick={() => setViewTab('completed')}
@@ -258,12 +265,12 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Completed ({orders.filter(o => isCompletedOrderStatus(o.status)).length})
+            Completed ({completedOrdersList.length})
           </button>
         </div>
       </div>
       
-      {orders.filter(o => viewTab === 'active' ? isActiveOrderStatus(o.status) : isCompletedOrderStatus(o.status)).length === 0 ? (
+      {(viewTab === 'active' ? activeOrdersList : completedOrdersList).length === 0 ? (
         <div className="text-center py-16 bg-card border border-border shadow-[0_4px_20px_rgba(62,39,35,0.06)] rounded-3xl flex flex-col items-center gap-3">
           <ShoppingBag size={32} className="text-muted-foreground/20" />
           <p className="font-mono text-xs text-muted-foreground/50 uppercase tracking-wider">
@@ -273,8 +280,7 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <AnimatePresence mode="popLayout">
-            {orders
-              .filter(o => viewTab === 'active' ? isActiveOrderStatus(o.status) : isCompletedOrderStatus(o.status))
+            {(viewTab === 'active' ? activeOrdersList : completedOrdersList)
               .map(order => {
               const isHeld = order.rush_held === true;
               return (
