@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { auth } from '@/lib/firebase';
@@ -30,21 +30,35 @@ function LoginContent() {
   return isStaff ? <StaffLoginContent /> : <CustomerAuthGuard><AuthWorkspace defaultTab="login" returnTo={returnTo} /></CustomerAuthGuard>;
 }
 
+type AuthState =
+  | 'idle'
+  | 'password_verifying'
+  | 'totp_required'
+  | 'totp_setup_required'
+  | 'totp_verifying'
+  | 'redirecting'
+  | 'error';
+
 function StaffLoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
+  
+  const [authState, setAuthState] = useState<AuthState>('idle');
   const [authError, setAuthError] = useState<string | null>(null);
   
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  const [totpStep, setTotpStep] = useState<'none' | 'setup' | 'verify'>('none');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [totpSecret, setTotpSecret] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [tempIdToken, setTempIdToken] = useState('');
+
+  // Ref guards for single submit & deduplication
+  const verifyInFlightRef = useRef(false);
+  const lastSubmittedCodeRef = useRef('');
+  const autoSubmitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const totpInputRef = useRef<HTMLInputElement>(null);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -66,7 +80,7 @@ function StaffLoginContent() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthLoading(true);
+    setAuthState('password_verifying');
     setAuthError(null);
 
     let userCredential;
@@ -75,7 +89,7 @@ function StaffLoginContent() {
     } catch (err: unknown) {
       console.error("Firebase sign in failed:", err);
       setAuthError('Email or password is incorrect.');
-      setAuthLoading(false);
+      setAuthState('error');
       return;
     }
 
@@ -98,58 +112,106 @@ function StaffLoginContent() {
           } else {
             setAuthError(resData.error || 'Session creation failed');
           }
+          setAuthState('error');
           return;
         }
-        
-        setTempIdToken(idToken);
         
         if (resData.setup_required) {
           setQrCodeDataUrl(resData.qrCodeDataUrl);
           setTotpSecret(resData.secret || '');
-          setTotpStep('setup');
+          setAuthState('totp_setup_required');
         } else if (resData.require_totp) {
-          setTotpStep('verify');
+          setAuthState('totp_required');
         }
       }
     } catch (err: unknown) {
       console.error("Auth check failed: ", err);
       setAuthError(getFriendlyErrorMessage(err));
-    } finally {
-      setAuthLoading(false);
+      setAuthState('error');
     }
   };
 
-  const handleVerifyTotp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
+  const executeVerifyTotp = async (codeToSubmit: string) => {
+    if (verifyInFlightRef.current) return;
+    if (lastSubmittedCodeRef.current === codeToSubmit) return;
+
+    verifyInFlightRef.current = true;
+    lastSubmittedCodeRef.current = codeToSubmit;
+    setAuthState('totp_verifying');
     setAuthError(null);
+
     try {
       const res = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: tempIdToken, action: 'verify', totpCode })
+        body: JSON.stringify({ action: 'verify', totpCode: codeToSubmit })
       });
       const data = await res.json();
       if (!res.ok) {
+        verifyInFlightRef.current = false;
+        lastSubmittedCodeRef.current = '';
+        setAuthState('error');
         if (data.code === 'TOTP_RESET_REQUIRED') {
           setAuthError('Two-factor authentication must be re-enrolled. Please contact your manager.');
         } else if (data.code === 'TOTP_CONFIGURATION_ERROR') {
           setAuthError('Two-factor authentication system configuration error. Contact admin.');
         } else if (data.code === 'INVALID_TOTP') {
-          setAuthError('Invalid authenticator code. Please try again.');
+          setAuthError("That code wasn't accepted. Enter the current code from Authenticator.");
+        } else if (data.code === 'PREAUTH_EXPIRED') {
+          setAuthError('Session expired. Please enter password again.');
+          setAuthState('idle');
         } else {
           setAuthError(data.error || 'Verification failed');
         }
         return;
       }
       
-      window.location.href = data.redirectUrl || '/operations';
+      setAuthState('redirecting');
+      window.location.replace(data.redirectUrl || '/operations');
     } catch (err: unknown) {
+      verifyInFlightRef.current = false;
+      lastSubmittedCodeRef.current = '';
+      setAuthState('error');
       setAuthError(getFriendlyErrorMessage(err));
-    } finally {
-      setAuthLoading(false);
     }
   };
+
+  const handleVerifyTotpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (totpCode.length === 6) {
+      executeVerifyTotp(totpCode);
+    }
+  };
+
+  // Auto-submit 6-digit code with 120ms debounce
+  useEffect(() => {
+    if ((authState === 'totp_required' || authState === 'totp_setup_required') && totpCode.length === 6) {
+      if (autoSubmitTimeoutRef.current) clearTimeout(autoSubmitTimeoutRef.current);
+      autoSubmitTimeoutRef.current = setTimeout(() => {
+        executeVerifyTotp(totpCode);
+      }, 120);
+    }
+    return () => {
+      if (autoSubmitTimeoutRef.current) clearTimeout(autoSubmitTimeoutRef.current);
+    };
+  }, [totpCode, authState]);
+
+  // Focus input when entering TOTP stage
+  useEffect(() => {
+    if (authState === 'totp_required' || authState === 'totp_setup_required') {
+      setTimeout(() => totpInputRef.current?.focus(), 50);
+    }
+  }, [authState]);
+
+  const handleTotpCodeChange = (raw: string) => {
+    const clean = raw.replace(/\D/g, '').slice(0, 6);
+    setTotpCode(clean);
+    if (authError) {
+      setAuthError(null);
+    }
+  };
+
+  const isTotpStage = authState === 'totp_required' || authState === 'totp_setup_required' || authState === 'totp_verifying' || authState === 'redirecting';
 
   return (
     <div className="w-full bg-[#FAF7F2] text-[#241A15] relative overflow-x-hidden font-sans px-6 py-12 no-scrollbar">
@@ -173,7 +235,7 @@ function StaffLoginContent() {
           <span className="font-sans text-[10px] uppercase tracking-widest text-[#66554A] font-bold bg-[#F3ECE3]/80 px-4 py-1.5 rounded-full border border-[#E8DFD3] shadow-sm">Secured Staff Shield</span>
         </div>
 
-        {totpStep === 'none' && (
+        {!isTotpStage && (
           <form onSubmit={handleLogin} className="bg-[#FFFDFC]/98 backdrop-blur-md rounded-[32px] border border-[#E8DFD3] p-8 md:p-10 shadow-[0_30px_70px_rgba(36,26,21,0.04)] flex flex-col gap-6 relative overflow-hidden">
             {/* Top Premium Color Stripe */}
             <div className="absolute inset-x-0 top-0 h-[4px] bg-gradient-to-r from-[#C3924F] via-[#9A642C] to-[#C3924F]" />
@@ -251,10 +313,10 @@ function StaffLoginContent() {
 
             <button
               type="submit"
-              disabled={authLoading}
+              disabled={authState === 'password_verifying'}
               className="w-full bg-[#9A642C] hover:bg-[#805020] text-white py-4 rounded-2xl font-sans font-bold text-sm tracking-wide shadow-[0_4px_14px_rgba(154,100,44,0.15)] hover:shadow-[0_6px_20px_rgba(154,100,44,0.25)] hover:translate-y-[-1px] active:translate-y-[0px] flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 mt-2"
             >
-              {authLoading ? 'Verifying...' : 'Unlock Dashboard'}
+              {authState === 'password_verifying' ? 'Verifying Credentials...' : 'Unlock Dashboard'}
             </button>
 
             <div className="border-t border-[#E8DFD3] pt-5 flex flex-col gap-4 mt-2">
@@ -273,19 +335,19 @@ function StaffLoginContent() {
           </form>
         )}
 
-        {(totpStep === 'setup' || totpStep === 'verify') && (
-          <form onSubmit={handleVerifyTotp} className="bg-[#FFFDFC]/98 backdrop-blur-md rounded-[32px] border border-[#E8DFD3] p-8 md:p-10 shadow-[0_30px_70px_rgba(36,26,21,0.04)] flex flex-col gap-6 relative overflow-hidden">
+        {isTotpStage && (
+          <form onSubmit={handleVerifyTotpSubmit} className="bg-[#FFFDFC]/98 backdrop-blur-md rounded-[32px] border border-[#E8DFD3] p-8 md:p-10 shadow-[0_30px_70px_rgba(36,26,21,0.04)] flex flex-col gap-6 relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-[4px] bg-gradient-to-r from-[#C3924F] via-[#9A642C] to-[#C3924F]" />
             <div className="text-center">
               <h1 className="font-serif text-2xl font-bold text-[#241A15] tracking-tight">Two-Factor Auth</h1>
               <p className="text-xs text-[#66554A] mt-2 leading-relaxed px-2">
-                {totpStep === 'setup'
+                {authState === 'totp_setup_required'
                   ? "Scan the QR code with Google Authenticator to register your workspace."
                   : "Enter the secure 6-digit code from Google Authenticator to continue."}
               </p>
             </div>
 
-            {totpStep === 'setup' && qrCodeDataUrl && (
+            {authState === 'totp_setup_required' && qrCodeDataUrl && (
               <div className="flex flex-col items-center gap-3 bg-[#FFFDFC] p-5 rounded-[24px] border border-[#E8DFD3] shadow-inner">
                 <img src={qrCodeDataUrl} alt="2FA QR Code" className="w-44 h-44 bg-[#FFFDFC] rounded-2xl p-2.5 shadow-sm border border-[#E8DFD3]" />
                 <p className="text-[10px] font-mono text-[#66554A]">
@@ -297,13 +359,15 @@ function StaffLoginContent() {
             <div className="flex flex-col gap-2 text-center mt-2">
               <label className="font-sans text-[11px] font-bold uppercase tracking-wider text-[#66554A]">Verification Code</label>
               <input
-                type="tel"
+                ref={totpInputRef}
+                type="text"
                 inputMode="numeric"
-                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                autoFocus
                 required
                 maxLength={6}
                 value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => handleTotpCodeChange(e.target.value)}
                 placeholder="000000"
                 className={`text-3xl text-center transition-all outline-none border rounded-2xl px-4 py-4 tracking-[0.4em] font-mono shadow-sm ${
                   totpCode
@@ -323,17 +387,27 @@ function StaffLoginContent() {
             <div className="flex gap-4 mt-2">
               <button
                 type="button"
-                onClick={() => { setTotpStep('none'); setTempIdToken(''); signOut(auth); }}
+                onClick={() => {
+                  verifyInFlightRef.current = false;
+                  lastSubmittedCodeRef.current = '';
+                  setAuthState('idle');
+                  setTotpCode('');
+                  signOut(auth);
+                }}
                 className="flex-1 bg-[#F3ECE3] border border-[#E8DFD3] text-[#66554A] hover:bg-[#E8DFD3] rounded-2xl py-4 font-sans font-bold text-xs uppercase tracking-widest transition-all duration-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={authLoading || totpCode.length !== 6}
+                disabled={authState === 'totp_verifying' || authState === 'redirecting' || totpCode.length !== 6}
                 className="flex-1 bg-[#2F6B54] hover:bg-[#204a3a] text-white disabled:opacity-50 rounded-2xl py-4 font-sans font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center shadow-[0_4px_14px_rgba(47,107,84,0.15)]"
               >
-                {authLoading ? 'Verifying...' : 'Verify'}
+                {authState === 'totp_verifying'
+                  ? 'Verifying securely…'
+                  : authState === 'redirecting'
+                  ? 'Redirecting…'
+                  : 'Verify'}
               </button>
             </div>
           </form>

@@ -99,7 +99,11 @@ export async function resolveActorContext(
     return { ok: true, actor: cached.actor };
   }
 
-  const userDoc = await db.collection(USERS_COL).doc(uid).get();
+  const [userDoc, accessDoc] = await Promise.all([
+    db.collection(USERS_COL).doc(uid).get(),
+    db.collection('staff_access').doc(uid).get(),
+  ]);
+
   const userData = userDoc.exists ? userDoc.data() : undefined;
   const userStatus = documentStatus(userData);
 
@@ -108,7 +112,6 @@ export async function resolveActorContext(
     return { ok: false, reason: 'account_inactive' };
   }
 
-  const accessDoc = await db.collection('staff_access').doc(uid).get();
   if (accessDoc.exists) {
     const access = accessDoc.data();
     const role = normalize(access?.role);

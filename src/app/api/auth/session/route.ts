@@ -4,15 +4,19 @@ import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { resolveActorContext, type ActorContext } from '@/server/auth/resolveActor';
+import { resolveActorContext } from '@/server/auth/resolveActor';
 import {
   encryptTotpSecret,
   readTotpSecret,
-  TotpConfigurationError,
   TotpResetRequiredError,
 } from '@/server/auth/totpSecret';
 import { requireSessionActor, SessionAuthorizationError } from '@/server/auth/requireSessionActor';
 import { getHomeRouteForRole } from '@/lib/auth/roles';
+import {
+  createPreAuthChallenge,
+  verifyPreAuthChallenge,
+  PREAUTH_COOKIE_NAME,
+} from '@/server/auth/preAuthChallenge';
 
 const sessionRequestSchema = z.discriminatedUnion('action', [
   z.object({
@@ -21,7 +25,7 @@ const sessionRequestSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('verify'),
-    idToken: z.string().min(1),
+    idToken: z.string().optional(),
     totpCode: z.string().regex(/^\d{6}$/),
   }),
   z.object({
@@ -43,87 +47,15 @@ function clearSessionResponse(): NextResponse {
     sameSite: 'lax',
     path: '/',
   });
+  response.cookies.set(PREAUTH_COOKIE_NAME, '', {
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
   return response;
-}
-
-async function authenticateStaff(idToken: string): Promise<ActorContext | NextResponse> {
-  if (!adminAuth || !adminDb) {
-    return NextResponse.json(
-      { error: 'Authentication service temporarily unavailable.', code: 'AUTHENTICATION_UNAVAILABLE' },
-      { status: 503 },
-    );
-  }
-
-  let decodedToken;
-  try {
-    decodedToken = await adminAuth.verifyIdToken(idToken, true);
-  } catch (err: any) {
-    console.error('verifyIdToken failed:', err?.message || err);
-    return NextResponse.json(
-      { error: 'Authentication token verification failed.', code: 'INVALID_ID_TOKEN' },
-      { status: 401 },
-    );
-  }
-
-  const resolution = await resolveActorContext(adminDb, decodedToken);
-  if (!resolution.ok) {
-    const reasonMessages: Record<string, { error: string; code: string; status: number }> = {
-      stale_token: {
-        error: 'Session expired. Please sign out and sign in again.',
-        code: 'STALE_TOKEN',
-        status: 401,
-      },
-      staff_inactive: {
-        error: 'Staff account is inactive or suspended. Contact your manager.',
-        code: 'STAFF_INACTIVE',
-        status: 403,
-      },
-      invalid_role: {
-        error: 'Your account role does not have staff access.',
-        code: 'INVALID_ROLE',
-        status: 403,
-      },
-      staff_record_required: {
-        error: 'No staff record found for this account. Contact admin.',
-        code: 'STAFF_RECORD_REQUIRED',
-        status: 403,
-      },
-      account_inactive: {
-        error: 'Account is suspended or disabled. Contact admin.',
-        code: 'STAFF_INACTIVE',
-        status: 403,
-      },
-      profile_not_found: {
-        error: 'Account profile not found. Contact admin.',
-        code: 'STAFF_RECORD_REQUIRED',
-        status: 403,
-      },
-    };
-    console.error(`[auth/session] Staff login denied — reason: ${resolution.reason} uid: ${decodedToken.uid}`);
-    const mapped = reasonMessages[resolution.reason] ?? {
-      error: 'Staff access required',
-      code: 'STAFF_RECORD_REQUIRED',
-      status: 403,
-    };
-    return NextResponse.json({ error: mapped.error, code: mapped.code }, { status: mapped.status });
-  }
-
-  if (resolution.actor.role === 'customer') {
-    return NextResponse.json(
-      { error: 'Staff access required. Customer logins cannot access staff portal.', code: 'STAFF_RECORD_REQUIRED' },
-      { status: 403 },
-    );
-  }
-
-  if (!resolution.actor.staffId) {
-    console.error(`[auth/session] Staff login denied — no staffId on actor uid: ${decodedToken.uid}`);
-    return NextResponse.json(
-      { error: 'No staff record linked to this account. Contact admin.', code: 'STAFF_RECORD_REQUIRED' },
-      { status: 403 },
-    );
-  }
-
-  return resolution.actor;
 }
 
 export async function DELETE() {
@@ -154,6 +86,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const reqStart = Date.now();
+  const timings: Record<string, number> = {};
+
   try {
     let body: unknown;
     try {
@@ -171,8 +106,6 @@ export async function POST(request: Request) {
       return clearSessionResponse();
     }
 
-    const actor = await authenticateStaff(parsed.data.idToken);
-    if (actor instanceof NextResponse) return actor;
     if (!adminAuth || !adminDb) {
       return NextResponse.json(
         { error: 'Authentication service temporarily unavailable.', code: 'AUTHENTICATION_UNAVAILABLE' },
@@ -180,16 +113,52 @@ export async function POST(request: Request) {
       );
     }
 
-    const secretRef = adminDb.collection('admin_secrets').doc(actor.uid);
-
+    // --- STAGE 1: INIT ACTION ---
     if (parsed.data.action === 'init') {
-      const secretDoc = await secretRef.get();
+      const tokenStart = Date.now();
+      let decodedToken;
+      try {
+        decodedToken = await adminAuth.verifyIdToken(parsed.data.idToken, true);
+      } catch (err: any) {
+        console.error('[auth/session] verifyIdToken failed:', err?.message || err);
+        return NextResponse.json(
+          { error: 'Authentication token verification failed.', code: 'INVALID_ID_TOKEN' },
+          { status: 401 },
+        );
+      }
+      timings.verify_id_token = Date.now() - tokenStart;
+
+      // Resolve Actor Context first
+      const initFetchStart = Date.now();
+      const resolution = await resolveActorContext(adminDb, decodedToken);
+      timings.actor_resolution = Date.now() - initFetchStart;
+
+      if (!resolution.ok) {
+        return NextResponse.json({ error: 'Staff access required', code: 'STAFF_RECORD_REQUIRED' }, { status: 403 });
+      }
+
+      const actor = resolution.actor;
+      if (actor.role === 'customer' || !actor.staffId) {
+        return NextResponse.json({ error: 'Staff access required', code: 'STAFF_RECORD_REQUIRED' }, { status: 403 });
+      }
+
+      const secretDoc = await adminDb.collection('admin_secrets').doc(actor.uid).get();
+
+      // Generate HMAC Signed Pre-Auth Challenge Cookie
+      const challenge = createPreAuthChallenge({
+        uid: actor.uid,
+        staffId: actor.staffId,
+        role: actor.role,
+        outletId: actor.outletId || 'main',
+        tokenVersion: actor.tokenVersion,
+      });
+
+      let responsePayload: any;
 
       if (secretDoc.exists && secretDoc.data()?.verified === true) {
-        // Perform TOTP health check during init to catch decryption or configuration issues early
         try {
           readTotpSecret(actor.uid, secretDoc.data());
-          return NextResponse.json({ require_totp: true, code: 'TOTP_REQUIRED' });
+          responsePayload = { require_totp: true, code: 'TOTP_REQUIRED' };
         } catch (error) {
           if (error instanceof TotpResetRequiredError) {
             return NextResponse.json(
@@ -197,105 +166,134 @@ export async function POST(request: Request) {
               { status: 409 },
             );
           }
-          if (error instanceof TotpConfigurationError) {
-            return NextResponse.json(
-              { error: 'Two-factor authentication is temporarily unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
-              { status: 503 },
-            );
-          }
-          return NextResponse.json(
-            { error: 'Two-factor authentication must be re-enrolled.', code: 'TOTP_RESET_REQUIRED' },
-            { status: 409 },
-          );
-        }
-      }
-
-      // Handle setup or re-setup if unverified secret exists
-      let secret: string | null = null;
-      if (secretDoc.exists) {
-        try {
-          secret = readTotpSecret(actor.uid, secretDoc.data());
-        } catch (error) {
-          if (error instanceof TotpConfigurationError) {
-            return NextResponse.json(
-              { error: 'Two-factor authentication is temporarily unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
-              { status: 503 },
-            );
-          }
-          // If existing unverified secret is unreadable, generate a fresh secret
-          secret = null;
-        }
-      }
-
-      if (!secret) {
-        secret = authenticator.generateSecret();
-      }
-
-      let encryptedEnvelope;
-      try {
-        encryptedEnvelope = encryptTotpSecret(actor.uid, secret);
-      } catch (error) {
-        if (error instanceof TotpConfigurationError) {
           return NextResponse.json(
             { error: 'Two-factor authentication is temporarily unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
             { status: 503 },
           );
         }
-        return NextResponse.json(
-          { error: 'Two-factor authentication setup unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
-          { status: 503 },
+      } else {
+        // Setup TOTP if unverified or missing
+        let secret: string | null = null;
+        if (secretDoc.exists) {
+          try {
+            secret = readTotpSecret(actor.uid, secretDoc.data());
+          } catch {}
+        }
+
+        if (!secret) {
+          secret = authenticator.generateSecret();
+        }
+
+        const encryptedEnvelope = encryptTotpSecret(actor.uid, secret);
+
+        await adminDb.collection('admin_secrets').doc(actor.uid).set({
+          secret_encrypted: encryptedEnvelope,
+          verified: false,
+          staff_id: actor.staffId,
+          created_at: Date.now(),
+        });
+
+        const otpauth = authenticator.keyuri(
+          actor.email || actor.staffId || actor.uid,
+          'Ilara Cafe Staff',
+          secret,
         );
+        const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
+
+        responsePayload = {
+          setup_required: true,
+          qrCodeDataUrl,
+          code: 'TOTP_SETUP_REQUIRED',
+        };
       }
 
-      await secretRef.set({
-        secret_encrypted: encryptedEnvelope,
-        verified: false,
-        staff_id: actor.staffId,
-        created_at: Date.now(),
+      const response = NextResponse.json(responsePayload);
+      response.cookies.set(challenge.cookieName, challenge.token, {
+        maxAge: 120, // 2 minutes max
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
       });
 
-      const otpauth = authenticator.keyuri(
-        actor.email || actor.staffId || actor.uid,
-        'Ilara Cafe Staff',
-        secret,
-      );
-      const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
-
-      return NextResponse.json({
-        setup_required: true,
-        qrCodeDataUrl,
-        code: 'TOTP_SETUP_REQUIRED',
-      });
+      timings.total = Date.now() - reqStart;
+      response.headers.set('Server-Timing', Object.entries(timings).map(([k, v]) => `${k};dur=${v}`).join(', '));
+      return response;
     }
 
-    // action === 'verify'
-    const attemptLimit = await rateLimitDurable(
-      `staff-totp:${actor.uid}`,
-      5,
-      5 * 60 * 1000,
-    );
+    // --- STAGE 2: VERIFY ACTION ---
+    // Fast path: Check pre-auth challenge cookie first
+    const cookieHeader = request.headers.get('cookie') || '';
+    const cookiesMap = new Map(cookieHeader.split(';').map(c => {
+      const [k, ...v] = c.trim().split('=');
+      return [k, v.join('=')];
+    }));
+
+    const preAuthToken = cookiesMap.get(PREAUTH_COOKIE_NAME);
+    const preAuthValStart = Date.now();
+    const preAuth = verifyPreAuthChallenge(preAuthToken);
+    timings.preauth_validation = Date.now() - preAuthValStart;
+
+    let targetUid: string;
+    let targetRole: string;
+    let targetStaffId: string;
+    let fallbackIdToken = parsed.data.idToken;
+
+    if (preAuth) {
+      targetUid = preAuth.uid;
+      targetRole = preAuth.role;
+      targetStaffId = preAuth.staffId;
+    } else if (fallbackIdToken) {
+      // Fallback: verify ID token if pre-auth cookie is missing
+      let decodedToken;
+      try {
+        decodedToken = await adminAuth.verifyIdToken(fallbackIdToken, true);
+      } catch (err) {
+        return NextResponse.json({ error: 'Session expired. Please sign in again.', code: 'STALE_TOKEN' }, { status: 401 });
+      }
+      const resolution = await resolveActorContext(adminDb, decodedToken);
+      if (!resolution.ok || resolution.actor.role === 'customer' || !resolution.actor.staffId) {
+        return NextResponse.json({ error: 'Staff access required', code: 'STAFF_RECORD_REQUIRED' }, { status: 403 });
+      }
+      targetUid = resolution.actor.uid;
+      targetRole = resolution.actor.role;
+      targetStaffId = resolution.actor.staffId;
+    } else {
+      return NextResponse.json({ error: 'Pre-authentication challenge expired. Please enter password again.', code: 'PREAUTH_EXPIRED' }, { status: 401 });
+    }
+
+    // Rate Limit Guard
+    const attemptLimit = await rateLimitDurable(`staff-totp:${targetUid}`, 5, 5 * 60 * 1000);
     if (!attemptLimit.success) {
-      const unavailable = attemptLimit.source === 'unavailable';
       return NextResponse.json(
-        {
-          error: unavailable ? 'Authentication temporarily unavailable' : 'Too many verification attempts',
-          code: unavailable ? 'AUTHENTICATION_UNAVAILABLE' : 'RATE_LIMITED',
-        },
-        {
-          status: unavailable ? 503 : 429,
-          headers: { 'Retry-After': String(Math.ceil(attemptLimit.retryAfterMs / 1000)) },
-        },
+        { error: 'Too many verification attempts. Please wait.', code: 'RATE_LIMITED' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(attemptLimit.retryAfterMs / 1000)) } },
       );
     }
 
-    const secretDoc = await secretRef.get();
+    // Parallelize Fast Staff Access & Admin Secret Read
+    const fastFetchStart = Date.now();
+    const [accessDoc, secretDoc] = await Promise.all([
+      adminDb.collection('staff_access').doc(targetUid).get(),
+      adminDb.collection('admin_secrets').doc(targetUid).get(),
+    ]);
+    timings.fast_db_read = Date.now() - fastFetchStart;
+
     if (!secretDoc.exists) {
       return NextResponse.json({ error: '2FA setup required', code: 'TOTP_SETUP_REQUIRED' }, { status: 400 });
     }
 
+    // Check staff account active
+    if (accessDoc.exists) {
+      const access = accessDoc.data();
+      if (access?.status === 'inactive' || access?.status === 'suspended') {
+        return NextResponse.json({ error: 'Staff account inactive', code: 'STAFF_INACTIVE' }, { status: 403 });
+      }
+    }
+
     let secret: string | null = null;
     try {
-      secret = readTotpSecret(actor.uid, secretDoc.data());
+      secret = readTotpSecret(targetUid, secretDoc.data());
     } catch (error) {
       if (error instanceof TotpResetRequiredError) {
         return NextResponse.json(
@@ -303,15 +301,9 @@ export async function POST(request: Request) {
           { status: 409 },
         );
       }
-      if (error instanceof TotpConfigurationError) {
-        return NextResponse.json(
-          { error: 'Two-factor authentication is temporarily unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
-          { status: 503 },
-        );
-      }
       return NextResponse.json(
-        { error: 'Two-factor authentication must be re-enrolled.', code: 'TOTP_RESET_REQUIRED' },
-        { status: 409 },
+        { error: 'Two-factor authentication is temporarily unavailable.', code: 'TOTP_CONFIGURATION_ERROR' },
+        { status: 503 },
       );
     }
 
@@ -319,28 +311,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '2FA setup required', code: 'TOTP_SETUP_REQUIRED' }, { status: 400 });
     }
 
+    // TOTP Verification
+    const totpVerifyStart = Date.now();
     authenticator.options = { window: 2 };
     const isValid = authenticator.verify({ token: parsed.data.totpCode, secret });
+    timings.totp_verify = Date.now() - totpVerifyStart;
+
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid TOTP code', code: 'INVALID_TOTP' }, { status: 401 });
+      return NextResponse.json({ error: 'That code wasn\'t accepted. Enter the current code from Authenticator.', code: 'INVALID_TOTP' }, { status: 401 });
     }
 
-    await secretRef.update({
+    // Async secret update in background
+    adminDb.collection('admin_secrets').doc(targetUid).update({
       verified: true,
       last_verified_at: Date.now(),
-      staff_id: actor.staffId,
-    });
+      staff_id: targetStaffId,
+    }).catch(err => console.error('Failed to update TOTP last_verified_at:', err));
 
-    const sessionCookie = await adminAuth.createSessionCookie(
-      parsed.data.idToken,
-      { expiresIn: SESSION_EXPIRES_IN_MS },
-    );
+    // Session Cookie Creation
+    const sessionCookieStart = Date.now();
+
+    // If fallbackIdToken is available, create session cookie with it, else mint custom token session
+    let sessionCookie: string;
+    if (fallbackIdToken) {
+      sessionCookie = await adminAuth!.createSessionCookie(fallbackIdToken, { expiresIn: SESSION_EXPIRES_IN_MS });
+    } else {
+      const customToken = await adminAuth!.createCustomToken(targetUid, { role: targetRole });
+      sessionCookie = await adminAuth!.createSessionCookie(customToken, { expiresIn: SESSION_EXPIRES_IN_MS }).catch(async () => {
+        return adminAuth!.createSessionCookie(await adminAuth!.createCustomToken(targetUid), { expiresIn: SESSION_EXPIRES_IN_MS });
+      });
+    }
+    timings.session_cookie = Date.now() - sessionCookieStart;
+
+    const redirectUrl = getHomeRouteForRole(targetRole);
 
     const response = NextResponse.json({
       success: true,
-      redirectUrl: getHomeRouteForRole(actor.role),
+      redirectUrl,
       code: 'AUTHENTICATED',
     });
+
+    // Set __session cookie & clear pre-auth challenge cookie
     response.cookies.set('__session', sessionCookie, {
       maxAge: SESSION_MAX_AGE_SECONDS,
       httpOnly: true,
@@ -348,7 +359,17 @@ export async function POST(request: Request) {
       sameSite: 'lax',
       path: '/',
     });
+    response.cookies.set(PREAUTH_COOKIE_NAME, '', {
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
 
+    timings.total = Date.now() - reqStart;
+    response.headers.set('Server-Timing', Object.entries(timings).map(([k, v]) => `${k};dur=${v}`).join(', '));
     return response;
   } catch (error: any) {
     console.error('Session authentication error:', error);
