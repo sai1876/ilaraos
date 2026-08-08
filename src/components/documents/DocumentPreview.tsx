@@ -14,7 +14,9 @@ export default function DocumentPreview({ document, onClose }: DocumentPreviewPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [imageError, setImageError] = useState(false);
+
+  const loadPreview = () => {
     if (!document) {
       setSignedUrl(null);
       return;
@@ -22,6 +24,8 @@ export default function DocumentPreview({ document, onClose }: DocumentPreviewPr
 
     setLoading(true);
     setError(null);
+    setImageError(false);
+    setSignedUrl(null);
 
     getDocumentSignedUrl(document.document_id, 'inline')
       .then((res) => {
@@ -34,6 +38,10 @@ export default function DocumentPreview({ document, onClose }: DocumentPreviewPr
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadPreview();
   }, [document]);
 
   if (!document) return null;
@@ -73,6 +81,13 @@ export default function DocumentPreview({ document, onClose }: DocumentPreviewPr
 
           <div className="flex items-center gap-2">
             <button
+              onClick={loadPreview}
+              className="p-2 rounded-xl bg-white border border-[#E8DFD3] text-[#66554A] hover:bg-[#F3ECE3] hover:text-[#241A15] transition-colors"
+              title="Refresh Preview"
+            >
+              <RefreshCw size={14} />
+            </button>
+            <button
               onClick={handleDownload}
               className="p-2 rounded-xl bg-white border border-[#E8DFD3] text-[#66554A] hover:bg-[#F3ECE3] hover:text-[#241A15] transition-colors"
               title="Download File"
@@ -101,18 +116,59 @@ export default function DocumentPreview({ document, onClose }: DocumentPreviewPr
               <span>{error}</span>
             </div>
           ) : signedUrl ? (
-            isImage ? (
+            isImage && !imageError ? (
               <img
                 src={signedUrl}
                 alt={document.original_filename}
+                onError={() => setImageError(true)}
                 className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-md"
               />
+            ) : isImage && imageError ? (
+              <div className="flex flex-col items-center justify-center gap-3 text-white">
+                <AlertCircle size={48} className="text-red-400/80" />
+                <p className="text-xs font-mono text-zinc-300">Preview could not be displayed.</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={loadPreview}
+                    className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-zinc-700"
+                  >
+                    <RefreshCw size={12} /> Retry Preview
+                  </button>
+                  <a
+                    href={signedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-zinc-700"
+                  >
+                    <ExternalLink size={12} /> Open File
+                  </a>
+                  <button
+                    onClick={handleDownload}
+                    className="px-4 py-2 bg-[#9A642C] text-white rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-[#805020]"
+                  >
+                    <Download size={12} /> Download
+                  </button>
+                </div>
+              </div>
             ) : isPdf ? (
-              <iframe
-                src={signedUrl}
-                title={document.original_filename}
-                className="w-full h-[60vh] rounded-lg border border-zinc-700 bg-white"
-              />
+              <div className="w-full flex flex-col gap-2 h-full">
+                <div className="flex justify-end">
+                  <a
+                    href={signedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-zinc-700 transition-colors inline-flex w-max"
+                  >
+                    <span>Open in New Tab</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+                <iframe
+                  src={signedUrl}
+                  title={document.original_filename}
+                  className="w-full h-[60vh] rounded-lg border border-zinc-700 bg-white"
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center gap-3 text-white">
                 <FileText size={48} className="text-zinc-500" />
