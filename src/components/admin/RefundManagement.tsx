@@ -192,7 +192,7 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
         const itemApps = itemApprovals[req.request_id] || {};
         
         payloadItems = (req.items_requested || []).map(item => {
-          const orderItem = req.orderData?.items.find(oi => oi.item_id === item.item_id);
+          const orderItem = req.orderData?.items?.find(oi => oi.item_id === item.item_id);
           const defaultQty = item.quantity;
           const defaultAmount = item.requested_amount ?? ((orderItem?.unit_price || 0) * defaultQty);
           
@@ -424,9 +424,9 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
                   <div className="flex flex-col md:flex-row justify-between gap-4 flex-wrap min-w-0 break-words">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Order: {req.order_id.slice(-6).toUpperCase()}</span>
+                        <span className="text-sm font-bold text-white">Order: {req.order_id ? req.order_id.slice(-6).toUpperCase() : 'N/A'}</span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#302117] text-[#d4c4b0] uppercase">
-                          {req.request_scope.replace('_', ' ')}
+                          {req.request_scope ? req.request_scope.replace('_', ' ') : 'UNKNOWN'}
                         </span>
                         {req.reason_category && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-900/30 text-red-300 border border-red-900/50 uppercase">
@@ -435,7 +435,7 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
                         )}
                       </div>
                       <p className="text-[10px] font-mono text-[#d4c4b0]/60 uppercase tracking-widest break-all max-w-full overflow-hidden">
-                        Req ID: {req.request_id} • User: {req.user_id.slice(0,6)} • {new Date(req.created_at).toLocaleString()}
+                        Req ID: {req.request_id} • User: {req.user_id ? req.user_id.slice(0,6) : 'N/A'} • {new Date(req.created_at || Date.now()).toLocaleString()}
                       </p>
                     </div>
                     {req.orderData && (
@@ -494,7 +494,7 @@ export default function RefundManagement({ outletId, userRole }: RefundManagemen
                           <p className="text-[10px] font-mono uppercase tracking-widest text-[#f8bc51]">Requested Items Review:</p>
                           <div className="flex flex-col gap-2 bg-[#070402] p-3 rounded-xl border border-[#302117]">
                             {req.items_requested.map(item => {
-                              const orderItem = req.orderData?.items.find(oi => oi.item_id === item.item_id);
+                              const orderItem = req.orderData?.items?.find(oi => oi.item_id === item.item_id);
                               const refundedQty = orderItem?.refunded_quantity || 0;
                               const remainingQty = orderItem ? (orderItem.quantity - refundedQty) : item.quantity;
 
