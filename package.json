@@ -29,6 +29,7 @@
     "@capacitor/cli": "^8.3.4",
     "@capacitor/core": "^8.3.4",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
+    "@google/genai": "^2.16.0",
     "@notionhq/client": "^5.22.0",
     "@supabase/supabase-js": "^2.112.2",
     "@turf/distance": "^7.3.5",

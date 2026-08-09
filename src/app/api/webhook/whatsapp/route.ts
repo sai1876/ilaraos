@@ -4,15 +4,14 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { 
   downloadMetaMedia, 
   transcribeAudio, 
-  matchVoiceOrderToMenu, 
   sendWhatsAppMessage 
 } from '@/lib/voiceOrderingService';
-import { MenuItem } from '@/lib/types';
-import * as admin from 'firebase-admin';
-import crypto from 'crypto';
+
 import { maskPhone } from '@/lib/security/maskPii';
+import * as admin from 'firebase-admin';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/verifyWebhookSignature';
+import { chatOrchestrator } from '@/server/whatsapp/chat/chatOrchestrator';
 
 export const runtime = 'nodejs';
 
@@ -318,8 +317,20 @@ export async function POST(request: Request) {
         }
 
         // Process chat message
-        await processGeneralChatInBackground(phoneNumberId, fromPhone, normalizedFromPhone, messageText, userData, userDoc.id, baseUrl)
-          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] General chat processing failed:', err));
+        const result = await chatOrchestrator.processMessage({
+          messageText,
+          phone: normalizedFromPhone,
+          userId: userDoc.id,
+          userData,
+          baseUrl
+        }).catch(err => {
+          console.error('[WHATSAPP WEBHOOK ASYNC ERROR] General chat processing failed:', err);
+          return null;
+        });
+
+        if (result && result.reply) {
+          await sendWhatsAppMessage(phoneNumberId, fromPhone, result.reply);
+        }
 
         await logBusinessEvent({
           event_type: 'whatsapp_message_received',
@@ -455,7 +466,19 @@ async function processVoiceOrderInBackground(
     const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
     const userData = userDoc ? userDoc.data() : undefined;
 
-    await processGeneralChatInBackground(phoneNumberId, fromPhone, normalizedFromPhone, transcription, userData, userDoc ? userDoc.id : undefined, baseUrl);
+    await chatOrchestrator.processMessage({
+      messageText: transcription,
+      phone: normalizedFromPhone,
+      userId: userDoc ? userDoc.id : '',
+      userData,
+      baseUrl
+    }).then(result => {
+      if (result && result.reply) {
+        return sendWhatsAppMessage(phoneNumberId, fromPhone, result.reply);
+      }
+    }).catch(err => {
+      console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Voice chat processing failed:', err);
+    });
 
   } catch (error) {
     console.error('[BACKGROUND TASK EXCEPTION] Failed to process voice note:', error);
@@ -612,104 +635,6 @@ async function processTextHandshakeInBackground(
   }
 }
 
-/**
- * Background Asynchronous Pipeline: handles general chat queries using deterministic Bhai logic.
- */
-async function processGeneralChatInBackground(
-  phoneNumberId: string,
-  fromPhone: string,
-  normalizedFromPhone: string,
-  messageText: string,
-  userData?: admin.firestore.DocumentData,
-  userId?: string,
-  baseUrl: string = 'https://ilaracafe.vercel.app'
-) {
-  if (!adminDb) return;
-  console.log(`[BACKGROUND TASK] Starting general chat pipeline for ${maskPhone(fromPhone)}`);
-
-  try {
-    // 1. Fetch active menu catalog
-    const menuSnap = await adminDb.collection('menu').where('is_available', '==', true).get();
-    const menuItems = menuSnap.docs.map(doc => doc.data() as MenuItem);
-
-    // 2. Attempt to extract menu items from the message text (local keyword matcher)
-    const matches = await matchVoiceOrderToMenu(messageText, menuItems);
-    let orderSummary = '';
-    let checkoutLink = '';
-
-    if (matches.length > 0) {
-      const matchedItemsWithDetails = [];
-      let estimatedTotal = 0;
-      const summaryParts: string[] = [];
-
-      for (const match of matches) {
-        const menuItem = menuItems.find(m => m.item_id === match.id);
-        if (menuItem) {
-          const itemTotal = menuItem.price * match.qty;
-          estimatedTotal += itemTotal;
-          matchedItemsWithDetails.push({ name: menuItem.name, qty: match.qty, unit_price: menuItem.price });
-          summaryParts.push(`${match.qty}x ${menuItem.name} (₹${itemTotal})`);
-        }
-      }
-
-      if (matchedItemsWithDetails.length > 0) {
-        const voiceOrderId = crypto.randomUUID();
-        await adminDb.collection('voice_orders').doc(voiceOrderId).set({
-          user_phone: normalizedFromPhone,
-          user_id: userData?.user_id || userId || '',
-          items: matchedItemsWithDetails,
-          estimated_total: estimatedTotal,
-          status: 'staged',
-          created_at: admin.firestore.Timestamp.now(),
-          expires_at: admin.firestore.Timestamp.fromMillis(Date.now() + 15 * 60 * 1000),
-        });
-        checkoutLink = `${baseUrl}/cart?session=${voiceOrderId}&magic=true`;
-        orderSummary = summaryParts.join(', ');
-      }
-    }
-
-    // 3. Build deterministic Bhai reply
-    let reply: string;
-    const lower = messageText.toLowerCase();
-    const isStressed = /sad|stress|tired|cry|upset|overwhelm|anxious|depress|worry/.test(lower);
-
-    if (checkoutLink) {
-      reply = `Arre yaar, pakka set! I've added ${orderSummary} to your cart. Complete your order here: ${checkoutLink} 🍛`;
-    } else if (isStressed) {
-      reply = 'Bhai sun, lite le lo! Come to Ilara Cafe — good food + good vibes, sab theek ho jayega. Kya khaana hai? 😄';
-    } else {
-      const replies = [
-        'Arre yaar, kya scene hai? Bol kya chahiye aur main sort kar deta hoon!',
-        'Bhai sun — aa ja oasis pe, good food fixes everything. Kya order karein?',
-        'Sach mein? Mast plan hai: come grab something fresh from the menu, machha! 🎉',
-        'Kya chal raha hai campus pe? Tell me and I\'ll hook you up with the right snack!',
-      ];
-      reply = replies[Math.floor(Math.random() * replies.length)];
-    }
-
-    // 4. Append item suggestions if menu has items
-    if (!checkoutLink && menuItems.length > 0) {
-      const picks = menuItems.slice(0, 2);
-      reply += `\n\nBhai suggests:\n${picks.map(i => `• ${i.name} (₹${i.price})`).join('\n')}`;
-    }
-
-    // 5. Send reply
-    const success = await sendWhatsAppMessage(phoneNumberId, fromPhone, reply);
-    if (success) {
-      console.log(`[BACKGROUND CHAT SUCCESS] Reply sent to ${maskPhone(fromPhone)}`);
-    } else {
-      console.error(`[BACKGROUND CHAT ERROR] Failed to send reply to ${maskPhone(fromPhone)}`);
-    }
-
-  } catch (error) {
-    console.error('[BACKGROUND CHAT EXCEPTION] Failed to process general chat:', error);
-    await sendWhatsAppMessage(
-      phoneNumberId,
-      fromPhone,
-      'Kya scene hai machha! Kuch technical issue chal raha backend mein, but overall lite le lo! Bol kya chahiye? 😄'
-    );
-  }
-}
 
 /**
  * Background Asynchronous Pipeline: handles location updates with deterministic Bhai reply.
