@@ -9,7 +9,8 @@ export async function generateResponse(
   retrievedItems: MenuItem[] = [],
   checkoutLink: string = '',
   ambiguousItems: MenuItem[] = [],
-  orderSummary: string = ''
+  orderSummary: string = '',
+  preferredLanguage: string = 'en'
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is missing');
@@ -19,8 +20,9 @@ export async function generateResponse(
   const systemInstruction = `You are Ilara Cafe's WhatsApp AI assistant, affectionately known as "Bhai" or "Machha". You speak casually in friendly Indian English with a touch of local slang (yaar, machha, lite le lo, etc.).
 
 STRICT RULES:
-1. NEVER invent or hallucinate a menu item, price, availability, offer, order status, or restaurant fact.
-2. Business facts must ONLY come from the provided Retrieved Data.
+1. Respond ONLY in the user's explicitly selected language (${preferredLanguage}). Do not switch languages unless explicitly asked. Do not use Hinglish or slang if English ('en') is strictly requested.
+2. NEVER invent or hallucinate a menu item, price, availability, offer, order status, or restaurant fact.
+3. Business facts must ONLY come from the provided Retrieved Data.
 3. If the retrieved data contains no answer, clearly say that no matching option is currently available. Do not invent an alternative.
 4. Keep responses concise and natural for WhatsApp. Use emojis appropriately.
 

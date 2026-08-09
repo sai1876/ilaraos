@@ -131,7 +131,7 @@ export const chatOrchestrator = {
     let reply = '';
     try {
       reply = await withTimeout(
-        generateResponse(messageText, parsed, state.turns, retrievedItems, checkoutLink, ambiguousItems, orderSummary),
+        generateResponse(messageText, parsed, state.turns, retrievedItems, checkoutLink, ambiguousItems, orderSummary, state.preferred_language || 'en'),
         6000,
         'Response generation timeout'
       );

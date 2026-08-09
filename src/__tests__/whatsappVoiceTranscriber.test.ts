@@ -19,11 +19,13 @@ describe('WhatsApp Voice Transcriber', () => {
       text: 'One classic burger',
     });
 
-    (GoogleGenAI as any).mockImplementation(() => ({
-      models: {
-        generateContent: generateContentMock,
-      },
-    }));
+    (GoogleGenAI as any).mockImplementation(function() {
+      return {
+        models: {
+          generateContent: generateContentMock,
+        },
+      };
+    });
   });
 
   it('transcribes valid audio buffer successfully', async () => {

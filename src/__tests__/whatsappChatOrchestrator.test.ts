@@ -1,17 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { resolveOrderRequest } from '../server/whatsapp/chat/orderResolver';
 import { MenuItem } from '../lib/types';
-import { ParsedIntent } from '../server/whatsapp/chat/types';
 import { rankMenuItems } from '../server/whatsapp/chat/menuRanker';
 import { getDeterministicFallback } from '../server/whatsapp/chat/deterministicFallback';
 
 const mockMenu: MenuItem[] = [
-  { item_id: 'm1', name: 'Classic Burger', price: 100, category: 'Burgers', is_available: true, sort_order: 1 },
-  { item_id: 'm2', name: 'Classic Chicken Burger', price: 150, category: 'Burgers', is_available: true, sort_order: 2 },
-  { item_id: 'm3', name: 'Iced Latte', price: 120, category: 'Beverages', is_available: true, sort_order: 3 },
-  { item_id: 'm4', name: 'Cold Coffee', price: 90, category: 'Beverages', is_available: true, sort_order: 4 },
-  { item_id: 'm5', name: 'Spicy Momos', price: 80, category: 'Momos', is_available: true, sort_order: 5 },
-  { item_id: 'm6', name: 'Hot Chai', price: 20, category: 'Beverages', is_available: true, sort_order: 6 },
+  { item_id: 'm1', name: 'Classic Burger', price: 100, category: 'Burgers', is_available: true, sort_order: 1, description: '', station: 'hot', is_featured: false },
+  { item_id: 'm2', name: 'Classic Chicken Burger', price: 150, category: 'Burgers', is_available: true, sort_order: 2, description: '', station: 'hot', is_featured: false },
+  { item_id: 'm3', name: 'Iced Latte', price: 120, category: 'Beverages', is_available: true, sort_order: 3, description: '', station: 'cold', is_featured: false },
+  { item_id: 'm4', name: 'Cold Coffee', price: 90, category: 'Beverages', is_available: true, sort_order: 4, description: '', station: 'cold', is_featured: false },
+  { item_id: 'm5', name: 'Spicy Momos', price: 80, category: 'Momos', is_available: true, sort_order: 5, description: '', station: 'hot', is_featured: false },
+  { item_id: 'm6', name: 'Hot Chai', price: 20, category: 'Beverages', is_available: true, sort_order: 6, description: '', station: 'hot', is_featured: false },
 ];
 
 describe('WhatsApp Chat Orchestrator Components', () => {

@@ -12,6 +12,7 @@ import * as admin from 'firebase-admin';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/verifyWebhookSignature';
 import { chatOrchestrator } from '@/server/whatsapp/chat/chatOrchestrator';
+import { updateConversationState } from '@/server/whatsapp/chat/conversationMemory';
 
 export const runtime = 'nodejs';
 
@@ -275,11 +276,11 @@ export async function POST(request: Request) {
     }
 
     // ----------------------------------------------------
-    // CASE 2: Text Verification Code Message Payload (Signup Handshake)
+    // CASE 2: Text Verification Code Message Payload (Signup Handshake) & Chat
     // ----------------------------------------------------
     if (message.type === 'text' && typeof message.text?.body === 'string' && message.text.body) {
       const messageText = message.text.body;
-      const tokenMatch = messageText.match(/Ref:\s*([A-Za-z0-9_-]{8,64})/i);
+      const tokenMatch = messageText.trim().match(/^LOGIN(?:\s+Ref:)?\s*([A-Za-z0-9_-]{8,64})$/i);
 
       if (tokenMatch) {
         const token = tokenMatch[1].toUpperCase();
@@ -299,7 +300,7 @@ export async function POST(request: Request) {
           await sendWhatsAppMessage(
             phoneNumberId,
             fromPhone,
-            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
+            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
           );
           return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
         }
@@ -311,9 +312,38 @@ export async function POST(request: Request) {
           await sendWhatsAppMessage(
             phoneNumberId,
             fromPhone,
-            "Macha! Your account is not active yet. Please verify your email first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
+            "Macha! Your account is not active yet. Please verify your email first! 🌟"
           );
           return NextResponse.json({ success: true, message: 'Inactive user aborted' });
+        }
+
+        // Check for explicit language and opt-out commands deterministically
+        const lowerMsg = messageText.trim().toLowerCase();
+        const enMatch = lowerMsg.match(/^(?:english only|talk in english(?: only)?|reply in english|maintain only english|use english from now on|speak english)$/i);
+        const hiMatch = lowerMsg.match(/^(?:hindi only|hindi mein bolo|speak hindi)$/i);
+        const teMatch = lowerMsg.match(/^(?:telugu only|telugu lo matladu|speak telugu)$/i);
+        
+        let newLang: 'en' | 'hi' | 'te' | null = null;
+        let confirmMsg = '';
+        if (enMatch) { newLang = 'en'; confirmMsg = "Got it. I'll reply in English from now on."; }
+        else if (hiMatch) { newLang = 'hi'; confirmMsg = "Theek hai. Main ab se Hindi mein baat karunga."; }
+        else if (teMatch) { newLang = 'te'; confirmMsg = "Sare. Nenu ippati nunchi Telugu lo matladuthanu."; }
+
+        const optOutMatch = lowerMsg.match(/^(?:stop messages|don't send promotions|stop reminders)$/i);
+        if (optOutMatch) {
+          await updateConversationState(normalizedFromPhone, { engagement_opt_out: true });
+          await sendWhatsAppMessage(phoneNumberId, fromPhone, "Noted. I won't send you any proactive reminders or promotions anymore.");
+          return NextResponse.json({ success: true, message: 'Opted out of engagement' });
+        }
+
+        if (newLang) {
+          await updateConversationState(normalizedFromPhone, {
+            preferred_language: newLang,
+            language_source: 'explicit',
+            language_updated_at: Date.now()
+          });
+          await sendWhatsAppMessage(phoneNumberId, fromPhone, confirmMsg);
+          return NextResponse.json({ success: true, message: 'Language updated' });
         }
 
         // Process chat message

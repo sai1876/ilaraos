@@ -10,6 +10,7 @@ export const ChatIntentEnum = z.enum([
   'GREETING',
   'CASUAL_CHAT',
   'HELP',
+  'SET_LANGUAGE',
   'UNKNOWN',
 ]);
 
@@ -38,6 +39,7 @@ export const ParsedIntentSchema = z.object({
   confidence: z.number().min(0).max(1),
   constraints: IntentConstraintsSchema.optional(),
   items: z.array(RequestedItemSchema).optional(),
+  language: z.enum(['en', 'hi', 'te']).optional(),
 });
 
 export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
@@ -49,7 +51,19 @@ export interface ConversationTurn {
 }
 
 export interface ConversationState {
+  preferred_language?: 'en' | 'hi' | 'te';
+  language_source?: 'explicit' | 'detected';
+  language_updated_at?: number;
+
   last_intent?: ChatIntent;
+
+  last_user_message_at?: number;
+  last_bot_message_at?: number;
+
+  last_engagement_at?: number;
+  engagement_count_today?: number;
+  engagement_opt_out?: boolean;
+
   recent_item_ids: string[];
   turns: ConversationTurn[];
   updated_at: number;
