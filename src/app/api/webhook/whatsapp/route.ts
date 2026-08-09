@@ -1,11 +1,11 @@
 // [INTERNAL] - Route used by server-to-server or webhook calls
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { 
-  downloadMetaMedia, 
-  transcribeAudio, 
-  matchVoiceOrderToMenu, 
-  sendWhatsAppMessage 
+import {
+  downloadMetaMedia,
+  transcribeAudio,
+  matchVoiceOrderToMenu,
+  sendWhatsAppMessage,
 } from '@/lib/voiceOrderingService';
 import { MenuItem } from '@/lib/types';
 import * as admin from 'firebase-admin';
@@ -13,10 +13,12 @@ import crypto from 'crypto';
 import { maskPhone } from '@/lib/security/maskPii';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/verifyWebhookSignature';
+import type { WhatsAppSendResult } from '@/server/whatsapp/client';
 
 export const runtime = 'nodejs';
 
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+const PROCESSING_STALE_AFTER_MS = 5 * 60 * 1000;
 
 interface MetaWebhookMessage {
   id?: string;
@@ -27,45 +29,66 @@ interface MetaWebhookMessage {
   location?: { latitude?: number; longitude?: number };
 }
 
+interface MetaWebhookStatus {
+  id?: string;
+  status?: string;
+  recipient_id?: string;
+  errors?: Array<{
+    code?: number;
+    title?: string;
+    message?: string;
+    error_data?: { details?: string };
+  }>;
+}
+
 interface MetaWebhookPayload {
   entry?: Array<{
     changes?: Array<{
       value?: {
         messages?: MetaWebhookMessage[];
+        statuses?: MetaWebhookStatus[];
         metadata?: { phone_number_id?: string };
       };
     }>;
   }>;
 }
 
-// Verify token from environment or fallback
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+type ProcessClaim = 'claimed' | 'duplicate';
 
 function getTrustedAppBaseUrl(): string {
   const configured = process.env.APP_BASE_URL?.trim();
   if (configured) {
     try {
       const url = new URL(configured);
-      if (url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')) {
+      if (
+        url.protocol === 'https:' ||
+        (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')
+      ) {
         return url.origin;
       }
-    } catch {}
+    } catch {
+      // Fall through to Vercel URL.
+    }
   }
+
   if (process.env.VERCEL_URL) {
-    const vercelHost = process.env.VERCEL_URL.startsWith('http') 
-      ? process.env.VERCEL_URL 
+    const vercelHost = process.env.VERCEL_URL.startsWith('http')
+      ? process.env.VERCEL_URL
       : `https://${process.env.VERCEL_URL}`;
     try {
       return new URL(vercelHost).origin;
-    } catch {}
+    } catch {
+      // Fall through to the production fallback.
+    }
   }
+
   return 'https://ilaraos.vercel.app';
 }
 
 function getPhoneVariations(phone: string): string[] {
-  const digits = phone.replace(/[^0-9]/g, "");
+  const digits = phone.replace(/[^0-9]/g, '');
   const variations = new Set<string>([digits, `+${digits}`]);
-  
+
   if (digits.length > 10) {
     const last10 = digits.slice(-10);
     variations.add(last10);
@@ -77,61 +100,177 @@ function getPhoneVariations(phone: string): string[] {
     variations.add(`+91${digits}`);
     variations.add(`91${digits}`);
   }
-  
+
   return Array.from(variations);
 }
 
 async function findUserByPhone(
   usersRef: admin.firestore.CollectionReference,
-  phone: string
+  phone: string,
 ): Promise<admin.firestore.DocumentSnapshot | null> {
   const variations = getPhoneVariations(phone);
-  console.log(`[USER LOOKUP] Searching for phone variations...`);
-  
-  // 1. Try querying 'phone' field
+  console.log('[WA_USER_LOOKUP] Searching safe phone variations');
+
   const queryPhone = await usersRef.where('phone', 'in', variations).limit(1).get();
-  if (!queryPhone.empty) {
-    return queryPhone.docs[0];
-  }
-  
-  // 2. Try querying 'phone_number' field
+  if (!queryPhone.empty) return queryPhone.docs[0];
+
   const queryPhoneNumber = await usersRef.where('phone_number', 'in', variations).limit(1).get();
-  if (!queryPhoneNumber.empty) {
-    return queryPhoneNumber.docs[0];
-  }
-  
+  if (!queryPhoneNumber.empty) return queryPhoneNumber.docs[0];
+
   return null;
 }
 
+async function claimIncomingMessage(
+  messageId: string,
+  fromPhone: string,
+): Promise<ProcessClaim> {
+  if (!adminDb) throw new Error('Firebase Admin DB not initialized');
 
-/**
- * GET - WhatsApp Webhook Verification
- */
+  const ref = adminDb.collection('processed_whatsapp_messages').doc(messageId);
+  const nowMs = Date.now();
+
+  return adminDb.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.data();
+
+    if (snapshot.exists) {
+      if (data?.status === 'completed') return 'duplicate';
+
+      const updatedAt = data?.updated_at || data?.processed_at || data?.created_at;
+      const updatedMs =
+        typeof updatedAt?.toMillis === 'function'
+          ? updatedAt.toMillis()
+          : typeof updatedAt === 'number'
+            ? updatedAt
+            : 0;
+
+      if (data?.status === 'processing' && nowMs - updatedMs < PROCESSING_STALE_AFTER_MS) {
+        return 'duplicate';
+      }
+    }
+
+    const attemptCount = Number(data?.attempt_count || 0) + 1;
+    transaction.set(
+      ref,
+      {
+        incoming_message_id: messageId,
+        from: maskPhone(fromPhone),
+        status: 'processing',
+        attempt_count: attemptCount,
+        last_error: null,
+        created_at: data?.created_at || admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        processed_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return 'claimed';
+  });
+}
+
+async function markIncomingCompleted(messageId: string): Promise<void> {
+  if (!adminDb) return;
+  await adminDb.collection('processed_whatsapp_messages').doc(messageId).set(
+    {
+      status: 'completed',
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      completed_at: admin.firestore.FieldValue.serverTimestamp(),
+      last_error: null,
+    },
+    { merge: true },
+  );
+}
+
+async function markIncomingFailed(messageId: string, error: unknown): Promise<void> {
+  if (!adminDb) return;
+  const message = error instanceof Error ? error.message : String(error);
+  await adminDb.collection('processed_whatsapp_messages').doc(messageId).set(
+    {
+      status: 'failed',
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      last_error: message.slice(0, 500),
+    },
+    { merge: true },
+  );
+}
+
+async function sendOrThrow(
+  phoneNumberId: string,
+  toPhone: string,
+  body: string,
+): Promise<Extract<WhatsAppSendResult, { ok: true }>> {
+  console.log(
+    '[WA_REPLY_GENERATED]',
+    JSON.stringify({ recipient: maskPhone(toPhone), characters: body.length }),
+  );
+
+  const result = await sendWhatsAppMessage(phoneNumberId, toPhone, body);
+  if (!result.ok) {
+    throw new Error(
+      `Meta outbound send rejected (HTTP ${result.status}${result.code ? `, code ${result.code}` : ''})`,
+    );
+  }
+  return result;
+}
+
+function logStatusUpdates(statuses: MetaWebhookStatus[] | undefined): void {
+  if (!statuses?.length) return;
+
+  for (const status of statuses) {
+    const firstError = status.errors?.[0];
+    console.log(
+      '[WA_STATUS_UPDATE]',
+      JSON.stringify({
+        message_id: status.id,
+        status: status.status,
+        masked_recipient: maskPhone(status.recipient_id || ''),
+        error_code: firstError?.code,
+        error_title: firstError?.title,
+        error_message: firstError?.message,
+        error_details: firstError?.error_data?.details,
+      }),
+    );
+  }
+}
+
+async function safeBusinessEvent(
+  input: Parameters<typeof logBusinessEvent>[0],
+): Promise<void> {
+  try {
+    await logBusinessEvent(input);
+  } catch (error) {
+    // An observability failure must not cause Meta to retry a message that was already replied to.
+    console.error('[WA_BUSINESS_EVENT_FAILED]', error);
+  }
+}
+
+/** GET - Meta WhatsApp webhook verification. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('hub.mode');
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN?.trim();
 
-  if (!VERIFY_TOKEN) {
-    console.error('[WHATSAPP WEBHOOK] WHATSAPP_VERIFY_TOKEN is missing');
+  if (!verifyToken) {
+    console.error('[WA_CONFIG_ERROR] WHATSAPP_VERIFY_TOKEN is missing');
     return new Response('Internal Server Error', { status: 500 });
   }
 
-  // Accept the strictly defined verify token
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('[WHATSAPP WEBHOOK] Webhook verified successfully.');
+  if (mode === 'subscribe' && token === verifyToken && challenge) {
+    console.log('[WA_WEBHOOK_VERIFIED] Meta webhook verification succeeded');
     return new Response(challenge, { status: 200 });
   }
 
-  console.warn('[WHATSAPP WEBHOOK] Webhook verification failed.');
+  console.warn('[WA_WEBHOOK_VERIFY_FAILED] Invalid webhook verification request');
   return new Response('Forbidden', { status: 403 });
 }
 
-/**
- * POST - Handle Inbound WhatsApp Webhook Payloads
- */
+/** POST - Handle inbound Meta WhatsApp webhook payloads. */
 export async function POST(request: Request) {
+  let claimedMessageId: string | null = null;
+
   try {
     const declaredLength = Number(request.headers.get('content-length') || 0);
     if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
@@ -143,21 +282,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
     }
 
-    if (process.env.WHATSAPP_APP_SECRET) {
+    console.log('[WA_WEBHOOK_RECEIVED]', JSON.stringify({ bytes: rawBody.byteLength }));
+
+    const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
+    if (!appSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[WA_CONFIG_ERROR] WHATSAPP_APP_SECRET is required in production');
+        return NextResponse.json({ error: 'Webhook security is not configured' }, { status: 503 });
+      }
+      console.warn('[WA_SIGNATURE_SKIPPED] Development only: WHATSAPP_APP_SECRET is missing');
+    } else {
       const signatureResult = verifyMetaWebhookSignature(
         rawBody,
         request.headers.get('x-hub-signature-256'),
-        process.env.WHATSAPP_APP_SECRET,
+        appSecret,
       );
-
       if (!signatureResult.ok) {
-        const status = signatureResult.reason === 'not_configured' ? 503 : 401;
-        return NextResponse.json({ error: 'Webhook authentication failed' }, { status });
+        console.warn('[WA_SIGNATURE_INVALID]', signatureResult.reason);
+        return NextResponse.json({ error: 'Webhook authentication failed' }, { status: 401 });
       }
+      console.log('[WA_SIGNATURE_VALID]');
     }
 
     if (!adminDb) {
-      console.error('[WHATSAPP WEBHOOK] Firebase Admin DB not initialized.');
+      console.error('[WA_CONFIG_ERROR] Firebase Admin DB not initialized');
       return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
     }
 
@@ -168,624 +316,506 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
-    const baseUrl = getTrustedAppBaseUrl();
+    const value = payload.entry?.[0]?.changes?.[0]?.value;
+    logStatusUpdates(value?.statuses);
 
-    const entry = payload.entry?.[0];
-    const change = entry?.changes?.[0];
-    const value = change?.value;
     const message = value?.messages?.[0];
     const metadata = value?.metadata;
-    const expectedPhoneNumberId = process.env.WHATSAPP_BOT_NUMBER_ID;
-    const phoneNumberId = metadata?.phone_number_id || expectedPhoneNumberId || 'unknown';
-
-    if (expectedPhoneNumberId && metadata?.phone_number_id && metadata.phone_number_id !== expectedPhoneNumberId) {
-      return NextResponse.json({ error: 'Webhook target mismatch' }, { status: 403 });
-    }
-
-    const safeLog = {
-      event_type: message?.type || 'unknown',
-      message_id: message?.id,
-      masked_from: maskPhone(message?.from || '')
-    };
-    console.log('[WHATSAPP WEBHOOK] Webhook payload received (safe):', JSON.stringify(safeLog));
 
     if (!message) {
-      return NextResponse.json({ success: true, message: 'Status or echo ignored' });
+      return NextResponse.json({ success: true, message: 'Status or echo processed' });
     }
+
     if (typeof message.from !== 'string' || !message.from || typeof message.id !== 'string' || !message.id) {
       return NextResponse.json({ error: 'Invalid webhook message' }, { status: 400 });
     }
 
-    const fromPhone = message.from; // e.g. "919876543210"
-    const normalizedFromPhone = fromPhone.replace(/[^0-9]/g, "");
+    console.log(
+      '[WA_MESSAGE_PARSED]',
+      JSON.stringify({
+        message_id: message.id,
+        message_type: message.type || 'unknown',
+        masked_from: maskPhone(message.from),
+      }),
+    );
 
-    const messageId = message.id;
-    if (messageId) {
-      const dupRef = adminDb.collection('processed_whatsapp_messages').doc(messageId);
-      const claimed = await adminDb.runTransaction(async transaction => {
-        const dupSnap = await transaction.get(dupRef);
-        if (dupSnap.exists) return false;
+    const expectedPhoneNumberId = process.env.WHATSAPP_BOT_NUMBER_ID?.trim();
+    const incomingPhoneNumberId = metadata?.phone_number_id?.trim();
 
-        transaction.create(dupRef, {
-          processed_at: admin.firestore.FieldValue.serverTimestamp(),
-          from: maskPhone(fromPhone),
-          status: 'processing',
-        });
-        return true;
-      });
-
-      if (!claimed) {
-        console.log(`[WHATSAPP WEBHOOK] Message ID ${messageId} already processed. Ignoring.`);
-        return NextResponse.json({ success: true, message: 'Duplicate message ignored' });
-      }
+    if (
+      expectedPhoneNumberId &&
+      incomingPhoneNumberId &&
+      incomingPhoneNumberId !== expectedPhoneNumberId
+    ) {
+      console.error(
+        '[WA_PHONE_NUMBER_ID_MISMATCH]',
+        JSON.stringify({ configured: expectedPhoneNumberId, incoming: incomingPhoneNumberId }),
+      );
+      return NextResponse.json({ error: 'Webhook target mismatch' }, { status: 403 });
     }
 
-    // ----------------------------------------------------
-    // CASE 1: Voice Note Order Payload (.ogg audio)
-    // ----------------------------------------------------
+    const phoneNumberId = incomingPhoneNumberId || expectedPhoneNumberId;
+    if (!phoneNumberId) {
+      console.error('[WA_CONFIG_ERROR] No Meta Phone Number ID is available');
+      return NextResponse.json({ error: 'WhatsApp Phone Number ID is not configured' }, { status: 503 });
+    }
+
+    const claim = await claimIncomingMessage(message.id, message.from);
+    if (claim === 'duplicate') {
+      console.log('[WA_DUPLICATE_IGNORED]', JSON.stringify({ message_id: message.id }));
+      return NextResponse.json({ success: true, message: 'Duplicate message ignored' });
+    }
+    claimedMessageId = message.id;
+
+    const fromPhone = message.from;
+    const normalizedFromPhone = fromPhone.replace(/[^0-9]/g, '');
+    const baseUrl = getTrustedAppBaseUrl();
+
     if (message.type === 'audio' && typeof message.audio?.id === 'string' && message.audio.id) {
-      const mediaId = message.audio.id;
-      console.log(`[WHATSAPP WEBHOOK] Voice message received from ${maskPhone(fromPhone)}, media ID: ${mediaId}`);
-
-      // --- Gate A: Phone Authentication Lookup (FAST CHECK) ---
-      const usersRef = adminDb.collection('users');
-      const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
-
+      const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
       if (!userDoc) {
-        console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-        await sendWhatsAppMessage(
+        await sendOrThrow(
           phoneNumberId,
           fromPhone,
-          "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
+          "You don't have an Ilara account registered with this WhatsApp number yet. Please open Ilara and verify your profile first.",
         );
-        return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Unregistered user replied' });
       }
 
       const userData = userDoc.data();
-      const accountStatus = userData?.account_status || userData?.status || '';
-      if (accountStatus.toLowerCase() !== 'active') {
-        console.warn(`[WHATSAPP WEBHOOK REJECT] User status is ${accountStatus}.`);
-        await sendWhatsAppMessage(
+      const accountStatus = String(userData?.account_status || userData?.status || '').toLowerCase();
+      if (accountStatus !== 'active') {
+        await sendOrThrow(
           phoneNumberId,
           fromPhone,
-          "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
+          'Your Ilara account is not active yet. Please complete account verification first.',
         );
-        return NextResponse.json({ success: true, message: 'Inactive user aborted' });
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Inactive user replied' });
       }
 
-      // Process voice order
-      await processVoiceOrderInBackground(phoneNumberId, fromPhone, normalizedFromPhone, mediaId, baseUrl)
-        .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Background processing failed:', err));
+      console.log('[WA_USER_FOUND]', JSON.stringify({ user_id: userDoc.id, message_type: 'audio' }));
+      await processVoiceOrder(phoneNumberId, fromPhone, normalizedFromPhone, message.audio.id, baseUrl);
+      await markIncomingCompleted(message.id);
 
-      console.log(`[WHATSAPP WEBHOOK] Voice order processed.`);
-      
-      await logBusinessEvent({
+      await safeBusinessEvent({
         event_type: 'whatsapp_voice_order_received',
         actor_type: 'webhook',
-        actor_id: userDoc.id || 'unknown',
+        actor_id: userDoc.id,
         target_type: 'user',
-        target_id: userDoc.id || 'unknown',
+        target_id: userDoc.id,
         severity: 'info',
         source: 'webhook',
-        metadata: {
-          mediaId
-        }
+        metadata: { mediaId: message.audio.id },
       });
 
       return NextResponse.json({ success: true, message: 'Voice order processed' });
     }
 
-    // ----------------------------------------------------
-    // CASE 2: Text Verification Code Message Payload (Signup Handshake)
-    // ----------------------------------------------------
     if (message.type === 'text' && typeof message.text?.body === 'string' && message.text.body) {
-      const messageText = message.text.body;
-      const tokenMatch = messageText.match(/Ref:\s*([A-Za-z0-9_-]{8,64})/i);
+      const messageText = message.text.body.trim();
+      const tokenMatch = messageText.match(/(?:LOGIN\s+)?Ref:\s*([A-Za-z0-9_-]{8,64})/i);
 
       if (tokenMatch) {
-        const token = tokenMatch[1].toUpperCase();
-        
-        // Process text handshake
-        await processTextHandshakeInBackground(phoneNumberId, fromPhone, normalizedFromPhone, token)
-          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Handshake processing failed:', err));
-
-        return NextResponse.json({ success: true, message: 'Handshake completed' });
-      } else {
-        // --- Gate A: Phone Authentication Lookup for general chat ---
-        const usersRef = adminDb.collection('users');
-        const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
-
-        if (!userDoc) {
-          console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-          await sendWhatsAppMessage(
-            phoneNumberId,
-            fromPhone,
-            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
-          );
-          return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
-        }
-
-        const userData = userDoc.data();
-        const accountStatus = userData?.account_status || userData?.status || '';
-        if (accountStatus.toLowerCase() !== 'active') {
-          console.warn(`[WHATSAPP WEBHOOK REJECT] User status is ${accountStatus}.`);
-          await sendWhatsAppMessage(
-            phoneNumberId,
-            fromPhone,
-            "Macha! Your account is not active yet. Please verify your email first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
-          );
-          return NextResponse.json({ success: true, message: 'Inactive user aborted' });
-        }
-
-        // Process chat message
-        await processGeneralChatInBackground(phoneNumberId, fromPhone, normalizedFromPhone, messageText, userData, userDoc.id, baseUrl)
-          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] General chat processing failed:', err));
-
-        await logBusinessEvent({
-          event_type: 'whatsapp_message_received',
-          actor_type: 'webhook',
-          actor_id: userDoc.id || 'unknown',
-          target_type: 'user',
-          target_id: userDoc.id || 'unknown',
-          severity: 'info',
-          source: 'webhook'
-        });
-
-        return NextResponse.json({ success: true, message: 'Chat message processed' });
+        await processTextHandshake(phoneNumberId, fromPhone, normalizedFromPhone, tokenMatch[1].toUpperCase());
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Handshake processed' });
       }
-    }
 
-    // ----------------------------------------------------
-    // CASE 3: Location Message Payload (Sharing Live Location)
-    // ----------------------------------------------------
-    if (message.type === 'location' && message.location) {
-      const loc = message.location;
-      const lat = loc.latitude;
-      const lng = loc.longitude;
-      if (typeof lat !== 'number' || !Number.isFinite(lat) || typeof lng !== 'number' || !Number.isFinite(lng)) {
-        return NextResponse.json({ error: 'Invalid location payload' }, { status: 400 });
-      }
-      console.log(`[WHATSAPP WEBHOOK] Location received from ${maskPhone(fromPhone)}`);
-
-      // --- Gate A: Phone Authentication Lookup ---
-      const usersRef = adminDb.collection('users');
-      const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
-
+      const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
       if (!userDoc) {
-        console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-        await sendWhatsAppMessage(
+        await sendOrThrow(
           phoneNumberId,
           fromPhone,
-          "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
+          "You don't have an Ilara account registered with this WhatsApp number yet. Please open Ilara and verify your profile first.",
         );
-        return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Unregistered user replied' });
       }
 
-      // Update user's live_location in Firestore
-      const userRef = userDoc.ref;
-      await userRef.update({
-        live_location: {
-          lat: lat,
-          lng: lng,
-          updated_at: Date.now()
-        }
-      });
-      console.log(`[WHATSAPP WEBHOOK] Updated live_location for user: ${userDoc.id}`);
+      const userData = userDoc.data();
+      const accountStatus = String(userData?.account_status || userData?.status || '').toLowerCase();
+      if (accountStatus !== 'active') {
+        await sendOrThrow(
+          phoneNumberId,
+          fromPhone,
+          'Your Ilara account is not active yet. Please complete account verification first.',
+        );
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Inactive user replied' });
+      }
 
-      // Process location
-      await processLocationMessageInBackground(phoneNumberId, fromPhone, normalizedFromPhone, lat, lng)
-        .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Location processing failed:', err));
+      console.log('[WA_USER_FOUND]', JSON.stringify({ user_id: userDoc.id, message_type: 'text' }));
+      await processGeneralChat(
+        phoneNumberId,
+        fromPhone,
+        normalizedFromPhone,
+        messageText,
+        userData,
+        userDoc.id,
+        baseUrl,
+      );
+      await markIncomingCompleted(message.id);
 
-      await logBusinessEvent({
-        event_type: 'whatsapp_location_received',
+      await safeBusinessEvent({
+        event_type: 'whatsapp_message_received',
         actor_type: 'webhook',
-        actor_id: userDoc.id || 'unknown',
+        actor_id: userDoc.id,
         target_type: 'user',
-        target_id: userDoc.id || 'unknown',
+        target_id: userDoc.id,
         severity: 'info',
-        source: 'webhook'
+        source: 'webhook',
       });
 
-      return NextResponse.json({ success: true, message: 'Location processed' });
+      return NextResponse.json({ success: true, message: 'Chat message processed and Meta accepted reply' });
     }
 
-    return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
+    if (message.type === 'location' && message.location) {
+      const lat = message.location.latitude;
+      const lng = message.location.longitude;
+      if (
+        typeof lat !== 'number' ||
+        !Number.isFinite(lat) ||
+        typeof lng !== 'number' ||
+        !Number.isFinite(lng)
+      ) {
+        throw new Error('Invalid location payload');
+      }
 
+      const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
+      if (!userDoc) {
+        await sendOrThrow(
+          phoneNumberId,
+          fromPhone,
+          "You don't have an Ilara account registered with this WhatsApp number yet. Please open Ilara and verify your profile first.",
+        );
+        await markIncomingCompleted(message.id);
+        return NextResponse.json({ success: true, message: 'Unregistered user replied' });
+      }
+
+      console.log('[WA_USER_FOUND]', JSON.stringify({ user_id: userDoc.id, message_type: 'location' }));
+      await userDoc.ref.update({
+        live_location: { lat, lng, updated_at: Date.now() },
+      });
+
+      await processLocationMessage(phoneNumberId, fromPhone, lat, lng);
+      await markIncomingCompleted(message.id);
+
+      await safeBusinessEvent({
+        event_type: 'whatsapp_location_received',
+        actor_type: 'webhook',
+        actor_id: userDoc.id,
+        target_type: 'user',
+        target_id: userDoc.id,
+        severity: 'info',
+        source: 'webhook',
+      });
+
+      return NextResponse.json({ success: true, message: 'Location processed and Meta accepted reply' });
+    }
+
+    await markIncomingCompleted(message.id);
+    return NextResponse.json({ success: true, message: 'Unsupported message type ignored' });
   } catch (error: unknown) {
-    console.error('[WHATSAPP WEBHOOK ERROR] Webhook POST router failed:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('[WA_WEBHOOK_FAILED]', error);
+    if (claimedMessageId) {
+      try {
+        await markIncomingFailed(claimedMessageId, error);
+      } catch (markError) {
+        console.error('[WA_DUPLICATE_STATE_ERROR] Failed to persist failed state', markError);
+      }
+    }
+    return NextResponse.json({ error: 'WhatsApp message processing failed' }, { status: 500 });
   }
 }
 
-/**
- * Background Asynchronous Pipeline: downloads media, transcribes, parses catalog, stages order, sends link.
- */
-async function processVoiceOrderInBackground(
+async function processVoiceOrder(
   phoneNumberId: string,
   fromPhone: string,
   normalizedFromPhone: string,
   mediaId: string,
-  baseUrl: string
-) {
-  if (!adminDb) return;
-  console.log(`[BACKGROUND TASK] Starting pipeline for ${maskPhone(fromPhone)}, Media: ${mediaId}`);
+  baseUrl: string,
+): Promise<void> {
+  if (!adminDb) throw new Error('Firebase Admin DB not initialized');
 
+  let audioBuffer: Buffer;
   try {
-    // 1. Download Media File
-    let audioBuffer: Buffer;
-    try {
-      audioBuffer = await downloadMetaMedia(mediaId);
-    } catch (err) {
-      console.error('[BACKGROUND TASK ERROR] Meta media download failed:', err);
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! We couldn't fetch your voice note from WhatsApp. Please try sending it again! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
-      );
-      return;
-    }
-
-    // 2. Transcribe Audio via Whisper
-    let transcription = '';
-    try {
-      transcription = await transcribeAudio(audioBuffer);
-    } catch (err) {
-      console.error('[BACKGROUND TASK ERROR] Transcription failed:', err);
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! We had trouble transcribing your voice note. Please try speaking clearly and resubmit! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
-      );
-      return;
-    }
-
-    if (!transcription.trim()) {
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Sorry, boss! I couldn't get what you said. Please try recording again! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
-      );
-      return;
-    }
-
-    // 3. Forward the transcribed text to the unified general chat pipeline!
-    console.log(`[BACKGROUND TASK] Transcribed voice to text: "${transcription}". Forwarding to chat pipeline.`);
-    
-    const usersRef = adminDb.collection('users');
-    const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
-    const userData = userDoc ? userDoc.data() : undefined;
-
-    await processGeneralChatInBackground(phoneNumberId, fromPhone, normalizedFromPhone, transcription, userData, userDoc ? userDoc.id : undefined, baseUrl);
-
+    audioBuffer = await downloadMetaMedia(mediaId);
   } catch (error) {
-    console.error('[BACKGROUND TASK EXCEPTION] Failed to process voice note:', error);
-    await sendWhatsAppMessage(
+    console.error('[WA_MEDIA_DOWNLOAD_FAILED]', error);
+    await sendOrThrow(
       phoneNumberId,
       fromPhone,
-      "Ustaad! We ran into an unexpected issue processing your voice note. Please try ordering again or type your request. ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬"
+      "I couldn't fetch that voice note from WhatsApp. Please send it again or type your request.",
     );
+    return;
   }
+
+  const transcription = await transcribeAudio(audioBuffer);
+  if (!transcription.trim()) {
+    await sendOrThrow(
+      phoneNumberId,
+      fromPhone,
+      "I couldn't understand that voice note. Please record it again or type your request.",
+    );
+    return;
+  }
+
+  const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
+  await processGeneralChat(
+    phoneNumberId,
+    fromPhone,
+    normalizedFromPhone,
+    transcription,
+    userDoc?.data(),
+    userDoc?.id,
+    baseUrl,
+  );
 }
 
-/**
- * Background Asynchronous Pipeline: verifies signup token handshake.
- */
-async function processTextHandshakeInBackground(
+async function processTextHandshake(
   phoneNumberId: string,
   fromPhone: string,
   normalizedFromPhone: string,
-  token: string
-) {
-  if (!adminDb) return;
-  console.log(`[BACKGROUND TASK] Verifying Signup Token for ${maskPhone(fromPhone)}`);
+  token: string,
+): Promise<void> {
+  if (!adminDb) throw new Error('Firebase Admin DB not initialized');
 
-  try {
-    const handshakeRef = adminDb.collection('auth_handshakes').doc(token);
-    const handshakeSnap = await handshakeRef.get();
+  const handshakeRef = adminDb.collection('auth_handshakes').doc(token);
+  const handshakeSnap = await handshakeRef.get();
 
-    if (!handshakeSnap.exists) {
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! This verification link or code is invalid or expired. Please retry from the web app."
-      );
+  if (!handshakeSnap.exists) {
+    await sendOrThrow(
+      phoneNumberId,
+      fromPhone,
+      'This verification reference is invalid or expired. Please retry from Ilara.',
+    );
+    return;
+  }
+
+  const handshakeData = handshakeSnap.data()!;
+  const expiresAt = handshakeData.expires_at;
+  const expiresAtMs =
+    typeof expiresAt?.toMillis === 'function' ? expiresAt.toMillis() : Number(expiresAt || 0);
+
+  if (!expiresAtMs || Date.now() > expiresAtMs) {
+    await sendOrThrow(
+      phoneNumberId,
+      fromPhone,
+      'This verification reference has expired. Please request a new one from Ilara.',
+    );
+    return;
+  }
+
+  if (handshakeData.used) {
+    await sendOrThrow(
+      phoneNumberId,
+      fromPhone,
+      'This verification reference has already been used. Please request a new one.',
+    );
+    return;
+  }
+
+  const purpose = handshakeData.purpose || 'phone_verification';
+
+  if (purpose === 'passwordless_login') {
+    if (!handshakeData.uid) throw new Error('Passwordless handshake is missing uid');
+
+    const userRef = adminDb.collection('users').doc(handshakeData.uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      await sendOrThrow(phoneNumberId, fromPhone, "We couldn't find your Ilara account. Please sign up first.");
       return;
     }
 
-    const handshakeData = handshakeSnap.data()!;
-    const expiresAt = handshakeData.expires_at;
+    const userProfile = userSnap.data()!;
+    const registeredPhone = String(
+      userProfile.phone || userProfile.phone_number || handshakeData.phone || '',
+    ).replace(/[^0-9]/g, '');
 
-    if (Date.now() > expiresAt) {
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! This verification link or code is invalid or expired. Please retry from the web app."
-      );
-      return;
-    }
-
-    if (handshakeData.used) {
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! This verification link has already been used. Please request a new one."
-      );
-      return;
-    }
-
-    // Determine purpose (default to signup/phone_verification for backward compatibility)
-    const purpose = handshakeData.purpose || 'phone_verification';
-
-    if (purpose === 'passwordless_login') {
-      // For passwordless login, we must use the UID to look up the user profile,
-      // because we only store masked_phone in the handshake to avoid leaking PII.
-      const userRef = adminDb.collection('users').doc(handshakeData.uid);
-      const userSnap = await userRef.get();
-      
-      if (!userSnap.exists) {
-        await sendWhatsAppMessage(
-          phoneNumberId,
-          fromPhone,
-          "Macha! We couldn't find your account. Please sign up first."
-        );
-        return;
-      }
-
-      const userProfile = userSnap.data()!;
-      const registeredPhone = (userProfile.phone || userProfile.phone_number || handshakeData.phone || '').replace(/[^0-9]/g, "");
-      const webhookSuffix = normalizedFromPhone.slice(-10);
-      const registeredSuffix = registeredPhone.slice(-10);
-
-      if (!registeredSuffix) {
-        await userRef.set({ phone: `+${normalizedFromPhone}` }, { merge: true });
-      } else if (webhookSuffix !== registeredSuffix) {
-        await logBusinessEvent({
-          event_type: 'passwordless_login_failed',
-          actor_type: 'webhook',
-          actor_id: handshakeData.uid,
-          target_type: 'user',
-          target_id: handshakeData.uid,
-          severity: 'warning',
-          source: 'webhook',
-          metadata: { masked_phone: maskPhone(normalizedFromPhone), reason: "sender_mismatch" }
-        });
-        console.warn(`[WHATSAPP WEBHOOK] Phone suffix notice (webhook: ${webhookSuffix}, registered: ${registeredSuffix}), proceeding with token verification.`);
-      }
-
-      // Token matches! Update handshake state
-      await handshakeRef.update({
-        is_verified: true,
-        verified_at: Date.now()
-        // Do not mark used: true here, the polling endpoint will consume it and mark it used.
-      });
-
-      console.log(`[BACKGROUND TASK SUCCESS] Passwordless login verified for: ${token.substring(0, 4)}****`);
-      
-      await logBusinessEvent({
-        event_type: 'passwordless_login_verified',
+    if (registeredPhone && normalizedFromPhone.slice(-10) !== registeredPhone.slice(-10)) {
+      await safeBusinessEvent({
+        event_type: 'passwordless_login_failed',
         actor_type: 'webhook',
         actor_id: handshakeData.uid,
         target_type: 'user',
         target_id: handshakeData.uid,
-        severity: 'info',
+        severity: 'warning',
         source: 'webhook',
-        metadata: { masked_phone: maskPhone(normalizedFromPhone), token_id: token.substring(0, 4) + '****' }
+        metadata: { masked_phone: maskPhone(normalizedFromPhone), reason: 'sender_mismatch' },
       });
-
-      await sendWhatsAppMessage(
+      await sendOrThrow(
         phoneNumberId,
         fromPhone,
-        "Ustaad! Your login is verified. Please return to the web app to continue! 🚀"
+        'This login request belongs to a different phone number. Start a new login from Ilara.',
       );
       return;
     }
 
-    // Existing Signup / phone_verification flow
-    const registeredPhone = handshakeData.phone ? handshakeData.phone.replace(/[^0-9]/g, "") : "";
-    const webhookSuffix = normalizedFromPhone.slice(-10);
-    const registeredSuffix = registeredPhone.slice(-10);
-
-    if (webhookSuffix !== registeredSuffix) {
-      await sendWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Macha! This verification request failed. The WhatsApp sender number must match the phone number you entered on signup."
-      );
-      return;
+    if (!registeredPhone) {
+      await userRef.set({ phone: `+${normalizedFromPhone}` }, { merge: true });
     }
 
-    // Token matches! Update handshake state
-    await handshakeRef.update({
-      is_verified: true,
-      verified_at: Date.now()
+    await handshakeRef.update({ is_verified: true, verified_at: Date.now() });
+    await safeBusinessEvent({
+      event_type: 'passwordless_login_verified',
+      actor_type: 'webhook',
+      actor_id: handshakeData.uid,
+      target_type: 'user',
+      target_id: handshakeData.uid,
+      severity: 'info',
+      source: 'webhook',
+      metadata: {
+        masked_phone: maskPhone(normalizedFromPhone),
+        token_id: `${token.substring(0, 4)}****`,
+      },
     });
 
-    console.log(`[BACKGROUND TASK SUCCESS] Signup handshake verified for: ${token}`);
-    await sendWhatsAppMessage(
+    await sendOrThrow(
       phoneNumberId,
       fromPhone,
-      "Ustaad! Your phone number is verified. Please return to the web app screen to complete your profile! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢\u20AC\u2122"
+      'Your login is verified. Return to Ilara to continue.',
     );
-
-  } catch (error) {
-    console.error('[BACKGROUND TASK EXCEPTION] Handshake verification error:', error);
+    return;
   }
+
+  const registeredPhone = String(handshakeData.phone || '').replace(/[^0-9]/g, '');
+  if (!registeredPhone || normalizedFromPhone.slice(-10) !== registeredPhone.slice(-10)) {
+    await sendOrThrow(
+      phoneNumberId,
+      fromPhone,
+      'This verification request does not match the WhatsApp number entered in Ilara.',
+    );
+    return;
+  }
+
+  await handshakeRef.update({ is_verified: true, verified_at: Date.now() });
+  await sendOrThrow(
+    phoneNumberId,
+    fromPhone,
+    'Your phone number is verified. Return to Ilara to complete your profile.',
+  );
 }
 
-/**
- * Background Asynchronous Pipeline: handles general chat queries using deterministic Bhai logic.
- */
-async function processGeneralChatInBackground(
+async function processGeneralChat(
   phoneNumberId: string,
   fromPhone: string,
   normalizedFromPhone: string,
   messageText: string,
   userData?: admin.firestore.DocumentData,
   userId?: string,
-  baseUrl: string = 'https://ilaracafe.vercel.app'
-) {
-  if (!adminDb) return;
-  console.log(`[BACKGROUND TASK] Starting general chat pipeline for ${maskPhone(fromPhone)}`);
+  baseUrl: string = 'https://ilaraos.vercel.app',
+): Promise<void> {
+  if (!adminDb) throw new Error('Firebase Admin DB not initialized');
 
-  try {
-    // 1. Fetch active menu catalog
-    const menuSnap = await adminDb.collection('menu').where('is_available', '==', true).get();
-    const menuItems = menuSnap.docs.map(doc => doc.data() as MenuItem);
+  const menuSnap = await adminDb.collection('menu').where('is_available', '==', true).get();
+  const menuItems = menuSnap.docs.map(doc => doc.data() as MenuItem);
+  const matches = await matchVoiceOrderToMenu(messageText, menuItems);
 
-    // 2. Attempt to extract menu items from the message text (local keyword matcher)
-    const matches = await matchVoiceOrderToMenu(messageText, menuItems);
-    let orderSummary = '';
-    let checkoutLink = '';
+  let orderSummary = '';
+  let checkoutLink = '';
 
-    if (matches.length > 0) {
-      const matchedItemsWithDetails = [];
-      let estimatedTotal = 0;
-      const summaryParts: string[] = [];
+  if (matches.length > 0) {
+    const matchedItemsWithDetails: Array<{ name: string; qty: number; unit_price: number }> = [];
+    let estimatedTotal = 0;
+    const summaryParts: string[] = [];
 
-      for (const match of matches) {
-        const menuItem = menuItems.find(m => m.item_id === match.id);
-        if (menuItem) {
-          const itemTotal = menuItem.price * match.qty;
-          estimatedTotal += itemTotal;
-          matchedItemsWithDetails.push({ name: menuItem.name, qty: match.qty, unit_price: menuItem.price });
-          summaryParts.push(`${match.qty}x ${menuItem.name} (₹${itemTotal})`);
-        }
-      }
+    for (const match of matches) {
+      const menuItem = menuItems.find(item => item.item_id === match.id);
+      if (!menuItem) continue;
 
-      if (matchedItemsWithDetails.length > 0) {
-        const voiceOrderId = crypto.randomUUID();
-        await adminDb.collection('voice_orders').doc(voiceOrderId).set({
-          user_phone: normalizedFromPhone,
-          user_id: userData?.user_id || userId || '',
-          items: matchedItemsWithDetails,
-          estimated_total: estimatedTotal,
-          status: 'staged',
-          created_at: admin.firestore.Timestamp.now(),
-          expires_at: admin.firestore.Timestamp.fromMillis(Date.now() + 15 * 60 * 1000),
-        });
-        checkoutLink = `${baseUrl}/cart?session=${voiceOrderId}&magic=true`;
-        orderSummary = summaryParts.join(', ');
-      }
+      const itemTotal = menuItem.price * match.qty;
+      estimatedTotal += itemTotal;
+      matchedItemsWithDetails.push({
+        name: menuItem.name,
+        qty: match.qty,
+        unit_price: menuItem.price,
+      });
+      summaryParts.push(`${match.qty}x ${menuItem.name} (₹${itemTotal})`);
     }
 
-    // 3. Build deterministic Bhai reply
-    let reply: string;
-    const lower = messageText.toLowerCase();
-    const isStressed = /sad|stress|tired|cry|upset|overwhelm|anxious|depress|worry/.test(lower);
-
-    if (checkoutLink) {
-      reply = `Arre yaar, pakka set! I've added ${orderSummary} to your cart. Complete your order here: ${checkoutLink} 🍛`;
-    } else if (isStressed) {
-      reply = 'Bhai sun, lite le lo! Come to Ilara Cafe — good food + good vibes, sab theek ho jayega. Kya khaana hai? 😄';
-    } else {
-      const replies = [
-        'Arre yaar, kya scene hai? Bol kya chahiye aur main sort kar deta hoon!',
-        'Bhai sun — aa ja oasis pe, good food fixes everything. Kya order karein?',
-        'Sach mein? Mast plan hai: come grab something fresh from the menu, machha! 🎉',
-        'Kya chal raha hai campus pe? Tell me and I\'ll hook you up with the right snack!',
-      ];
-      reply = replies[Math.floor(Math.random() * replies.length)];
+    if (matchedItemsWithDetails.length > 0) {
+      const voiceOrderId = crypto.randomUUID();
+      await adminDb.collection('voice_orders').doc(voiceOrderId).set({
+        user_phone: normalizedFromPhone,
+        user_id: userData?.user_id || userId || '',
+        items: matchedItemsWithDetails,
+        estimated_total: estimatedTotal,
+        status: 'staged',
+        created_at: admin.firestore.Timestamp.now(),
+        expires_at: admin.firestore.Timestamp.fromMillis(Date.now() + 15 * 60 * 1000),
+      });
+      checkoutLink = `${baseUrl}/cart?session=${voiceOrderId}&magic=true`;
+      orderSummary = summaryParts.join(', ');
     }
-
-    // 4. Append item suggestions if menu has items
-    if (!checkoutLink && menuItems.length > 0) {
-      const picks = menuItems.slice(0, 2);
-      reply += `\n\nBhai suggests:\n${picks.map(i => `• ${i.name} (₹${i.price})`).join('\n')}`;
-    }
-
-    // 5. Send reply
-    const success = await sendWhatsAppMessage(phoneNumberId, fromPhone, reply);
-    if (success) {
-      console.log(`[BACKGROUND CHAT SUCCESS] Reply sent to ${maskPhone(fromPhone)}`);
-    } else {
-      console.error(`[BACKGROUND CHAT ERROR] Failed to send reply to ${maskPhone(fromPhone)}`);
-    }
-
-  } catch (error) {
-    console.error('[BACKGROUND CHAT EXCEPTION] Failed to process general chat:', error);
-    await sendWhatsAppMessage(
-      phoneNumberId,
-      fromPhone,
-      'Kya scene hai machha! Kuch technical issue chal raha backend mein, but overall lite le lo! Bol kya chahiye? 😄'
-    );
   }
+
+  const lower = messageText.toLowerCase();
+  const isGreeting = /^(hi|hello|hey|hii+|helo|namaste)\b/.test(lower);
+  const asksMenu = /\b(menu|eat|food|order|available|recommend|suggest)\b/.test(lower);
+  const isStressed = /sad|stress|tired|cry|upset|overwhelm|anxious|worry/.test(lower);
+
+  let reply: string;
+  if (checkoutLink) {
+    reply = `Done. I added ${orderSummary} to your cart. Complete the order here: ${checkoutLink}`;
+  } else if (asksMenu && menuItems.length > 0) {
+    const picks = menuItems.slice(0, 5);
+    reply = `Here are a few available items:\n${picks
+      .map(item => `• ${item.name} (₹${item.price})`)
+      .join('\n')}`;
+  } else if (isStressed) {
+    reply = 'I can help with your Ilara order. Tell me what you would like to eat or ask for the menu.';
+  } else if (isGreeting) {
+    reply = 'Hi! I am Ilara on WhatsApp. Send "menu" to see available food or tell me what you want to order.';
+  } else {
+    reply = 'Tell me what you would like to order, or send "menu" to see available items.';
+  }
+
+  await sendOrThrow(phoneNumberId, fromPhone, reply);
 }
 
-/**
- * Background Asynchronous Pipeline: handles location updates with deterministic Bhai reply.
- */
-async function processLocationMessageInBackground(
+async function processLocationMessage(
   phoneNumberId: string,
   fromPhone: string,
-  normalizedFromPhone: string,
   lat: number,
-  lng: number
-) {
-  if (!adminDb) return;
-  console.log(`[BACKGROUND TASK] Starting location message pipeline for ${maskPhone(fromPhone)}`);
+  lng: number,
+): Promise<void> {
+  if (!adminDb) throw new Error('Firebase Admin DB not initialized');
 
+  let weatherLine = 'Weather information is unavailable right now.';
   try {
-    // 1. Fetch current weather from Open-Meteo (free, no API key)
-    let weatherLine = 'Weather unknown.';
-    try {
-      const wRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weathercode,apparent_temperature&timezone=auto`
-      );
-      if (wRes.ok) {
-        const wData = await wRes.json();
-        const temp = Math.round(wData.current.temperature_2m);
-        const feels = Math.round(wData.current.apparent_temperature);
-        const code = wData.current.weathercode;
-        let condition = 'clear';
-        if (code === 0) condition = 'sunny and clear';
-        else if (code <= 3) condition = 'partly cloudy';
-        else if (code <= 48) condition = 'foggy';
-        else if (code <= 67) condition = 'rainy';
-        else if (code <= 77) condition = 'snowy';
-        else if (code <= 99) condition = 'thunderstormy';
-        weatherLine = `It's ${temp}°C (feels like ${feels}°C) and ${condition}`;
-      }
-    } catch (err) {
-      console.warn('[BACKGROUND LOCATION] Failed to fetch weather:', err);
-    }
-
-    // 2. Fetch active menu catalog
-    const menuSnap = await adminDb.collection('menu').where('is_available', '==', true).get();
-    const menuItems = menuSnap.docs.map(doc => doc.data());
-
-    // 3. Deterministic Bhai reply based on weather
-    const isRainy = /rainy|foggy|snowy|thunder/.test(weatherLine.toLowerCase());
-    const isSunny = /sunny|clear/.test(weatherLine.toLowerCase());
-
-    let reply: string;
-    if (isRainy) {
-      reply = `Arre yaar, it's ${weatherLine}! Perfect excuse to stay in and order something warm. Bhai sun — momos or hot chai? 🌧️`;
-    } else if (isSunny) {
-      reply = `Sach mein? ${weatherLine} — mast day hai! Come to Ilara for something refreshing. ☀️`;
-    } else {
-      reply = `Kya scene hai machha! ${weatherLine}. Ilara Cafe pe aa ja — something good is always ready. 😄`;
-    }
-
-    // 4. Append a couple of menu picks
-    if (menuItems.length > 0) {
-      const picks = menuItems.slice(0, 2);
-      reply += `\n\nBhai suggests:\n${picks.map(i => `• ${i.name} (₹${i.price})`).join('\n')}`;
-    }
-
-    // 5. Send reply
-    const success = await sendWhatsAppMessage(phoneNumberId, fromPhone, reply);
-    if (success) {
-      console.log(`[BACKGROUND LOCATION SUCCESS] Reply sent to ${maskPhone(fromPhone)}`);
-    } else {
-      console.error(`[BACKGROUND LOCATION ERROR] Failed to send reply to ${maskPhone(fromPhone)}`);
-    }
-
-  } catch (error) {
-    console.error('[BACKGROUND LOCATION EXCEPTION] Failed to process location:', error);
-    await sendWhatsAppMessage(
-      phoneNumberId,
-      fromPhone,
-      "Kya scene hai machha! Received your location, but ran into some issue loading the weather. Lite le lo! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬"
+    const response = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weathercode,apparent_temperature&timezone=auto`,
     );
+    if (response.ok) {
+      const data = await response.json();
+      const temperature = Math.round(data.current.temperature_2m);
+      const feelsLike = Math.round(data.current.apparent_temperature);
+      const code = data.current.weathercode;
+      let condition = 'clear';
+      if (code === 0) condition = 'sunny and clear';
+      else if (code <= 3) condition = 'partly cloudy';
+      else if (code <= 48) condition = 'foggy';
+      else if (code <= 67) condition = 'rainy';
+      else if (code <= 77) condition = 'snowy';
+      else if (code <= 99) condition = 'stormy';
+      weatherLine = `It is ${temperature}°C, feels like ${feelsLike}°C, and is ${condition}.`;
+    }
+  } catch (error) {
+    console.warn('[WA_LOCATION_WEATHER_FAILED]', error);
   }
+
+  const menuSnap = await adminDb.collection('menu').where('is_available', '==', true).get();
+  const menuItems = menuSnap.docs.map(doc => doc.data() as MenuItem);
+  const picks = menuItems.slice(0, 2);
+
+  let reply = `Location received. ${weatherLine}`;
+  if (picks.length > 0) {
+    reply += `\n\nYou could try:\n${picks
+      .map(item => `• ${item.name} (₹${item.price})`)
+      .join('\n')}`;
+  }
+
+  await sendOrThrow(phoneNumberId, fromPhone, reply);
 }
