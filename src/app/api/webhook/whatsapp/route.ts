@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { 
   downloadMetaMedia, 
-  transcribeAudio, 
   sendWhatsAppMessage 
 } from '@/lib/voiceOrderingService';
+import { transcribeAudioWithGemini } from '@/server/whatsapp/chat/voiceTranscriber';
 
 import { maskPhone } from '@/lib/security/maskPii';
 import * as admin from 'firebase-admin';
@@ -424,28 +424,31 @@ async function processVoiceOrderInBackground(
   try {
     // 1. Download Media File
     let audioBuffer: Buffer;
+    let mimeType: string;
     try {
-      audioBuffer = await downloadMetaMedia(mediaId);
+      const mediaResult = await downloadMetaMedia(mediaId);
+      audioBuffer = mediaResult.buffer;
+      mimeType = mediaResult.mimeType;
     } catch (err) {
       console.error('[BACKGROUND TASK ERROR] Meta media download failed:', err);
       await sendWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Macha! We couldn't fetch your voice note from WhatsApp. Please try sending it again! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
+        "Macha! We couldn't fetch your voice note from WhatsApp. Please try sending it again! 🎙️"
       );
       return;
     }
 
-    // 2. Transcribe Audio via Whisper
+    // 2. Transcribe Audio via Gemini
     let transcription = '';
     try {
-      transcription = await transcribeAudio(audioBuffer);
+      transcription = await transcribeAudioWithGemini(audioBuffer, mimeType);
     } catch (err) {
       console.error('[BACKGROUND TASK ERROR] Transcription failed:', err);
       await sendWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Macha! We had trouble transcribing your voice note. Please try speaking clearly and resubmit! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
+        "I couldn't understand that voice note. Please try again or type your message."
       );
       return;
     }
@@ -454,7 +457,7 @@ async function processVoiceOrderInBackground(
       await sendWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Sorry, boss! I couldn't get what you said. Please try recording again! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â"
+        "I couldn't understand that voice note. Please try again or type your message."
       );
       return;
     }

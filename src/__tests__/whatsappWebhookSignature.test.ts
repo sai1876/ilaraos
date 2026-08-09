@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   collection: vi.fn(),
   runTransaction: vi.fn(),
   downloadMetaMedia: vi.fn(),
-  transcribeAudio: vi.fn(),
-  matchVoiceOrderToMenu: vi.fn(),
   sendWhatsAppMessage: vi.fn(),
   logBusinessEvent: vi.fn(),
 }));
@@ -21,8 +19,6 @@ vi.mock('@/lib/firebaseAdmin', () => ({
 
 vi.mock('@/lib/voiceOrderingService', () => ({
   downloadMetaMedia: mocks.downloadMetaMedia,
-  transcribeAudio: mocks.transcribeAudio,
-  matchVoiceOrderToMenu: mocks.matchVoiceOrderToMenu,
   sendWhatsAppMessage: mocks.sendWhatsAppMessage,
 }));
 

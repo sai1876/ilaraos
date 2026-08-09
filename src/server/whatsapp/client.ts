@@ -230,7 +230,7 @@ export async function sendWhatsAppMessage(
 }
 
 /** Download a WhatsApp media object using the same canonical Meta configuration. */
-export async function downloadMetaMedia(mediaId: string): Promise<Buffer> {
+export async function downloadMetaMedia(mediaId: string): Promise<{ buffer: Buffer; mimeType: string }> {
   const config = getWhatsAppConfig();
 
   const metadataResponse = await fetch(
@@ -249,6 +249,8 @@ export async function downloadMetaMedia(mediaId: string): Promise<Buffer> {
   }
 
   const downloadUrl = metadataBody?.url;
+  const mimeType = metadataBody?.mime_type || 'audio/ogg; codecs=opus'; // Default to Whatsapp standard if missing
+
   if (typeof downloadUrl !== 'string' || !downloadUrl.startsWith('https://')) {
     throw new Error('Meta media metadata response did not contain a valid HTTPS download URL');
   }
@@ -261,5 +263,11 @@ export async function downloadMetaMedia(mediaId: string): Promise<Buffer> {
     throw new Error(`Meta media download failed with HTTP ${mediaResponse.status}`);
   }
 
-  return Buffer.from(await mediaResponse.arrayBuffer());
+  // Use headers from the actual media fetch if available, fallback to metadata mime_type
+  const finalMimeType = mediaResponse.headers.get('content-type') || mimeType;
+
+  return {
+    buffer: Buffer.from(await mediaResponse.arrayBuffer()),
+    mimeType: finalMimeType,
+  };
 }
