@@ -52,12 +52,12 @@ describe('POST /api/auth/session action=verify', () => {
     
     // Default mocks for success
     (verifyPreAuthChallenge as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ uid: 'user_123', role: 'manager', staffId: 'staff_123' });
-    (adminAuth.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'user_123', auth_time: Date.now() / 1000 - 60 }); // 1 min ago
-    (adminAuth.createSessionCookie as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('mock_session_cookie');
+    (adminAuth!.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'user_123', auth_time: Date.now() / 1000 - 60 }); // 1 min ago
+    (adminAuth!.createSessionCookie as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('mock_session_cookie');
     (authenticator.verify as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
     
     const mockDoc = { exists: true, data: () => ({ status: 'active', verified: true }) };
-    (adminDb.collection as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    (adminDb!.collection as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       doc: vi.fn().mockReturnValue({
         get: vi.fn().mockResolvedValue(mockDoc),
         update: vi.fn().mockResolvedValue({})
@@ -72,8 +72,8 @@ describe('POST /api/auth/session action=verify', () => {
     
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(adminAuth.createCustomToken).not.toHaveBeenCalled(); // valid TOTP must NEVER call createCustomToken
-    expect(adminAuth.createSessionCookie).toHaveBeenCalledWith('valid_id_token', expect.any(Object)); // createSessionCookie receives exactly the Firebase ID token
+    expect(adminAuth!.createCustomToken).not.toHaveBeenCalled(); // valid TOTP must NEVER call createCustomToken
+    expect(adminAuth!.createSessionCookie).toHaveBeenCalledWith('valid_id_token', expect.any(Object)); // createSessionCookie receives exactly the Firebase ID token
   });
 
   it('missing ID token -> 400 INVALID_REQUEST', async () => {
@@ -86,7 +86,7 @@ describe('POST /api/auth/session action=verify', () => {
   });
 
   it('malformed ID token -> 401 INVALID_SESSION_ID_TOKEN', async () => {
-    (adminAuth.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('invalid token'));
+    (adminAuth!.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('invalid token'));
     const req = mockRequest({ action: 'verify', totpCode: '123456', idToken: 'bad_token' });
     const res = await POST(req);
     const json = await res.json();
@@ -96,7 +96,7 @@ describe('POST /api/auth/session action=verify', () => {
   });
 
   it('ID token UID != pre-auth UID -> 403 AUTH_IDENTITY_MISMATCH', async () => {
-    (adminAuth.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'other_user', auth_time: Date.now() / 1000 - 60 });
+    (adminAuth!.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'other_user', auth_time: Date.now() / 1000 - 60 });
     const req = mockRequest({ action: 'verify', totpCode: '123456', idToken: 'valid_id_token' });
     const res = await POST(req);
     const json = await res.json();
@@ -106,7 +106,7 @@ describe('POST /api/auth/session action=verify', () => {
   });
 
   it('stale auth_time -> 401 RECENT_LOGIN_REQUIRED', async () => {
-    (adminAuth.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'user_123', auth_time: Date.now() / 1000 - 600 }); // 10 mins ago
+    (adminAuth!.verifyIdToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'user_123', auth_time: Date.now() / 1000 - 600 }); // 10 mins ago
     const req = mockRequest({ action: 'verify', totpCode: '123456', idToken: 'valid_id_token' });
     const res = await POST(req);
     const json = await res.json();

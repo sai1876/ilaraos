@@ -1,5 +1,37 @@
 import { z } from 'zod';
 
+export const SUPPORTED_LANGUAGES = {
+  en: { name: 'English', nativeName: 'English' },
+  hi: { name: 'Hindi', nativeName: 'हिन्दी' },
+  te: { name: 'Telugu', nativeName: 'తెలుగు' },
+  ta: { name: 'Tamil', nativeName: 'தமிழ்' },
+  kn: { name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  ml: { name: 'Malayalam', nativeName: 'മലയാളം' },
+  mr: { name: 'Marathi', nativeName: 'मराठी' },
+  bn: { name: 'Bengali', nativeName: 'বাংলা' },
+  gu: { name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  pa: { name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  or: { name: 'Odia', nativeName: 'ଓଡ଼ିଆ' },
+  ur: { name: 'Urdu', nativeName: 'اردو' },
+} as const;
+
+export type SupportedLanguage = keyof typeof SUPPORTED_LANGUAGES;
+
+export const SupportedLanguageSchema = z.enum([
+  'en',
+  'hi',
+  'te',
+  'ta',
+  'kn',
+  'ml',
+  'mr',
+  'bn',
+  'gu',
+  'pa',
+  'or',
+  'ur',
+]);
+
 export const ChatIntentEnum = z.enum([
   'ORDER',
   'RECOMMEND',
@@ -39,7 +71,7 @@ export const ParsedIntentSchema = z.object({
   confidence: z.number().min(0).max(1),
   constraints: IntentConstraintsSchema.optional(),
   items: z.array(RequestedItemSchema).optional(),
-  language: z.enum(['en', 'hi', 'te']).optional(),
+  language: SupportedLanguageSchema.optional(),
 });
 
 export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
@@ -51,18 +83,28 @@ export interface ConversationTurn {
 }
 
 export interface ConversationState {
-  preferred_language?: 'en' | 'hi' | 'te';
+  preferred_language?: SupportedLanguage;
   language_source?: 'explicit' | 'detected';
   language_updated_at?: number;
 
   last_intent?: ChatIntent;
 
+  customer_id?: string;
+
   last_user_message_at?: number;
+  whatsapp_window_expires_at?: number;
+  
   last_bot_message_at?: number;
 
   last_engagement_at?: number;
+  last_engagement_reason?: string;
   engagement_count_today?: number;
+  
   engagement_opt_out?: boolean;
+  
+  recent_engagements?: any[]; // Store history of recent engagements (e.g. up to 10)
+  
+  last_offer_broadcast_at?: number;
 
   recent_item_ids: string[];
   turns: ConversationTurn[];

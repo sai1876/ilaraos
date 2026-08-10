@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { MenuItem } from '@/lib/types';
-import { ParsedIntent, ConversationTurn } from './types';
+import { ParsedIntent, ConversationTurn, SUPPORTED_LANGUAGES, SupportedLanguage } from './types';
 
 export async function generateResponse(
   message: string,
@@ -17,10 +17,12 @@ export async function generateResponse(
 
   const ai = new GoogleGenAI({ apiKey });
 
+  const langInfo = SUPPORTED_LANGUAGES[preferredLanguage as SupportedLanguage] || SUPPORTED_LANGUAGES.en;
+
   const systemInstruction = `You are Ilara Cafe's WhatsApp AI assistant, affectionately known as "Bhai" or "Machha". You speak casually in friendly Indian English with a touch of local slang (yaar, machha, lite le lo, etc.).
 
 STRICT RULES:
-1. Respond ONLY in the user's explicitly selected language (${preferredLanguage}). Do not switch languages unless explicitly asked. Do not use Hinglish or slang if English ('en') is strictly requested.
+1. The user might type their message in a mixed language (code-switching), but you MUST respond ONLY in the user's explicitly selected language (${langInfo.name}). Do not switch languages unless explicitly asked. Do not use Hinglish or slang if English ('en') is strictly requested.
 2. NEVER invent or hallucinate a menu item, price, availability, offer, order status, or restaurant fact.
 3. Business facts must ONLY come from the provided Retrieved Data.
 3. If the retrieved data contains no answer, clearly say that no matching option is currently available. Do not invent an alternative.

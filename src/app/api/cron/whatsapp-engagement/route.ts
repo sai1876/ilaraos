@@ -1,6 +1,6 @@
 // [INTERNAL] - Vercel cron
 import { NextResponse } from 'next/server';
-import { processProactiveEngagement } from '@/server/whatsapp/engagement/engagementScheduler';
+import { runEngagementEngine } from '@/server/whatsapp/engagement/engagementEngine';
 
 export const runtime = 'nodejs';
 
@@ -11,11 +11,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const result = await processProactiveEngagement();
-
-  if (result.success) {
-    return NextResponse.json({ success: true, engagedCount: result.engagedCount });
-  } else {
-    return NextResponse.json({ error: result.error || result.reason }, { status: 500 });
+  try {
+    await runEngagementEngine();
+    return NextResponse.json({ success: true, message: 'Engagement engine run completed' });
+  } catch (error: any) {
+    console.error('[CRON ERROR] Engagement engine failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

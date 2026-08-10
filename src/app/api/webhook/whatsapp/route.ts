@@ -13,6 +13,8 @@ import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/verifyWebhookSignature';
 import { chatOrchestrator } from '@/server/whatsapp/chat/chatOrchestrator';
 import { updateConversationState } from '@/server/whatsapp/chat/conversationMemory';
+import { extendWhatsAppWindow } from '@/server/whatsapp/engagement/windowService';
+import { SupportedLanguage } from '@/server/whatsapp/chat/types';
 
 export const runtime = 'nodejs';
 
@@ -231,6 +233,8 @@ export async function POST(request: Request) {
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
+      await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
+
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
         await sendWhatsAppMessage(
@@ -295,6 +299,8 @@ export async function POST(request: Request) {
         const usersRef = adminDb.collection('users');
         const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
+        await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
+
         if (!userDoc) {
           console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
           await sendWhatsAppMessage(
@@ -323,11 +329,20 @@ export async function POST(request: Request) {
         const hiMatch = lowerMsg.match(/^(?:hindi only|hindi mein bolo|speak hindi)$/i);
         const teMatch = lowerMsg.match(/^(?:telugu only|telugu lo matladu|speak telugu)$/i);
         
-        let newLang: 'en' | 'hi' | 'te' | null = null;
+        let newLang: SupportedLanguage | null = null;
         let confirmMsg = '';
         if (enMatch) { newLang = 'en'; confirmMsg = "Got it. I'll reply in English from now on."; }
         else if (hiMatch) { newLang = 'hi'; confirmMsg = "Theek hai. Main ab se Hindi mein baat karunga."; }
         else if (teMatch) { newLang = 'te'; confirmMsg = "Sare. Nenu ippati nunchi Telugu lo matladuthanu."; }
+        else if (lowerMsg.match(/^(?:tamil only|speak tamil)$/i)) { newLang = 'ta'; confirmMsg = "Got it. I'll reply in Tamil."; }
+        else if (lowerMsg.match(/^(?:kannada only|speak kannada)$/i)) { newLang = 'kn'; confirmMsg = "Got it. I'll reply in Kannada."; }
+        else if (lowerMsg.match(/^(?:malayalam only|speak malayalam)$/i)) { newLang = 'ml'; confirmMsg = "Got it. I'll reply in Malayalam."; }
+        else if (lowerMsg.match(/^(?:marathi only|speak marathi)$/i)) { newLang = 'mr'; confirmMsg = "Got it. I'll reply in Marathi."; }
+        else if (lowerMsg.match(/^(?:bengali only|speak bengali)$/i)) { newLang = 'bn'; confirmMsg = "Got it. I'll reply in Bengali."; }
+        else if (lowerMsg.match(/^(?:gujarati only|speak gujarati)$/i)) { newLang = 'gu'; confirmMsg = "Got it. I'll reply in Gujarati."; }
+        else if (lowerMsg.match(/^(?:punjabi only|speak punjabi)$/i)) { newLang = 'pa'; confirmMsg = "Got it. I'll reply in Punjabi."; }
+        else if (lowerMsg.match(/^(?:odia only|speak odia)$/i)) { newLang = 'or'; confirmMsg = "Got it. I'll reply in Odia."; }
+        else if (lowerMsg.match(/^(?:urdu only|speak urdu)$/i)) { newLang = 'ur'; confirmMsg = "Got it. I'll reply in Urdu."; }
 
         const optOutMatch = lowerMsg.match(/^(?:stop messages|don't send promotions|stop reminders)$/i);
         if (optOutMatch) {
@@ -391,6 +406,8 @@ export async function POST(request: Request) {
       // --- Gate A: Phone Authentication Lookup ---
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
+
+      await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
 
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
