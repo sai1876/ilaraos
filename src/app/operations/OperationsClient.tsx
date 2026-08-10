@@ -25,7 +25,10 @@ import {
   X,
   Save,
   Trophy,
-  BrainCircuit
+  BrainCircuit,
+  MessageCircle,
+  HardDrive,
+  Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { useStore } from '@/store/useStore';
@@ -54,8 +57,11 @@ const DailyClosingManagement = dynamic(() => import('@/components/admin/DailyClo
 const CricketManagement = dynamic(() => import('@/components/admin/CricketManagement'), { ssr: false });
 const DocumentVault = dynamic(() => import('@/components/admin/DocumentVault'), { ssr: false });
 const BusinessIntelligence = dynamic(() => import('@/components/admin/BusinessIntelligence'), { ssr: false });
+const WhatsAppInbox = dynamic(() => import('@/components/admin/whatsapp/WhatsAppInbox'), { ssr: false });
+const GoogleDriveSettings = dynamic(() => import('@/components/admin/integrations/GoogleDriveSettings'), { ssr: false });
+const StorageControlCentre = dynamic(() => import('@/components/admin/storage/StorageControlCentre'), { ssr: false });
 
-type TabType = 'dashboard' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket' | 'documents' | 'bi';
+type TabType = 'dashboard' | 'whatsapp' | 'menu' | 'offers' | 'inventory' | 'crm' | 'staff' | 'outlets' | 'atmosphere' | 'approvals' | 'orders' | 'active_orders' | 'refunds' | 'wastage' | 'daily_closings' | 'cricket' | 'documents' | 'bi' | 'storage' | 'integrations';
 
 interface OperationsClientProps {
   actor: {
@@ -138,7 +144,7 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['dashboard', 'menu', 'offers', 'inventory', 'crm', 'staff', 'outlets', 'atmosphere', 'approvals', 'orders', 'active_orders', 'refunds'].includes(tabParam)) {
+      if (tabParam && ['dashboard', 'whatsapp', 'menu', 'offers', 'inventory', 'crm', 'staff', 'outlets', 'atmosphere', 'approvals', 'orders', 'active_orders', 'refunds'].includes(tabParam)) {
         setActiveTab(tabParam as TabType);
       }
 
@@ -189,6 +195,7 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
   // Nav items configuration
   const navigationItems = [
     { id: 'dashboard',      label: 'Live Telemetry',    icon: TrendingUp,  subtitle: 'Real-time charts' },
+    { id: 'whatsapp',       label: 'WhatsApp AI',       icon: MessageCircle, subtitle: 'Inbox & Agent Control' },
     { id: 'daily_closings', label: 'Daily Closing',      icon: LogOut,      subtitle: 'End of Day Audit' },
     { id: 'active_orders',  label: 'Active Orders',      icon: Coffee,      subtitle: 'Kitchen Inflow' },
     { id: 'orders',         label: 'Order History',      icon: History,     subtitle: 'Past transactions' },
@@ -204,6 +211,8 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
     { id: 'atmosphere',     label: 'UI Atmosphere',      icon: Sunset,      subtitle: 'Weather dynamic prompt' },
     { id: 'cricket',        label: 'IPL Telemetry',      icon: Trophy,      subtitle: 'Live match traffic' },
     { id: 'documents',      label: 'Document Vault',     icon: Save,        subtitle: 'Secure storage' },
+    { id: 'storage',        label: 'Storage Control',    icon: HardDrive,   subtitle: 'Google Drive' },
+    { id: 'integrations',   label: 'Integrations',       icon: LinkIcon,    subtitle: 'APIs & Webhooks' },
     { id: 'bi',             label: 'Business Intel',     icon: BrainCircuit,subtitle: 'IlaraOS Insight' },
   ];
 
@@ -420,6 +429,7 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
               className="w-full"
             >
               {activeTab === 'dashboard'      && <DashboardStats userRole={userRole} onNavigate={navigateTo} />}
+              {activeTab === 'whatsapp'       && <WhatsAppInbox actor={{ uid: actor.uid || '', role: userRole }} />}
               {activeTab === 'active_orders'  && <OrderManagement />}
               {activeTab === 'menu'           && <MenuManagement userRole={userRole} />}
               {activeTab === 'offers'         && <OfferManagement />}
@@ -434,8 +444,10 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
               {activeTab === 'wastage'        && <WastageManagement userRole={userRole} />}
               {activeTab === 'daily_closings' && <DailyClosingManagement outletId="main" userRole={userRole as any} />}
               {activeTab === 'cricket'        && <CricketManagement />}
-              {activeTab === 'documents'      && <DocumentVault userRole={userRole} />}
-              {activeTab === 'bi'             && <BusinessIntelligence />}
+              { activeTab === 'documents'      && <DocumentVault userRole={userRole} /> }
+              { activeTab === 'storage'        && <StorageControlCentre /> }
+              { activeTab === 'integrations'   && <GoogleDriveSettings searchParams={typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()} /> }
+              { activeTab === 'bi'             && <BusinessIntelligence /> }
             </motion.div>
           </div>
         </div>

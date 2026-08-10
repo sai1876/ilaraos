@@ -46,6 +46,7 @@
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
     "framer-motion": "^12.39.0",
+    "googleapis": "^174.0.1",
     "h3-js": "^4.4.0",
     "leaflet": "^1.9.4",
     "leaflet-geosearch": "^4.4.0",

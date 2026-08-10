@@ -6,7 +6,7 @@ import { checkEngagementPolicy } from './engagementPolicy';
 import { scoreEngagementContext } from './engagementScorer';
 import { generateEngagementMessage } from './engagementGenerator';
 import { recordEngagementEvent } from './engagementStore';
-import { sendWhatsAppMessage } from '@/lib/voiceOrderingService';
+import { dispatchWhatsAppMessage } from '../inbox/messagingService';
 import { updateConversationState } from '../chat/conversationMemory';
 import { isActiveOrderStatus } from '@/lib/orderUtils';
 import { maskPhone } from '@/lib/security/maskPii';
@@ -230,7 +230,7 @@ export async function runEngagementEngine() {
         }
 
         // 4. Send Message
-        const result = await sendWhatsAppMessage(WHATSAPP_PHONE_NUMBER_ID, rawPhone, generatedMemory.message);
+        const result = await dispatchWhatsAppMessage(WHATSAPP_PHONE_NUMBER_ID, rawPhone, generatedMemory.message, { sender_type: 'ENGAGEMENT' });
         const success = result.ok;
         
         if (success) {

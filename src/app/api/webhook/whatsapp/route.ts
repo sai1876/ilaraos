@@ -6,6 +6,13 @@ import {
   sendWhatsAppMessage 
 } from '@/lib/voiceOrderingService';
 import { transcribeAudioWithGemini } from '@/server/whatsapp/chat/voiceTranscriber';
+import { persistInboundMessage, processMessageStatuses } from '@/server/whatsapp/inbox/webhookPersistence';
+import { dispatchWhatsAppMessage } from '@/server/whatsapp/inbox/messagingService';
+
+import { createClient } from '@supabase/supabase-js';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 import { maskPhone } from '@/lib/security/maskPii';
 import * as admin from 'firebase-admin';
@@ -191,6 +198,12 @@ export async function POST(request: Request) {
     };
     console.log('[WHATSAPP WEBHOOK] Webhook payload received (safe):', JSON.stringify(safeLog));
 
+    const statuses = (value as any)?.statuses;
+    if (statuses && statuses.length > 0) {
+      await processMessageStatuses(statuses).catch(e => console.error('[WHATSAPP WEBHOOK] Failed to process statuses:', e));
+      return NextResponse.json({ success: true, message: 'Statuses processed' });
+    }
+
     if (!message) {
       return NextResponse.json({ success: true, message: 'Status or echo ignored' });
     }
@@ -233,15 +246,25 @@ export async function POST(request: Request) {
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
-      await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
+      // 1. Persist inbound message deterministically
+      const { controlMode, controlVersion } = await persistInboundMessage({
+        messageId: messageId,
+        fromPhone: fromPhone,
+        normalizedPhone: normalizedFromPhone,
+        type: 'AUDIO',
+        media: { media_id: mediaId }
+      });
 
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-        await sendWhatsAppMessage(
-          phoneNumberId,
-          fromPhone,
-          "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
-        );
+        if (controlMode === 'AI') {
+          await dispatchWhatsAppMessage(
+            phoneNumberId,
+            fromPhone,
+            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟",
+            { sender_type: 'AI', expected_control_version: controlVersion }
+          );
+        }
         return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
       }
 
@@ -257,9 +280,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Inactive user aborted' });
       }
 
-      // Process voice order
-      await processVoiceOrderInBackground(phoneNumberId, fromPhone, normalizedFromPhone, mediaId, baseUrl)
-        .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Background processing failed:', err));
+      // Process voice order if AI is in control
+      if (controlMode === 'AI') {
+        await processVoiceOrderInBackground(phoneNumberId, fromPhone, normalizedFromPhone, mediaId, baseUrl, controlVersion)
+          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Background processing failed:', err));
+      } else {
+        console.log(`[WHATSAPP WEBHOOK] Voice message persisted but skipped AI processing (mode: HUMAN).`);
+      }
 
       console.log(`[WHATSAPP WEBHOOK] Voice order processed.`);
       
@@ -299,15 +326,25 @@ export async function POST(request: Request) {
         const usersRef = adminDb.collection('users');
         const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
-        await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
+        // 1. Persist inbound message deterministically
+        const { controlMode, controlVersion } = await persistInboundMessage({
+          messageId: messageId || `gen_${Date.now()}`,
+          fromPhone: fromPhone,
+          normalizedPhone: normalizedFromPhone,
+          type: 'TEXT',
+          text: messageText
+        });
 
         if (!userDoc) {
           console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-          await sendWhatsAppMessage(
-            phoneNumberId,
-            fromPhone,
-            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
-          );
+          if (controlMode === 'AI') {
+            await dispatchWhatsAppMessage(
+              phoneNumberId,
+              fromPhone,
+              "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟",
+              { sender_type: 'AI', expected_control_version: controlVersion }
+            );
+          }
           return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
         }
 
@@ -315,11 +352,14 @@ export async function POST(request: Request) {
         const accountStatus = userData?.account_status || userData?.status || '';
         if (accountStatus.toLowerCase() !== 'active') {
           console.warn(`[WHATSAPP WEBHOOK REJECT] User status is ${accountStatus}.`);
-          await sendWhatsAppMessage(
-            phoneNumberId,
-            fromPhone,
-            "Macha! Your account is not active yet. Please verify your email first! 🌟"
-          );
+          if (controlMode === 'AI') {
+            await dispatchWhatsAppMessage(
+              phoneNumberId,
+              fromPhone,
+              "Macha! Your account is not active yet. Please verify your email first! 🌟",
+              { sender_type: 'AI', expected_control_version: controlVersion }
+            );
+          }
           return NextResponse.json({ success: true, message: 'Inactive user aborted' });
         }
 
@@ -347,7 +387,9 @@ export async function POST(request: Request) {
         const optOutMatch = lowerMsg.match(/^(?:stop messages|don't send promotions|stop reminders)$/i);
         if (optOutMatch) {
           await updateConversationState(normalizedFromPhone, { engagement_opt_out: true });
-          await sendWhatsAppMessage(phoneNumberId, fromPhone, "Noted. I won't send you any proactive reminders or promotions anymore.");
+          if (controlMode === 'AI') {
+            await dispatchWhatsAppMessage(phoneNumberId, fromPhone, "Noted. I won't send you any proactive reminders or promotions anymore.", { sender_type: 'AI', expected_control_version: controlVersion });
+          }
           return NextResponse.json({ success: true, message: 'Opted out of engagement' });
         }
 
@@ -357,8 +399,16 @@ export async function POST(request: Request) {
             language_source: 'explicit',
             language_updated_at: Date.now()
           });
-          await sendWhatsAppMessage(phoneNumberId, fromPhone, confirmMsg);
+          if (controlMode === 'AI') {
+            await dispatchWhatsAppMessage(phoneNumberId, fromPhone, confirmMsg, { sender_type: 'AI', expected_control_version: controlVersion });
+          }
           return NextResponse.json({ success: true, message: 'Language updated' });
+        }
+
+        // Only let AI reply if control mode is AI
+        if (controlMode !== 'AI') {
+          console.log(`[WHATSAPP WEBHOOK] Text message persisted but skipped AI processing (mode: HUMAN).`);
+          return NextResponse.json({ success: true, message: 'Skipped AI due to HUMAN control' });
         }
 
         // Process chat message
@@ -374,7 +424,7 @@ export async function POST(request: Request) {
         });
 
         if (result && result.reply) {
-          await sendWhatsAppMessage(phoneNumberId, fromPhone, result.reply);
+          await dispatchWhatsAppMessage(phoneNumberId, fromPhone, result.reply, { sender_type: 'AI', expected_control_version: controlVersion });
         }
 
         await logBusinessEvent({
@@ -407,15 +457,25 @@ export async function POST(request: Request) {
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
-      await extendWhatsAppWindow(normalizedFromPhone, userDoc?.id).catch(e => console.error(e));
+      // 1. Persist inbound location message deterministically
+      const { controlMode, controlVersion } = await persistInboundMessage({
+        messageId: messageId || `loc_${Date.now()}`,
+        fromPhone: fromPhone,
+        normalizedPhone: normalizedFromPhone,
+        type: 'LOCATION',
+        media: { url: `geo:${lat},${lng}` }
+      });
 
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
-        await sendWhatsAppMessage(
-          phoneNumberId,
-          fromPhone,
-          "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â¸"
-        );
+        if (controlMode === 'AI') {
+          await dispatchWhatsAppMessage(
+            phoneNumberId,
+            fromPhone,
+            "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟",
+            { sender_type: 'AI', expected_control_version: controlVersion }
+          );
+        }
         return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
       }
 
@@ -430,9 +490,12 @@ export async function POST(request: Request) {
       });
       console.log(`[WHATSAPP WEBHOOK] Updated live_location for user: ${userDoc.id}`);
 
-      // Process location
-      await processLocationMessageInBackground(phoneNumberId, fromPhone, normalizedFromPhone, lat, lng)
-        .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Location processing failed:', err));
+      if (controlMode === 'AI') {
+        await processLocationMessageInBackground(phoneNumberId, fromPhone, normalizedFromPhone, lat, lng, controlVersion)
+          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Location processing failed:', err));
+      } else {
+        console.log(`[WHATSAPP WEBHOOK] Location message persisted but skipped AI processing (mode: HUMAN).`);
+      }
 
       await logBusinessEvent({
         event_type: 'whatsapp_location_received',
@@ -445,6 +508,47 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({ success: true, message: 'Location processed' });
+    }
+
+    // ----------------------------------------------------
+    // CASE 4: Other Media (Image, Document, Video) Payload
+    // ----------------------------------------------------
+    if (['image', 'document', 'video'].includes(message.type || '')) {
+      const mediaNode = (message as any)[message.type!];
+      if (mediaNode && typeof mediaNode.id === 'string' && mediaNode.id) {
+        const mediaId = mediaNode.id;
+        console.log(`[WHATSAPP WEBHOOK] Media ${message.type} received from ${maskPhone(fromPhone)}, media ID: ${mediaId}`);
+        
+        // --- Gate A: Phone Authentication Lookup ---
+        const usersRef = adminDb.collection('users');
+        const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
+  
+        // 1. Persist inbound media message deterministically
+        const { controlMode, controlVersion } = await persistInboundMessage({
+          messageId: messageId || `media_${Date.now()}`,
+          fromPhone: fromPhone,
+          normalizedPhone: normalizedFromPhone,
+          type: message.type === 'image' ? 'IMAGE' : message.type === 'document' ? 'DOCUMENT' : 'VIDEO' as any,
+          media: { media_id: mediaId }
+        });
+  
+        if (userDoc) {
+          // Process media in background
+          const outletId = userDoc.data()?.outlet_id || 'main';
+          const uid = userDoc.id;
+          
+          await supabase.from('media_archival_jobs').insert({
+            media_id: mediaId,
+            outlet_id: outletId,
+            user_id: uid,
+            media_type: message.type!,
+            status: 'pending'
+          });
+          console.log(`[WEBHOOK] Queued ${message.type} for archival: ${mediaId}`);
+        }
+
+        return NextResponse.json({ success: true, message: 'Media processed' });
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
@@ -463,7 +567,8 @@ async function processVoiceOrderInBackground(
   fromPhone: string,
   normalizedFromPhone: string,
   mediaId: string,
-  baseUrl: string
+  baseUrl: string,
+  controlVersion: number
 ) {
   if (!adminDb) return;
   console.log(`[BACKGROUND TASK] Starting pipeline for ${maskPhone(fromPhone)}, Media: ${mediaId}`);
@@ -478,12 +583,31 @@ async function processVoiceOrderInBackground(
       mimeType = mediaResult.mimeType;
     } catch (err) {
       console.error('[BACKGROUND TASK ERROR] Meta media download failed:', err);
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Macha! We couldn't fetch your voice note from WhatsApp. Please try sending it again! 🎙️"
+        "Macha! We couldn't fetch your voice note from WhatsApp. Please try sending it again! 🎙️",
+        { sender_type: 'AI', expected_control_version: controlVersion }
       );
       return;
+    }
+
+    // 1.5 Queue Audio Archive to Google Drive via Outbox
+    try {
+      const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
+      const outletId = userDoc?.data()?.outlet_id || 'main';
+      const uid = userDoc?.id || 'system';
+
+      await supabase.from('media_archival_jobs').insert({
+        media_id: mediaId,
+        outlet_id: outletId,
+        user_id: uid,
+        media_type: 'audio',
+        status: 'pending'
+      });
+      console.log(`[WEBHOOK] Queued voice note for archival: ${mediaId}`);
+    } catch (archiveErr) {
+      console.error('[WEBHOOK ERROR] Failed to queue voice note for archival:', archiveErr);
     }
 
     // 2. Transcribe Audio via Gemini
@@ -492,19 +616,21 @@ async function processVoiceOrderInBackground(
       transcription = await transcribeAudioWithGemini(audioBuffer, mimeType);
     } catch (err) {
       console.error('[BACKGROUND TASK ERROR] Transcription failed:', err);
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "I couldn't understand that voice note. Please try again or type your message."
+        "I couldn't understand that voice note. Please try again or type your message.",
+        { sender_type: 'AI', expected_control_version: controlVersion }
       );
       return;
     }
 
     if (!transcription.trim()) {
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "I couldn't understand that voice note. Please try again or type your message."
+        "I couldn't understand that voice note. Please try again or type your message.",
+        { sender_type: 'AI', expected_control_version: controlVersion }
       );
       return;
     }
@@ -524,7 +650,7 @@ async function processVoiceOrderInBackground(
       baseUrl
     }).then(result => {
       if (result && result.reply) {
-        return sendWhatsAppMessage(phoneNumberId, fromPhone, result.reply);
+        return dispatchWhatsAppMessage(phoneNumberId, fromPhone, result.reply, { sender_type: 'AI', expected_control_version: controlVersion });
       }
     }).catch(err => {
       console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Voice chat processing failed:', err);
@@ -532,13 +658,18 @@ async function processVoiceOrderInBackground(
 
   } catch (error) {
     console.error('[BACKGROUND TASK EXCEPTION] Failed to process voice note:', error);
-    await sendWhatsAppMessage(
+    await dispatchWhatsAppMessage(
       phoneNumberId,
       fromPhone,
-      "Ustaad! We ran into an unexpected issue processing your voice note. Please try ordering again or type your request. ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬"
+      "Ustaad! We ran into an unexpected issue processing your voice note. Please try ordering again or type your request. 🚀",
+      { sender_type: 'SYSTEM' }
     );
   }
 }
+
+/**
+ * Note: Media archival is now processed asynchronously by a cron or separate worker polling the `media_archival_jobs` table.
+ */
 
 /**
  * Background Asynchronous Pipeline: verifies signup token handshake.
@@ -578,10 +709,11 @@ async function processTextHandshakeInBackground(
     }
 
     if (handshakeData.used) {
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Macha! This verification link has already been used. Please request a new one."
+        "Macha! This verification link has already been used. Please request a new one.",
+        { sender_type: 'SYSTEM' }
       );
       return;
     }
@@ -596,10 +728,11 @@ async function processTextHandshakeInBackground(
       const userSnap = await userRef.get();
       
       if (!userSnap.exists) {
-        await sendWhatsAppMessage(
+        await dispatchWhatsAppMessage(
           phoneNumberId,
           fromPhone,
-          "Macha! We couldn't find your account. Please sign up first."
+          "Macha! We couldn't find your account. Please sign up first.",
+          { sender_type: 'SYSTEM' }
         );
         return;
       }
@@ -645,10 +778,11 @@ async function processTextHandshakeInBackground(
         metadata: { masked_phone: maskPhone(normalizedFromPhone), token_id: token.substring(0, 4) + '****' }
       });
 
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Ustaad! Your login is verified. Please return to the web app to continue! 🚀"
+        "Ustaad! Your login is verified. Please return to the web app to continue! 🚀",
+        { sender_type: 'SYSTEM' }
       );
       return;
     }
@@ -659,10 +793,11 @@ async function processTextHandshakeInBackground(
     const registeredSuffix = registeredPhone.slice(-10);
 
     if (webhookSuffix !== registeredSuffix) {
-      await sendWhatsAppMessage(
+      await dispatchWhatsAppMessage(
         phoneNumberId,
         fromPhone,
-        "Macha! This verification request failed. The WhatsApp sender number must match the phone number you entered on signup."
+        "Macha! This verification request failed. The WhatsApp sender number must match the phone number you entered on signup.",
+        { sender_type: 'SYSTEM' }
       );
       return;
     }
@@ -674,10 +809,11 @@ async function processTextHandshakeInBackground(
     });
 
     console.log(`[BACKGROUND TASK SUCCESS] Signup handshake verified for: ${token}`);
-    await sendWhatsAppMessage(
+    await dispatchWhatsAppMessage(
       phoneNumberId,
       fromPhone,
-      "Ustaad! Your phone number is verified. Please return to the web app screen to complete your profile! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢\u20AC\u2122"
+      "Ustaad! Your phone number is verified. Please return to the web app screen to complete your profile! 🚀",
+      { sender_type: 'SYSTEM' }
     );
 
   } catch (error) {
@@ -694,7 +830,8 @@ async function processLocationMessageInBackground(
   fromPhone: string,
   normalizedFromPhone: string,
   lat: number,
-  lng: number
+  lng: number,
+  controlVersion: number
 ) {
   if (!adminDb) return;
   console.log(`[BACKGROUND TASK] Starting location message pipeline for ${maskPhone(fromPhone)}`);
@@ -748,8 +885,8 @@ async function processLocationMessageInBackground(
     }
 
     // 5. Send reply
-    const success = await sendWhatsAppMessage(phoneNumberId, fromPhone, reply);
-    if (success) {
+    const result = await dispatchWhatsAppMessage(phoneNumberId, fromPhone, reply, { sender_type: 'AI', expected_control_version: controlVersion });
+    if (result.ok) {
       console.log(`[BACKGROUND LOCATION SUCCESS] Reply sent to ${maskPhone(fromPhone)}`);
     } else {
       console.error(`[BACKGROUND LOCATION ERROR] Failed to send reply to ${maskPhone(fromPhone)}`);
@@ -757,10 +894,11 @@ async function processLocationMessageInBackground(
 
   } catch (error) {
     console.error('[BACKGROUND LOCATION EXCEPTION] Failed to process location:', error);
-    await sendWhatsAppMessage(
+    await dispatchWhatsAppMessage(
       phoneNumberId,
       fromPhone,
-      "Kya scene hai machha! Received your location, but ran into some issue loading the weather. Lite le lo! ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬"
+      "Kya scene hai machha! Received your location, but ran into some issue loading the weather. Lite le lo! 🚀",
+      { sender_type: 'AI', expected_control_version: controlVersion }
     );
   }
 }

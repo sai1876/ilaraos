@@ -2,7 +2,7 @@ import { Offer } from './offerBroadcastTypes';
 import { resolveOfferAudience } from './offerAudienceResolver';
 import { buildOfferMessage } from './offerMessageBuilder';
 import { createDeliveryRecord, updateDeliveryRecord } from './offerDeliveryStore';
-import { sendWhatsAppMessage } from '@/lib/voiceOrderingService';
+import { dispatchWhatsAppMessage } from '../inbox/messagingService';
 import { updateConversationState } from '../chat/conversationMemory';
 import { maskPhone } from '@/lib/security/maskPii';
 
@@ -47,7 +47,7 @@ export async function processOfferPublished(offer: Offer): Promise<void> {
         // 3. Send Message
         let success = false;
         try {
-           const result = await sendWhatsAppMessage(WHATSAPP_PHONE_NUMBER_ID, member.phone, messageText);
+           const result = await dispatchWhatsAppMessage(WHATSAPP_PHONE_NUMBER_ID, member.phone, messageText, { sender_type: 'OFFER' });
            success = result.ok;
         } catch(e) {
            success = false;
