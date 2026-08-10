@@ -59,6 +59,7 @@ function StaffLoginContent() {
   const lastSubmittedCodeRef = useRef('');
   const autoSubmitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const totpInputRef = useRef<HTMLInputElement>(null);
+  const fallbackUserRef = useRef<any>(null);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -95,6 +96,7 @@ function StaffLoginContent() {
 
     try {
       if (userCredential.user) {
+        fallbackUserRef.current = userCredential.user;
         const idToken = await userCredential.user.getIdToken();
         
         const res = await fetch('/api/auth/session', {
@@ -141,7 +143,7 @@ function StaffLoginContent() {
     setAuthError(null);
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser || fallbackUserRef.current;
       if (!user) {
         setAuthError('Authentication state lost. Please refresh.');
         setAuthState('error');
