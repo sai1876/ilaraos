@@ -3,7 +3,7 @@ import { sendWhatsAppMessage, WhatsAppSendResult } from '../client';
 import { WhatsAppConversation, WhatsAppMessage } from './inboxTypes';
 import { maskPhone } from '@/lib/security/maskPii';
 import { getPhoneHash } from '../chat/conversationMemory';
-
+import { stripUndefinedDeep } from '../../firestore/stripUndefinedDeep';
 
 export interface SendMessageOptions {
   sender_type: 'AI' | 'HUMAN' | 'SYSTEM' | 'ENGAGEMENT' | 'OFFER';
@@ -54,7 +54,8 @@ export async function dispatchWhatsAppMessage(
 
   // 3. Persist the outbound message
   try {
-    const messageId = result.ok ? result.messageId : `failed_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const now = Date.now();
+    const messageId = result.ok ? result.messageId : `failed_${now}_${Math.random().toString(36).substr(2, 5)}`;
     const msgRef = adminDb!.collection('whatsapp_messages').doc(messageId);
     
     let type: WhatsAppMessage['type'] = 'TEXT';
@@ -73,14 +74,14 @@ export async function dispatchWhatsAppMessage(
       type: type,
       text: messageText,
       status: result.ok ? 'SENT' : 'FAILED',
-      created_at: Date.now(),
-      created_at_ms: Date.now(),
-      sent_at: result.ok ? Date.now() : undefined,
-      failed_at: !result.ok ? Date.now() : undefined
+      created_at: now,
+      created_at_ms: now,
+      sent_at: result.ok ? now : undefined,
+      failed_at: !result.ok ? now : undefined
     };
 
     const batch = adminDb!.batch();
-    batch.set(msgRef, msgData);
+    batch.set(msgRef, stripUndefinedDeep(msgData));
 
     // Update conversation
     const convUpdate: Partial<WhatsAppConversation> = {
@@ -88,17 +89,17 @@ export async function dispatchWhatsAppMessage(
       outlet_id: 'main',
       phone_hash: getPhoneHash(normalizedPhone),
       phone_masked: maskPhone(normalizedPhone),
-      last_message_at: Date.now(),
+      last_message_at: now,
       last_message_preview: type === 'TEXT' ? messageText : `[${type}]`,
-      updated_at: Date.now()
+      updated_at: now
     };
     
     if (options.sender_type === 'AI') {
-      convUpdate.last_bot_message_at = Date.now();
+      convUpdate.last_bot_message_at = now;
     }
     // Only AI and HUMAN default conversation creation/update (System/Engagement don't necessarily init)
     
-    batch.set(convRef, convUpdate, { merge: true });
+    batch.set(convRef, stripUndefinedDeep(convUpdate), { merge: true });
     await batch.commit();
 
   } catch (err) {

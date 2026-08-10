@@ -8,6 +8,7 @@ import {
 import { transcribeAudioWithGemini } from '@/server/whatsapp/chat/voiceTranscriber';
 import { persistInboundMessage, processMessageStatuses } from '@/server/whatsapp/inbox/webhookPersistence';
 import { dispatchWhatsAppMessage } from '@/server/whatsapp/inbox/messagingService';
+import { claimInboundWebhookMessage, completeInboundWebhookMessage, failInboundWebhookMessage } from '@/server/whatsapp/inbox/webhookIdempotency';
 
 import { maskPhone } from '@/lib/security/maskPii';
 import * as admin from 'firebase-admin';
@@ -209,27 +210,31 @@ export async function POST(request: Request) {
     const normalizedFromPhone = fromPhone.replace(/[^0-9]/g, "");
 
     const messageId = message.id;
-    if (messageId) {
-      const dupRef = adminDb.collection('processed_whatsapp_messages').doc(messageId);
-      const claimed = await adminDb.runTransaction(async transaction => {
-        const dupSnap = await transaction.get(dupRef);
-        if (dupSnap.exists) return false;
+    let processingToken: string | undefined;
 
-        transaction.create(dupRef, {
-          processed_at: admin.firestore.FieldValue.serverTimestamp(),
-          from: maskPhone(fromPhone),
-          status: 'processing',
-        });
-        return true;
+    if (messageId) {
+      const claim = await claimInboundWebhookMessage({
+        messageId,
+        maskedFrom: maskPhone(fromPhone)
       });
 
-      if (!claimed) {
+      if (claim.disposition === 'COMPLETED_DUPLICATE') {
         console.log(`[WHATSAPP WEBHOOK] Message ID ${messageId} already processed. Ignoring.`);
         return NextResponse.json({ success: true, message: 'Duplicate message ignored' });
       }
+
+      if (claim.disposition === 'ACTIVE_PROCESSING') {
+        console.log(`[WHATSAPP WEBHOOK] Message ID ${messageId} is currently being processed by another worker. Returning 200.`);
+        return NextResponse.json({ success: true, message: 'Concurrent processing' });
+      }
+
+      processingToken = claim.processingToken;
     }
 
-    // ----------------------------------------------------
+    let response: Response;
+    try {
+      response = await (async () => {
+        // ----------------------------------------------------
     // CASE 1: Voice Note Order Payload (.ogg audio)
     // ----------------------------------------------------
     if (message.type === 'audio' && typeof message.audio?.id === 'string' && message.audio.id) {
@@ -504,7 +509,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Location processed' });
     }
 
-    return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
+      return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
+      })();
+    } catch (error: any) {
+      if (messageId && processingToken) {
+        await failInboundWebhookMessage(messageId, processingToken, error.code || 'INTERNAL_PROCESSING_FAILED');
+      }
+      throw error;
+    }
+
+    if (messageId && processingToken) {
+      if (response.status === 200) {
+        await completeInboundWebhookMessage(messageId, processingToken);
+      } else {
+        await failInboundWebhookMessage(messageId, processingToken, `HTTP_${response.status}`);
+      }
+    }
+
+    return response;
 
   } catch (error: unknown) {
     console.error('[WHATSAPP WEBHOOK ERROR] Webhook POST router failed:', error);
