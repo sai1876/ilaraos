@@ -25,6 +25,10 @@ export async function POST(
       }
       
       const data = snap.data()!;
+      if (actor.role === 'manager' && data.outlet_id !== (actor.outletId || 'main')) {
+        throw new Error('Conversation not found');
+      }
+      
       const newMode = action === 'TAKE_OVER' ? 'HUMAN' : 'AI';
       
       if (data.control_mode === newMode) {

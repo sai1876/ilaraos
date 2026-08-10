@@ -50,7 +50,6 @@ export default function WhatsAppInbox({ actor }: WhatsAppInboxProps) {
       }
       
       const params = new URLSearchParams();
-      if (filterMode === 'UNREAD') params.set('status', 'OPEN');
       if (searchQuery) params.set('search', searchQuery);
 
       const res = await fetch(`/api/operations/whatsapp/conversations?${params.toString()}`, {

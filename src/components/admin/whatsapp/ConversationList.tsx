@@ -66,13 +66,13 @@ export default function ConversationList({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto theme-scrollbar p-2">
+      <div className="flex-1 overflow-y-auto theme-scrollbar p-2 relative">
         {loading && conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-[#66554A]">
             <div className="w-5 h-5 rounded-full border-2 border-[#9A642C] border-t-transparent animate-spin mb-2" />
             <span className="text-xs font-mono uppercase">Loading...</span>
           </div>
-        ) : error ? (
+        ) : error && conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <AlertCircle size={24} className="text-rose-500 mb-2" />
             <p className="text-xs text-rose-600 font-bold mb-3">{error}</p>
@@ -86,6 +86,11 @@ export default function ConversationList({
           </div>
         ) : (
           <div className="flex flex-col gap-1">
+            {error && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-600 text-[10px] uppercase font-bold tracking-wider px-2 py-1.5 rounded-md text-center mb-2 flex items-center justify-center gap-1 shadow-sm sticky top-0 z-10">
+                <AlertCircle size={12} /> Connection lost - Retrying...
+              </div>
+            )}
             {conversations.map(conv => {
               const isSelected = selectedId === conv.id;
               const date = new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

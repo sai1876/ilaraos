@@ -25,6 +25,9 @@ export async function POST(
     }
 
     const data = convSnap.data()!;
+    if (actor.role === 'manager' && data.outlet_id !== (actor.outletId || 'main')) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
     
     // Check 24 hour window
     const windowExpiresAt = data.whatsapp_window_expires_at || 0;

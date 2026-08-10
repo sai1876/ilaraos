@@ -19,17 +19,24 @@ export default function ServiceWorkerRegister() {
         return;
       }
 
-      // Register service worker after window load to prevent blocking main paint
-      window.addEventListener("load", () => {
+      const handleLoad = () => {
         navigator.serviceWorker
-          .register("/sw.js")
+          .register("/sw.js", { updateViaCache: 'none' })
           .then((registration) => {
             console.log("Service Worker registered with scope:", registration.scope);
+            registration.update().catch(console.error);
           })
           .catch((error) => {
             console.error("Service Worker registration failed:", error);
           });
-      });
+      };
+
+      if (document.readyState === 'complete') {
+        handleLoad();
+      } else {
+        window.addEventListener("load", handleLoad);
+        return () => window.removeEventListener("load", handleLoad);
+      }
     }
   }, []);
 

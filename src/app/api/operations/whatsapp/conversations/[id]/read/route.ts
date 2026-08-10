@@ -7,9 +7,17 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireSessionActor(['owner', 'admin', 'manager']);
+    const actor = await requireSessionActor(['owner', 'admin', 'manager']);
     
     const convRef = adminDb!.collection('whatsapp_conversations').doc(params.id);
+    const snap = await convRef.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+    if (actor.role === 'manager' && snap.data()!.outlet_id !== (actor.outletId || 'main')) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+    
     await convRef.update({
       unread_count: 0,
       needs_attention: false,

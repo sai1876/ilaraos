@@ -31,9 +31,13 @@ export async function GET(
 
     if (cursor) {
       const snap = await adminDb!.collection('whatsapp_messages').doc(cursor).get();
-      if (snap.exists) {
-        query = query.startAfter(snap);
+      if (!snap.exists) {
+        return NextResponse.json({ error: 'INVALID_CURSOR' }, { status: 400 });
       }
+      if (snap.data()!.conversation_id !== params.id) {
+        return NextResponse.json({ error: 'INVALID_CURSOR' }, { status: 400 });
+      }
+      query = query.startAfter(snap);
     }
 
     const snapshot = await query.get();
