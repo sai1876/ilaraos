@@ -32,6 +32,7 @@ import Link from 'next/link';
 import { useStore } from '@/store/useStore';
 
 import dynamic from 'next/dynamic';
+import StorageDiagnostic from '@/components/common/StorageDiagnostic';
 
 // Firebase core configuration & seeding imports
 import { auth } from '@/lib/firebase';
@@ -517,6 +518,7 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      <StorageDiagnostic />
     </div>
   );
 }

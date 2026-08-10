@@ -1,12 +1,9 @@
-const CACHE_NAME = 'ilara-shell-v2';
+const CACHE_NAME = 'ilara-shell-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
   '/images/logo_icon.png',
-  '/images/logo_text.png',
-  '/food_platter.png',
-  '/milkshake.png',
-  '/thickshake.png'
+  '/images/logo_text.png'
 ];
 
 // Install event: cache the offline shell assets
@@ -14,9 +11,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Pre-caching offline shell');
-      return cache.addAll(ASSETS_TO_CACHE).catch(e => console.warn('Cache addAll failed:', e));
-    }).catch((e) => console.warn('Cache open failed:', e))
-      .then(() => self.skipWaiting())
+      return cache.addAll(ASSETS_TO_CACHE).catch(e => {
+        // Log gracefully so install doesn't crash on quota errors
+        console.warn('Cache addAll failed (possibly quota full):', e);
+      });
+    }).catch((e) => {
+      console.warn('Cache open failed (possibly quota full):', e);
+    }).then(() => self.skipWaiting())
   );
 });
 
@@ -72,27 +73,15 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Static Assets (CSS, JS, Images, Fonts): Cache-first, fallback to Network
+  // (No unbounded runtime caching)
   event.respondWith(
     caches.match(request).catch(() => null).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(request).then((networkResponse) => {
-        // Cache valid fetched static assets dynamically (optional, but keep it light)
-        if (
-          networkResponse.status === 200 &&
-          (url.pathname.endsWith('.js') ||
-           url.pathname.endsWith('.css') ||
-           url.pathname.match(/\.(png|jpg|jpeg|gif|svg|woff2|woff)$/))
-        ) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache).catch((e) => console.warn('Cache put failed:', e));
-          }).catch((e) => console.warn('Cache open failed:', e));
-        }
-        return networkResponse;
-      }).catch((error) => {
-        console.warn('Network fetch failed for asset:', request.url, error);
+      return fetch(request).catch((error) => {
+        // Fallback for static assets on network failure
+        console.warn('Network fetch failed for asset:', request.url);
         throw error;
       });
     })

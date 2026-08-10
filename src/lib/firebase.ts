@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore, initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -24,9 +24,7 @@ export const auth = typeof window !== "undefined"
 
 export const db = typeof window !== "undefined"
   ? initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
+      localCache: memoryLocalCache()
     })
   : getFirestore(app);
 

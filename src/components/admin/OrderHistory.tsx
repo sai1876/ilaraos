@@ -13,9 +13,11 @@ interface OrderHistoryProps {
   userRole?: string;
 }
 
+type LoadState = 'LOADING' | 'SUCCESS' | 'EMPTY' | 'ERROR' | 'UNAUTHENTICATED';
+
 export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) {
   const [orders, setOrders] = useState<OrderDocument[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<LoadState>('LOADING');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('today');
@@ -91,8 +93,12 @@ export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) 
   }, [selectedOrder]);
 
   const fetchOrders = async () => {
-    setLoading(true);
+    setLoadState('LOADING');
     try {
+      if (!auth.currentUser) {
+        setLoadState('UNAUTHENTICATED');
+        return;
+      }
       const isGlobal = userRole === 'admin' || userRole === 'owner';
       const q = query(collection(db, 'orders'), orderBy('created_at', 'desc'), limit(100));
       const snap = await getDocs(q);
@@ -104,10 +110,14 @@ export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) 
       }
       
       setOrders(fetched);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      setLoadState(fetched.length > 0 ? 'SUCCESS' : 'EMPTY');
+    } catch (e: any) {
+      console.error('Failed to fetch OrderHistory:', e);
+      if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
+        setLoadState('UNAUTHENTICATED');
+      } else {
+        setLoadState('ERROR');
+      }
     }
   };
 
@@ -213,7 +223,7 @@ export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) 
             onClick={fetchOrders}
             className="bg-[#f5f4ec] hover:bg-[#855300]/10 border border-[#d8c3ad] hover:border-[#855300]/50 rounded-xl px-3 flex items-center justify-center transition-colors cursor-pointer"
           >
-            <RefreshCw size={16} className={loading ? "animate-spin text-[#855300]" : "text-[#534434]"} />
+            <RefreshCw size={16} className={loadState === 'LOADING' ? "animate-spin text-[#855300]" : "text-[#534434]"} />
           </button>
         </div>
       </div>
@@ -233,14 +243,27 @@ export default function OrderHistory({ outletId, userRole }: OrderHistoryProps) 
               </tr>
             </thead>
             <tbody>
-              {loading && orders.length === 0 ? (
+              {loadState === 'LOADING' ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-[#534434]/40 font-mono text-sm">
                     <RefreshCw className="animate-spin mx-auto mb-2 text-[#855300]" size={24} />
                     Loading telemetry...
                   </td>
                 </tr>
-              ) : filteredOrders.length === 0 ? (
+              ) : loadState === 'ERROR' ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-red-500/80 font-mono text-sm">
+                    Failed to load order history. Browser storage or network error.
+                    <button onClick={fetchOrders} className="block mx-auto mt-2 text-[#855300] hover:underline cursor-pointer">Retry</button>
+                  </td>
+                </tr>
+              ) : loadState === 'UNAUTHENTICATED' ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-red-500/80 font-mono text-sm">
+                    Authentication error or session expired. Please sign in again.
+                  </td>
+                </tr>
+              ) : loadState === 'EMPTY' || filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-[#534434]/40 font-mono text-sm">
                     No records found matching criteria

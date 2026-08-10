@@ -47,8 +47,11 @@ export default function PendingEntityDocuments({
       );
       setDocuments(validDocs);
       checkRequirements(validDocs);
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Failed to fetch pending documents for ${entityType}:${entityId}:`, err);
+      if (err.message?.includes('Not authenticated') || err.message?.includes('401') || err.status === 401) {
+        window.location.href = '/login';
+      }
     } finally {
       setLoading(false);
     }

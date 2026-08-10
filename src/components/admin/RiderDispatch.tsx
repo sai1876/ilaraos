@@ -19,7 +19,7 @@ export default function RiderDispatch({ outletId, userRole }: RiderDispatchProps
   const [riders, setRiders] = useState<Staff[]>([]);
   const [selectedRiderId, setSelectedRiderId] = useState<string>('');
   
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'LOADING' | 'SUCCESS' | 'ERROR' | 'UNAUTHENTICATED'>('LOADING');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Security Flow State
@@ -79,7 +79,14 @@ export default function RiderDispatch({ outletId, userRole }: RiderDispatchProps
       snap.forEach(doc => fetched.push(doc.data() as OrderDocument));
       fetched.sort((a, b) => b.created_at - a.created_at);
       setOrders(fetched);
-      setLoading(false);
+      setLoadState('SUCCESS');
+    }, (err: any) => {
+      console.error('Failed to stream dispatch orders:', err);
+      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+        setLoadState('UNAUTHENTICATED');
+      } else {
+        setLoadState('ERROR');
+      }
     });
     return () => unsubscribe();
   }, [outletId, userRole]);
@@ -256,10 +263,21 @@ export default function RiderDispatch({ outletId, userRole }: RiderDispatchProps
             </div>
 
             <div className="flex flex-col gap-3 overflow-y-auto max-h-[60vh] pr-2">
-              {loading ? (
+              {loadState === 'LOADING' ? (
                 <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/40 gap-2">
                   <RefreshCw className="animate-spin" size={20} />
                   <span className="font-mono text-[10px] uppercase tracking-widest">Scanning Queue...</span>
+                </div>
+              ) : loadState === 'ERROR' ? (
+                <div className="flex flex-col items-center justify-center py-10 text-red-500/80 gap-2 text-center border border-dashed border-red-200 rounded-xl bg-red-50/50">
+                  <AlertTriangle size={24} />
+                  <span className="font-mono text-[10px] uppercase tracking-widest leading-relaxed">Failed to load orders.<br />Storage or network error.</span>
+                  <button onClick={() => window.location.reload()} className="mt-2 text-[#855300] hover:underline text-xs">Retry</button>
+                </div>
+              ) : loadState === 'UNAUTHENTICATED' ? (
+                <div className="flex flex-col items-center justify-center py-10 text-red-500/80 gap-2 text-center border border-dashed border-red-200 rounded-xl bg-red-50/50">
+                  <AlertTriangle size={24} />
+                  <span className="font-mono text-[10px] uppercase tracking-widest leading-relaxed">Authentication Error.<br />Please sign in again.</span>
                 </div>
               ) : filteredOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/40 gap-2 text-center border border-dashed border-border rounded-xl">

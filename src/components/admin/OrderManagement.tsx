@@ -19,7 +19,7 @@ interface OrderManagementProps {
 export default function OrderManagement({ outletId, userRole }: OrderManagementProps) {
   const [isRushMode, setIsRushMode] = useState(false);
   const [orders, setOrders] = useState<OrderDocument[]>([]);
-  const [_loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'LOADING' | 'SUCCESS' | 'ERROR' | 'UNAUTHENTICATED'>('LOADING');
   const [viewTab, setViewTab] = useState<'active' | 'completed'>('active');
   const [paymentMethods, setPaymentMethods] = useState<Record<string, 'cash' | 'upi' | 'card'>>({});
 
@@ -68,10 +68,8 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
       if (docSnap.exists()) {
         setIsRushMode(!!docSnap.data().rush_mode_active);
       }
-      setLoading(false);
     }, (err) => {
       console.error("Failed to load store settings: ", err);
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -116,8 +114,14 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
       }
       prevOrderIdsRef.current = new Set(fetchedOrders.map(o => o.order_id));
       setOrders(fetchedOrders);
-    }, (err) => {
+      setLoadState('SUCCESS');
+    }, (err: any) => {
       console.error("Failed to stream active orders: ", err);
+      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+        setLoadState('UNAUTHENTICATED');
+      } else {
+        setLoadState('ERROR');
+      }
     });
 
     return () => unsubscribe();
@@ -270,7 +274,29 @@ export default function OrderManagement({ outletId, userRole }: OrderManagementP
         </div>
       </div>
       
-      {(viewTab === 'active' ? activeOrdersList : completedOrdersList).length === 0 ? (
+      {loadState === 'LOADING' ? (
+        <div className="text-center py-16 bg-card border border-border shadow-sm rounded-3xl flex flex-col items-center gap-3">
+          <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mb-2"></div>
+          <p className="font-mono text-xs text-muted-foreground/50 uppercase tracking-wider">
+            Loading Queue...
+          </p>
+        </div>
+      ) : loadState === 'ERROR' ? (
+        <div className="text-center py-16 bg-red-50 border border-red-200 shadow-sm rounded-3xl flex flex-col items-center gap-3">
+          <AlertTriangle size={32} className="text-red-500/80" />
+          <p className="font-mono text-xs text-red-600/80 uppercase tracking-wider">
+            Failed to load queue. Storage or Network Error.
+          </p>
+          <button onClick={() => window.location.reload()} className="mt-2 text-[#855300] hover:underline text-xs">Reload Dashboard</button>
+        </div>
+      ) : loadState === 'UNAUTHENTICATED' ? (
+        <div className="text-center py-16 bg-red-50 border border-red-200 shadow-sm rounded-3xl flex flex-col items-center gap-3">
+          <AlertTriangle size={32} className="text-red-500/80" />
+          <p className="font-mono text-xs text-red-600/80 uppercase tracking-wider">
+            Authentication Error. Please sign in again.
+          </p>
+        </div>
+      ) : (viewTab === 'active' ? activeOrdersList : completedOrdersList).length === 0 ? (
         <div className="text-center py-16 bg-card border border-border shadow-[0_4px_20px_rgba(62,39,35,0.06)] rounded-3xl flex flex-col items-center gap-3">
           <ShoppingBag size={32} className="text-muted-foreground/20" />
           <p className="font-mono text-xs text-muted-foreground/50 uppercase tracking-wider">

@@ -103,6 +103,12 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
         fetch(`/api/cash-sessions${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`/api/expenses${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
+      
+      if (sessRes.status === 401 || expRes.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
       const [sessData, expData] = await Promise.all([sessRes.json(), expRes.json()]);
       const sessions = sessData.success ? sessData.sessions : [];
       const expensesData = expData.success ? expData.expenses : [];
@@ -110,8 +116,11 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
       setExpenses(expensesData);
       const open = sessions.find((s: any) => s.closing_cash === null || s.closing_cash === undefined);
       setActiveSession(open || null);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load cash & expenses:', e);
+      if (e.message === 'Not authenticated') {
+        window.location.href = '/login';
+      }
     }
   };
 
