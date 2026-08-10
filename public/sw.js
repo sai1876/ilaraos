@@ -14,8 +14,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Pre-caching offline shell');
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+      return cache.addAll(ASSETS_TO_CACHE).catch(e => console.warn('Cache addAll failed:', e));
+    }).catch((e) => console.warn('Cache open failed:', e))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -27,11 +28,12 @@ self.addEventListener('activate', (event) => {
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME && cacheName.startsWith('ilara-shell-')) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
+            return caches.delete(cacheName).catch(e => console.warn('Cache delete failed:', e));
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).catch((e) => console.warn('Cache keys failed:', e))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -54,7 +56,7 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => {
-        return caches.match('/').then(cachedResponse => {
+        return caches.match('/').catch(() => null).then(cachedResponse => {
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -71,7 +73,7 @@ self.addEventListener('fetch', (event) => {
 
   // Static Assets (CSS, JS, Images, Fonts): Cache-first, fallback to Network
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
+    caches.match(request).catch(() => null).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
@@ -85,10 +87,13 @@ self.addEventListener('fetch', (event) => {
         ) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
+            cache.put(request, responseToCache).catch((e) => console.warn('Cache put failed:', e));
+          }).catch((e) => console.warn('Cache open failed:', e));
         }
         return networkResponse;
+      }).catch((error) => {
+        console.warn('Network fetch failed for asset:', request.url, error);
+        throw error;
       });
     })
   );
