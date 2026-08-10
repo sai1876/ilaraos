@@ -15,7 +15,6 @@ import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/verifyWebhookSignature';
 import { chatOrchestrator } from '@/server/whatsapp/chat/chatOrchestrator';
 import { updateConversationState } from '@/server/whatsapp/chat/conversationMemory';
-import { extendWhatsAppWindow } from '@/server/whatsapp/engagement/windowService';
 import { SupportedLanguage } from '@/server/whatsapp/chat/types';
 
 export const runtime = 'nodejs';

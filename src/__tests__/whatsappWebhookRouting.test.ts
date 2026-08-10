@@ -5,16 +5,18 @@ import crypto from 'node:crypto';
 const mocks = vi.hoisted(() => ({
   sendWhatsAppMessage: vi.fn(),
   updateConversationState: vi.fn(),
+  getPhoneHash: vi.fn((p) => `hash_${p}`),
   findUserByPhone: vi.fn(),
   chatOrchestrator: { processMessage: vi.fn().mockResolvedValue({ reply: 'ok' }) },
 }));
 
-vi.mock('@/lib/voiceOrderingService', () => ({
+vi.mock('@/server/whatsapp/client', () => ({
   sendWhatsAppMessage: mocks.sendWhatsAppMessage,
 }));
 
 vi.mock('@/server/whatsapp/chat/conversationMemory', () => ({
   updateConversationState: mocks.updateConversationState,
+  getPhoneHash: mocks.getPhoneHash,
 }));
 
 vi.mock('firebase-admin', () => ({
@@ -28,7 +30,12 @@ vi.mock('firebase-admin', () => ({
 vi.mock('@/lib/firebaseAdmin', () => ({
   adminDb: {
     collection: vi.fn((colName) => ({
-      doc: vi.fn(() => ({})),
+      doc: vi.fn(() => ({
+        get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      })),
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       get: vi.fn().mockResolvedValue(
@@ -44,6 +51,12 @@ vi.mock('@/lib/firebaseAdmin', () => ({
         create: vi.fn(),
       });
     }),
+    batch: vi.fn(() => ({
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn()
+    }))
   }
 }));
 
@@ -91,6 +104,7 @@ describe('WhatsApp Webhook Routing (Auth & Language)', () => {
     vi.clearAllMocks();
     vi.stubEnv('WHATSAPP_APP_SECRET', APP_SECRET);
     vi.stubEnv('WHATSAPP_BOT_NUMBER_ID', PHONE_NUMBER_ID);
+    vi.stubEnv('WHATSAPP_ACCESS_TOKEN', 'fixture-token');
   });
 
   describe('Language Preference Routing', () => {

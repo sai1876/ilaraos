@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Phone, CheckCircle2, User, Globe, FileText, Activity } from 'lucide-react';
+import { Phone, User, Globe, FileText, Activity } from 'lucide-react';
 
 export default function CustomerContext({ conversationId }: { conversationId: string }) {
   const [conv, setConv] = useState<any>(null);

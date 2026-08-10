@@ -2,7 +2,7 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { WhatsAppConversation, WhatsAppMessage } from './inboxTypes';
 import { getPhoneHash } from '../chat/conversationMemory';
 import { maskPhone } from '@/lib/security/maskPii';
-import { FieldValue } from 'firebase-admin/firestore';
+
 
 export async function persistInboundMessage(params: {
   messageId: string;
@@ -26,6 +26,7 @@ export async function persistInboundMessage(params: {
     const msgData: WhatsAppMessage = {
       message_id: params.messageId,
       conversation_id: params.normalizedPhone,
+      outlet_id: 'main',
       wamid: params.messageId,
       direction: 'INBOUND',
       sender_type: 'CUSTOMER',
@@ -33,7 +34,8 @@ export async function persistInboundMessage(params: {
       text: params.text,
       media: params.media,
       status: 'RECEIVED',
-      created_at: Date.now()
+      created_at: Date.now(),
+      created_at_ms: Date.now()
     };
 
     if (snap.exists) {
@@ -47,6 +49,7 @@ export async function persistInboundMessage(params: {
 
     const convUpdate: Partial<WhatsAppConversation> = {
       conversation_id: params.normalizedPhone,
+      outlet_id: 'main',
       phone_hash: getPhoneHash(params.normalizedPhone),
       phone_masked: maskPhone(params.normalizedPhone),
       status: 'OPEN',

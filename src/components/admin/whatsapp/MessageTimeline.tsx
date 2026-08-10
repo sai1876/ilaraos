@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Send, Bot, User, Clock, Check, CheckCheck } from 'lucide-react';
+import { Send, Bot, User, Check, CheckCheck } from 'lucide-react';
 
 export default function MessageTimeline({ conversationId, actor }: { conversationId: string, actor: any }) {
   const [messages, setMessages] = useState<any[]>([]);

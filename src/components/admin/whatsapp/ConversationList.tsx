@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, AlertCircle, Bot, User } from 'lucide-react';
+import { Search, AlertCircle, Bot, User } from 'lucide-react';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 

@@ -3,7 +3,7 @@ import { sendWhatsAppMessage, WhatsAppSendResult } from '../client';
 import { WhatsAppConversation, WhatsAppMessage } from './inboxTypes';
 import { maskPhone } from '@/lib/security/maskPii';
 import { getPhoneHash } from '../chat/conversationMemory';
-import { FieldValue } from 'firebase-admin/firestore';
+
 
 export interface SendMessageOptions {
   sender_type: 'AI' | 'HUMAN' | 'SYSTEM' | 'ENGAGEMENT' | 'OFFER';
@@ -65,6 +65,7 @@ export async function dispatchWhatsAppMessage(
     const msgData: WhatsAppMessage = {
       message_id: messageId,
       conversation_id: normalizedPhone,
+      outlet_id: 'main',
       wamid: result.ok ? result.messageId : undefined,
       direction: 'OUTBOUND',
       sender_type: options.sender_type === 'ENGAGEMENT' || options.sender_type === 'OFFER' ? 'SYSTEM' : options.sender_type as any,
@@ -73,6 +74,7 @@ export async function dispatchWhatsAppMessage(
       text: messageText,
       status: result.ok ? 'SENT' : 'FAILED',
       created_at: Date.now(),
+      created_at_ms: Date.now(),
       sent_at: result.ok ? Date.now() : undefined,
       failed_at: !result.ok ? Date.now() : undefined
     };
@@ -83,6 +85,7 @@ export async function dispatchWhatsAppMessage(
     // Update conversation
     const convUpdate: Partial<WhatsAppConversation> = {
       conversation_id: normalizedPhone,
+      outlet_id: 'main',
       phone_hash: getPhoneHash(normalizedPhone),
       phone_masked: maskPhone(normalizedPhone),
       last_message_at: Date.now(),

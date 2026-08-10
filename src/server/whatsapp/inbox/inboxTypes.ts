@@ -3,6 +3,7 @@ import { SupportedLanguage } from '../chat/types';
 
 export interface WhatsAppConversation {
   conversation_id: string; // The normalized phone number
+  outlet_id: string; // Canonical operating context (e.g. 'main')
   customer_id?: string;
   phone_hash: string;
   phone_masked: string;
@@ -30,12 +31,14 @@ export interface WhatsAppConversation {
   active_order_id?: string;
 
   created_at: Timestamp | number;
+  created_at_ms: number; // Canonical UTC epoch ms
   updated_at: Timestamp | number;
 }
 
 export interface WhatsAppMessage {
   message_id: string; // wamid or generated ID
   conversation_id: string;
+  outlet_id: string;
   wamid?: string;
 
   direction: 'INBOUND' | 'OUTBOUND';
@@ -58,6 +61,7 @@ export interface WhatsAppMessage {
   metadata?: Record<string, unknown>;
 
   created_at: Timestamp | number;
+  created_at_ms: number;
   sent_at?: Timestamp | number;
   delivered_at?: Timestamp | number;
   read_at?: Timestamp | number;
