@@ -1,20 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import React from 'react';
 import { Phone, User, Globe, FileText, Activity } from 'lucide-react';
 
-export default function CustomerContext({ conversationId }: { conversationId: string }) {
-  const [conv, setConv] = useState<any>(null);
-  
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'whatsapp_conversations', conversationId), (doc) => {
-      if (doc.exists()) setConv(doc.data());
-    });
-    return () => unsub();
-  }, [conversationId]);
+interface CustomerContextProps {
+  conversationId: string;
+  conversation: any;
+}
 
+export default function CustomerContext({ conversationId, conversation: conv }: CustomerContextProps) {
   if (!conv) return <div className="p-4 text-center text-xs text-[#66554A]">Loading...</div>;
 
   return (

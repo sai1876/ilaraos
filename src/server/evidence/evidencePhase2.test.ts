@@ -61,12 +61,12 @@ describe('Phase 2: Finalize Endpoints', () => {
         evidence_type: 'IMAGE'
       })
     };
-    (adminDb.doc as any)().get.mockResolvedValue(mockDoc);
+    (adminDb!.doc as any)().get.mockResolvedValue(mockDoc);
     
     const res = await finalizeNormal(makeRequest(), { params: { id: 'test_id' } });
     expect(res.status).toBe(200);
     
-    const updateCall = (adminDb.doc as any)().update.mock.calls[0][0];
+    const updateCall = (adminDb!.doc as any)().update.mock.calls[0][0];
     expect(updateCall.storage_state).toBe('ACTIVE');
     expect(updateCall.sha256).toBe('deadbeef');
     expect(updateCall.integrity_status).toBe('SHA256_VERIFIED');
@@ -83,7 +83,7 @@ describe('Phase 2: Finalize Endpoints', () => {
         expected_drive_file_id: 'drive_123'
       })
     };
-    (adminDb.doc as any)().get.mockResolvedValue(mockDoc);
+    (adminDb!.doc as any)().get.mockResolvedValue(mockDoc);
     
     const res = await finalizeNormal(makeRequest(), { params: { id: 'test_id' } });
     expect(res.status).toBe(400);
@@ -101,12 +101,12 @@ describe('Phase 2: Finalize Endpoints', () => {
         archive_file_name: 'EV-20260810-000184_REFUND.jpg'
       })
     };
-    (adminDb.doc as any)().get.mockResolvedValue(mockDoc);
+    (adminDb!.doc as any)().get.mockResolvedValue(mockDoc);
 
     const res = await finalizeDrive(makeRequest(), { params: { id: 'test_id' } });
     expect(res.status).toBe(200);
 
-    const updateCall = (adminDb.doc as any)().update.mock.calls[0][0];
+    const updateCall = (adminDb!.doc as any)().update.mock.calls[0][0];
     expect(updateCall.storage_state).toBe('ARCHIVED');
     expect(updateCall.drive_file_id).toBe('drive_123');
     expect(updateCall.sha256).toBe('deadbeef');

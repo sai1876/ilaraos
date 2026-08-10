@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GET as archiveWorker } from '@/app/api/internal/evidence/archive-worker/route';
-import { adminDb } from '@/lib/firebaseAdmin';
-import { getPreGeneratedFileId, streamToDrive, verifyDriveObject } from '@/server/google/driveAdmin';
-import { deleteObject, getStreamForTransfer } from '@/server/supabase/storageAdmin';
-import { processArchiveItem } from '@/server/evidence/archiveService';
 
 vi.mock('@/lib/firebaseAdmin', () => {
   return {

@@ -1,44 +1,35 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Check, CheckCheck } from 'lucide-react';
 
-export default function MessageTimeline({ conversationId, actor }: { conversationId: string, actor: any }) {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [conv, setConv] = useState<any>(null);
+interface MessageTimelineProps {
+  conversationId: string;
+  conversation: any;
+  messages: any[];
+  actor: any;
+  loading: boolean;
+  onRefresh: () => void;
+}
+
+export default function MessageTimeline({ 
+  conversationId, 
+  conversation: conv, 
+  messages, 
+  actor,
+  loading,
+  onRefresh 
+}: MessageTimelineProps) {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Listen to Conversation doc
-    const unsubConv = onSnapshot(collection(db, 'whatsapp_conversations'), (snap) => {
-      const doc = snap.docs.find(d => d.id === conversationId);
-      if (doc) setConv(doc.data());
-    });
-
-    // 2. Listen to Messages (bounded to 100)
-    const q = query(
-      collection(db, 'whatsapp_messages'),
-      where('conversation_id', '==', conversationId),
-      orderBy('created_at', 'desc'),
-      limit(100)
-    );
-    const unsubMsg = onSnapshot(q, (snap) => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMessages(msgs.reverse()); // chronological for rendering
-      setTimeout(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }, 100);
-    });
-
-    // 3. Mark read
-    fetch(`/api/operations/whatsapp/conversations/${conversationId}/read`, { method: 'POST' });
-
-    return () => { unsubConv(); unsubMsg(); };
-  }, [conversationId]);
+    // Auto-scroll to bottom on new messages
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +41,14 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: replyText.trim() })
       });
-      if (res.ok) setReplyText('');
-      else alert((await res.json()).error);
+      if (res.ok) {
+        setReplyText('');
+        onRefresh();
+      } else {
+        alert((await res.json()).error);
+      }
+    } catch (e: any) {
+      alert('Failed to send reply');
     } finally {
       setSending(false);
     }
@@ -59,11 +56,16 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
 
   const toggleTakeover = async () => {
     const action = conv?.control_mode === 'HUMAN' ? 'RETURN_TO_AI' : 'TAKE_OVER';
-    await fetch(`/api/operations/whatsapp/conversations/${conversationId}/control`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
-    });
+    try {
+      await fetch(`/api/operations/whatsapp/conversations/${conversationId}/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      onRefresh();
+    } catch (e) {
+      alert('Failed to toggle control mode');
+    }
   };
 
   const is24hOpen = conv?.whatsapp_window_expires_at && conv.whatsapp_window_expires_at > Date.now();
@@ -73,6 +75,7 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
       {/* Header Bar */}
       <div className="flex items-center justify-between p-4 bg-[#FFFDFC] border-b border-[#E8DFD3] shrink-0">
         <div className="flex items-center gap-3">
+          {/* Back button for mobile will be injected by parent layout if needed, or we just rely on parent */}
           <h2 className="font-bold text-lg text-[#241A15]">{conv?.customer_display_name || conv?.phone_masked || 'Loading...'}</h2>
           <div className="flex items-center gap-2">
              <span className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${is24hOpen ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
@@ -94,7 +97,12 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 theme-scrollbar" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 theme-scrollbar relative" ref={scrollRef}>
+        {loading && messages.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#FAF7F2]/50 z-10">
+            <div className="w-5 h-5 rounded-full border-2 border-[#9A642C] border-t-transparent animate-spin" />
+          </div>
+        )}
         {messages.map(msg => {
           const isOutbound = msg.direction === 'OUTBOUND';
           const isAI = msg.sender_type === 'AI';
@@ -126,7 +134,7 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
               <div className="flex items-center gap-1.5 mt-1 mx-1 text-[9px] text-[#66554A]/60 font-mono">
                 {isOutbound && isAI && <span className="flex items-center gap-0.5"><Bot size={10} /> AI</span>}
                 {isOutbound && !isAI && <span className="flex items-center gap-0.5"><User size={10} /> Human</span>}
-                <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>{new Date(msg.created_at || msg.created_at_ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 {isOutbound && (
                    <span className={msg.status === 'READ' ? 'text-blue-500' : ''}>
                      {msg.status === 'SENT' ? <Check size={10} /> : msg.status === 'DELIVERED' || msg.status === 'READ' ? <CheckCheck size={10} /> : msg.status}

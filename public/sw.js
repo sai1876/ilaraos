@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ilara-shell-v1';
+const CACHE_NAME = 'ilara-shell-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -25,7 +25,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName.startsWith('ilara-shell-')) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -41,7 +41,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // Skip non-GET requests and dev hot reload/browser extension requests
-  if (request.method !== 'GET' || url.protocol !== 'http:' && url.protocol !== 'https:') {
+  if (request.method !== 'GET' || (url.protocol !== 'http:' && url.protocol !== 'https:')) {
+    return;
+  }
+
+  // Bypass service worker entirely for operations and api
+  if (url.pathname.startsWith('/operations') || url.pathname.startsWith('/api/')) {
     return;
   }
 
@@ -49,7 +54,16 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => {
-        return caches.match('/');
+        return caches.match('/').then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return new Response('Service Unavailable (Offline)', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
       })
     );
     return;

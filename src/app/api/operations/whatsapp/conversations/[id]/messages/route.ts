@@ -1,21 +1,32 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireSessionActor } from '@/server/auth/requireSessionActor';
+import { requireSessionActor, SessionAuthorizationError } from '@/server/auth/requireSessionActor';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireSessionActor(['owner', 'admin', 'manager']);
+    const actor = await requireSessionActor(['owner', 'admin', 'manager']);
+
+    // 1. Verify outlet authorization by checking the conversation first
+    const convSnap = await adminDb!.collection('whatsapp_conversations').doc(params.id).get();
+    if (!convSnap.exists) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    const convData = convSnap.data()!;
+    if (actor.role === 'manager' && convData.outlet_id !== (actor.outletId || 'main')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const parsedLimit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = Math.min(Math.max(parsedLimit, 1), 100);
     const cursor = searchParams.get('cursor'); // Timestamp or doc ID
 
     let query = adminDb!.collection('whatsapp_messages')
       .where('conversation_id', '==', params.id)
-      .orderBy('created_at', 'desc')
+      .orderBy('created_at_ms', 'desc')
       .limit(limit);
 
     if (cursor) {
@@ -36,6 +47,9 @@ export async function GET(
     return NextResponse.json({ messages });
   } catch (error: any) {
     console.error('Failed to fetch whatsapp messages:', error);
-    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
+    if (error instanceof SessionAuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
