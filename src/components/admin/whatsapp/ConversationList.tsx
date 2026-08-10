@@ -2,11 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Search, Filter, AlertCircle, Bot, User } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface ConversationListProps {
   selectedId: string | null;
@@ -19,51 +16,25 @@ export default function ConversationList({ selectedId, onSelect }: ConversationL
   const [filterMode, setFilterMode] = useState<'ALL' | 'UNREAD' | 'ATTENTION'>('ALL');
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      let q = supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .order('last_message_at', { ascending: false })
-        .limit(50);
+    let q = query(
+      collection(db, 'whatsapp_conversations'),
+      orderBy('last_message_at', 'desc'),
+      limit(50)
+    );
 
-      if (filterMode === 'UNREAD') {
-        q = supabase
-          .from('whatsapp_conversations')
-          .select('*')
-          .gt('unread_count', 0)
-          .order('unread_count', { ascending: false })
-          .order('last_message_at', { ascending: false })
-          .limit(50);
-      } else if (filterMode === 'ATTENTION') {
-        q = supabase
-          .from('whatsapp_conversations')
-          .select('*')
-          .eq('needs_attention', true)
-          .order('last_message_at', { ascending: false })
-          .limit(50);
-      }
+    if (filterMode === 'UNREAD') {
+      q = query(collection(db, 'whatsapp_conversations'), where('unread_count', '>', 0), orderBy('unread_count', 'desc'), orderBy('last_message_at', 'desc'), limit(50));
+    } else if (filterMode === 'ATTENTION') {
+      q = query(collection(db, 'whatsapp_conversations'), where('needs_attention', '==', true), orderBy('last_message_at', 'desc'), limit(50));
+    }
 
-      const { data } = await q;
-      if (data) setConversations(data);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const convs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setConversations(convs);
       setLoading(false);
-    };
+    });
 
-    fetchConversations();
-
-    const channel = supabase
-      .channel('public:whatsapp_conversations')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'whatsapp_conversations' },
-        (payload) => {
-          fetchConversations();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => unsubscribe();
   }, [filterMode]);
 
   return (

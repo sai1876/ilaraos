@@ -9,11 +9,6 @@ import { transcribeAudioWithGemini } from '@/server/whatsapp/chat/voiceTranscrib
 import { persistInboundMessage, processMessageStatuses } from '@/server/whatsapp/inbox/webhookPersistence';
 import { dispatchWhatsAppMessage } from '@/server/whatsapp/inbox/messagingService';
 
-import { createClient } from '@supabase/supabase-js';
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 import { maskPhone } from '@/lib/security/maskPii';
 import * as admin from 'firebase-admin';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
@@ -510,47 +505,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Location processed' });
     }
 
-    // ----------------------------------------------------
-    // CASE 4: Other Media (Image, Document, Video) Payload
-    // ----------------------------------------------------
-    if (['image', 'document', 'video'].includes(message.type || '')) {
-      const mediaNode = (message as any)[message.type!];
-      if (mediaNode && typeof mediaNode.id === 'string' && mediaNode.id) {
-        const mediaId = mediaNode.id;
-        console.log(`[WHATSAPP WEBHOOK] Media ${message.type} received from ${maskPhone(fromPhone)}, media ID: ${mediaId}`);
-        
-        // --- Gate A: Phone Authentication Lookup ---
-        const usersRef = adminDb.collection('users');
-        const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
-  
-        // 1. Persist inbound media message deterministically
-        const { controlMode, controlVersion } = await persistInboundMessage({
-          messageId: messageId || `media_${Date.now()}`,
-          fromPhone: fromPhone,
-          normalizedPhone: normalizedFromPhone,
-          type: message.type === 'image' ? 'IMAGE' : message.type === 'document' ? 'DOCUMENT' : 'VIDEO' as any,
-          media: { media_id: mediaId }
-        });
-  
-        if (userDoc) {
-          // Process media in background
-          const outletId = userDoc.data()?.outlet_id || 'main';
-          const uid = userDoc.id;
-          
-          await supabase.from('media_archival_jobs').insert({
-            media_id: mediaId,
-            outlet_id: outletId,
-            user_id: uid,
-            media_type: message.type!,
-            status: 'pending'
-          });
-          console.log(`[WEBHOOK] Queued ${message.type} for archival: ${mediaId}`);
-        }
-
-        return NextResponse.json({ success: true, message: 'Media processed' });
-      }
-    }
-
     return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
 
   } catch (error: unknown) {
@@ -590,24 +544,6 @@ async function processVoiceOrderInBackground(
         { sender_type: 'AI', expected_control_version: controlVersion }
       );
       return;
-    }
-
-    // 1.5 Queue Audio Archive to Google Drive via Outbox
-    try {
-      const userDoc = await findUserByPhone(adminDb.collection('users'), normalizedFromPhone);
-      const outletId = userDoc?.data()?.outlet_id || 'main';
-      const uid = userDoc?.id || 'system';
-
-      await supabase.from('media_archival_jobs').insert({
-        media_id: mediaId,
-        outlet_id: outletId,
-        user_id: uid,
-        media_type: 'audio',
-        status: 'pending'
-      });
-      console.log(`[WEBHOOK] Queued voice note for archival: ${mediaId}`);
-    } catch (archiveErr) {
-      console.error('[WEBHOOK ERROR] Failed to queue voice note for archival:', archiveErr);
     }
 
     // 2. Transcribe Audio via Gemini
@@ -666,10 +602,6 @@ async function processVoiceOrderInBackground(
     );
   }
 }
-
-/**
- * Note: Media archival is now processed asynchronously by a cron or separate worker polling the `media_archival_jobs` table.
- */
 
 /**
  * Background Asynchronous Pipeline: verifies signup token handshake.

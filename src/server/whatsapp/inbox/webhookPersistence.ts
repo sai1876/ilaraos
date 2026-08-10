@@ -1,11 +1,8 @@
+import { adminDb } from '@/lib/firebaseAdmin';
 import { WhatsAppConversation, WhatsAppMessage } from './inboxTypes';
 import { getPhoneHash } from '../chat/conversationMemory';
 import { maskPhone } from '@/lib/security/maskPii';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function persistInboundMessage(params: {
   messageId: string;
@@ -15,58 +12,92 @@ export async function persistInboundMessage(params: {
   type: WhatsAppMessage['type'];
   text?: string;
   media?: WhatsAppMessage['media'];
-  outletId?: string;
 }): Promise<{ controlMode: 'AI' | 'HUMAN', controlVersion: number }> {
-  const phoneHash = getPhoneHash(params.normalizedPhone);
-  const phoneMasked = maskPhone(params.normalizedPhone);
-  
-  const { data, error } = await supabase.rpc('persist_inbound_whatsapp_message', {
-    p_message_id: params.messageId,
-    p_conversation_id: params.normalizedPhone,
-    p_outlet_id: params.outletId || 'main',
-    p_phone_hash: phoneHash,
-    p_phone_masked: phoneMasked,
-    p_customer_name: params.customerName || null,
-    p_type: params.type,
-    p_text: params.text || null,
-    p_media: params.media || null
+  const convRef = adminDb!.collection('whatsapp_conversations').doc(params.normalizedPhone);
+  const msgRef = adminDb!.collection('whatsapp_messages').doc(params.messageId);
+
+  return await adminDb!.runTransaction(async (transaction) => {
+    const snap = await transaction.get(convRef);
+    let controlMode: 'AI' | 'HUMAN' = 'AI';
+    let controlVersion = 1;
+
+    let unreadCount = 1;
+
+    const msgData: WhatsAppMessage = {
+      message_id: params.messageId,
+      conversation_id: params.normalizedPhone,
+      wamid: params.messageId,
+      direction: 'INBOUND',
+      sender_type: 'CUSTOMER',
+      type: params.type,
+      text: params.text,
+      media: params.media,
+      status: 'RECEIVED',
+      created_at: Date.now()
+    };
+
+    if (snap.exists) {
+      const data = snap.data() as WhatsAppConversation;
+      controlMode = data.control_mode || 'AI';
+      controlVersion = data.control_version || 1;
+      unreadCount = (data.unread_count || 0) + 1;
+    }
+
+    const preview = params.type === 'TEXT' ? params.text : `[${params.type}]`;
+
+    const convUpdate: Partial<WhatsAppConversation> = {
+      conversation_id: params.normalizedPhone,
+      phone_hash: getPhoneHash(params.normalizedPhone),
+      phone_masked: maskPhone(params.normalizedPhone),
+      status: 'OPEN',
+      control_mode: controlMode,
+      control_version: controlVersion,
+      last_message_at: Date.now(),
+      last_user_message_at: Date.now(),
+      last_message_preview: preview,
+      unread_count: unreadCount,
+      updated_at: Date.now(),
+      whatsapp_window_expires_at: Date.now() + 24 * 60 * 60 * 1000 // extend 24h
+    };
+
+    if (params.customerName && !snap.exists) {
+      convUpdate.customer_display_name = params.customerName;
+    }
+
+    transaction.set(msgRef, msgData);
+    transaction.set(convRef, convUpdate, { merge: true });
+
+    return { controlMode, controlVersion };
   });
-
-  if (error) {
-    console.error('[WEBHOOK PERSISTENCE] Failed to persist canonical message:', error);
-    return { controlMode: 'AI', controlVersion: 1 };
-  }
-
-  const result = Array.isArray(data) ? data[0] : data;
-  return {
-    controlMode: (result as any)?.out_control_mode || 'AI',
-    controlVersion: (result as any)?.out_control_version || 1
-  };
 }
 
 export async function processMessageStatuses(statuses: any[]) {
-  if (!statuses || statuses.length === 0) return;
+  if (!statuses || statuses.length === 0 || !adminDb) return;
+  
+  const batch = adminDb.batch();
   
   for (const status of statuses) {
     if (!status.id || !status.status) continue;
+    
+    // Statuses update based on wamid. We could query, but message_id == wamid for outbound.
+    // However, if we generated our own ID for failures, it wouldn't match. But Meta only sends statuses for accepted messages, which have wamid as their ID.
+    const msgRef = adminDb.collection('whatsapp_messages').doc(status.id);
     
     const updateData: any = {
       status: status.status.toUpperCase()
     };
     
-    const nowIso = new Date().toISOString();
-    if (status.status === 'sent') updateData.sent_at = nowIso;
-    if (status.status === 'delivered') updateData.delivered_at = nowIso;
-    if (status.status === 'read') updateData.read_at = nowIso;
-    if (status.status === 'failed') updateData.failed_at = nowIso;
+    if (status.status === 'sent') updateData.sent_at = Date.now();
+    if (status.status === 'delivered') updateData.delivered_at = Date.now();
+    if (status.status === 'read') updateData.read_at = Date.now();
+    if (status.status === 'failed') updateData.failed_at = Date.now();
     
     if (status.errors) {
       updateData.metadata = { errors: status.errors };
     }
     
-    await supabase
-      .from('whatsapp_messages')
-      .update(updateData)
-      .eq('wamid', status.id);
+    batch.set(msgRef, updateData, { merge: true });
   }
+  
+  await batch.commit();
 }

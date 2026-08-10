@@ -1,12 +1,9 @@
+import { adminDb } from '@/lib/firebaseAdmin';
 import { sendWhatsAppMessage, WhatsAppSendResult } from '../client';
 import { WhatsAppConversation, WhatsAppMessage } from './inboxTypes';
 import { maskPhone } from '@/lib/security/maskPii';
 import { getPhoneHash } from '../chat/conversationMemory';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+import { FieldValue } from 'firebase-admin/firestore';
 
 export interface SendMessageOptions {
   sender_type: 'AI' | 'HUMAN' | 'SYSTEM' | 'ENGAGEMENT' | 'OFFER';
@@ -31,23 +28,24 @@ export async function dispatchWhatsAppMessage(
     }
 
     try {
-      const { data: allowed, error } = await supabase.rpc('check_and_increment_control_version', {
-        p_conversation_id: normalizedPhone,
-        p_expected_version: options.expected_control_version
+      const allowed = await adminDb!.runTransaction(async (transaction) => {
+        const snap = await transaction.get(convRef);
+        if (!snap.exists) return true; // If no conversation yet, AI is allowed by default
+        
+        const data = snap.data() as WhatsAppConversation;
+        if (data.control_mode === 'HUMAN') return false;
+        if (data.control_version !== options.expected_control_version) return false;
+        
+        return true;
       });
-      
-      if (error) {
-        console.error('[MESSAGING SERVICE] Transaction failed:', error);
-        return { ok: false, status: 500, error: 'Internal transaction error' };
-      }
 
       if (!allowed) {
         console.log(`[MESSAGING SERVICE] Blocked AI message to ${maskPhone(toPhone)} due to HUMAN takeover or version mismatch.`);
         return { ok: false, status: 409, error: 'Conversation controlled by human or stale generation' };
       }
     } catch (e) {
-      console.error('[MESSAGING SERVICE] RPC call failed:', e);
-      return { ok: false, status: 500, error: 'Internal RPC error' };
+      console.error('[MESSAGING SERVICE] Transaction failed:', e);
+      return { ok: false, status: 500, error: 'Internal transaction error' };
     }
   }
 
@@ -57,43 +55,48 @@ export async function dispatchWhatsAppMessage(
   // 3. Persist the outbound message
   try {
     const messageId = result.ok ? result.messageId : `failed_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const msgRef = adminDb!.collection('whatsapp_messages').doc(messageId);
     
     let type: WhatsAppMessage['type'] = 'TEXT';
     if (options.sender_type === 'ENGAGEMENT') type = 'ENGAGEMENT';
     if (options.sender_type === 'OFFER') type = 'OFFER';
     if (options.sender_type === 'SYSTEM') type = 'SYSTEM_EVENT';
 
-    const nowIso = new Date().toISOString();
-
-    await supabase.from('whatsapp_messages').insert({
-      id: messageId,
+    const msgData: WhatsAppMessage = {
+      message_id: messageId,
       conversation_id: normalizedPhone,
-      wamid: result.ok ? result.messageId : null,
+      wamid: result.ok ? result.messageId : undefined,
       direction: 'OUTBOUND',
       sender_type: options.sender_type === 'ENGAGEMENT' || options.sender_type === 'OFFER' ? 'SYSTEM' : options.sender_type as any,
       sender_user_id: options.sender_user_id,
       type: type,
       text: messageText,
       status: result.ok ? 'SENT' : 'FAILED',
-      created_at: nowIso,
-      sent_at: result.ok ? nowIso : null,
-      failed_at: !result.ok ? nowIso : null
-    });
+      created_at: Date.now(),
+      sent_at: result.ok ? Date.now() : undefined,
+      failed_at: !result.ok ? Date.now() : undefined
+    };
+
+    const batch = adminDb!.batch();
+    batch.set(msgRef, msgData);
 
     // Update conversation
-    const convUpdate: any = {
-      last_message_at: nowIso,
+    const convUpdate: Partial<WhatsAppConversation> = {
+      conversation_id: normalizedPhone,
+      phone_hash: getPhoneHash(normalizedPhone),
+      phone_masked: maskPhone(normalizedPhone),
+      last_message_at: Date.now(),
       last_message_preview: type === 'TEXT' ? messageText : `[${type}]`,
-      updated_at: nowIso
+      updated_at: Date.now()
     };
     
     if (options.sender_type === 'AI') {
-      convUpdate.last_bot_message_at = nowIso;
+      convUpdate.last_bot_message_at = Date.now();
     }
+    // Only AI and HUMAN default conversation creation/update (System/Engagement don't necessarily init)
     
-    // We only update, assuming inbound message or explicit human takeover already created the row.
-    // However, we should probably do a raw upsert if it doesn't exist, but since OUTBOUND implies we received a message or manually created one, it should exist.
-    await supabase.from('whatsapp_conversations').update(convUpdate).eq('id', normalizedPhone);
+    batch.set(convRef, convUpdate, { merge: true });
+    await batch.commit();
 
   } catch (err) {
     console.error(`[MESSAGING SERVICE] Failed to persist outbound message:`, err);

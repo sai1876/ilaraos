@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Send, Bot, User, Clock, Check, CheckCheck } from 'lucide-react';
 
 export default function MessageTimeline({ conversationId, actor }: { conversationId: string, actor: any }) {
@@ -15,50 +13,31 @@ export default function MessageTimeline({ conversationId, actor }: { conversatio
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchConv = async () => {
-      const { data } = await supabase.from('whatsapp_conversations').select('*').eq('id', conversationId).single();
-      if (data) setConv(data);
-    };
+    // 1. Listen to Conversation doc
+    const unsubConv = onSnapshot(collection(db, 'whatsapp_conversations'), (snap) => {
+      const doc = snap.docs.find(d => d.id === conversationId);
+      if (doc) setConv(doc.data());
+    });
 
-    const fetchMessages = async () => {
-      const { data } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (data) {
-        setMessages(data.reverse());
-        setTimeout(() => {
-          if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }, 100);
-      }
-    };
-
-    fetchConv();
-    fetchMessages();
-
-    const convChannel = supabase
-      .channel(`conv_${conversationId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_conversations', filter: `id=eq.${conversationId}` }, (payload) => {
-        setConv(payload.new);
-      })
-      .subscribe();
-
-    const msgChannel = supabase
-      .channel(`msg_${conversationId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
-        fetchMessages();
-      })
-      .subscribe();
+    // 2. Listen to Messages (bounded to 100)
+    const q = query(
+      collection(db, 'whatsapp_messages'),
+      where('conversation_id', '==', conversationId),
+      orderBy('created_at', 'desc'),
+      limit(100)
+    );
+    const unsubMsg = onSnapshot(q, (snap) => {
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMessages(msgs.reverse()); // chronological for rendering
+      setTimeout(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }, 100);
+    });
 
     // 3. Mark read
     fetch(`/api/operations/whatsapp/conversations/${conversationId}/read`, { method: 'POST' });
 
-    return () => {
-      supabase.removeChannel(convChannel);
-      supabase.removeChannel(msgChannel);
-    };
+    return () => { unsubConv(); unsubMsg(); };
   }, [conversationId]);
 
   const handleSend = async (e: React.FormEvent) => {
