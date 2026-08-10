@@ -8,7 +8,7 @@ import {
 import { transcribeAudioWithGemini } from '@/server/whatsapp/chat/voiceTranscriber';
 import { persistInboundMessage, processMessageStatuses } from '@/server/whatsapp/inbox/webhookPersistence';
 import { dispatchWhatsAppMessage } from '@/server/whatsapp/inbox/messagingService';
-import { claimInboundWebhookMessage, completeInboundWebhookMessage, failInboundWebhookMessage } from '@/server/whatsapp/inbox/webhookIdempotency';
+import { claimInboundWebhookMessage, completeInboundWebhookMessage, failInboundWebhookMessage, ProcessingKind } from '@/server/whatsapp/inbox/webhookIdempotency';
 
 import { maskPhone } from '@/lib/security/maskPii';
 import * as admin from 'firebase-admin';
@@ -229,11 +229,12 @@ export async function POST(request: Request) {
       }
 
       processingToken = claim.processingToken;
+      console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_CLAIMED message_id=${messageId} attempt_count=${claim.attemptCount}`);
     }
 
-    let response: Response;
+    let result: { response: Response; processingKind?: ProcessingKind; expectedConversationId?: string };
     try {
-      response = await (async () => {
+      result = await (async () => {
         // ----------------------------------------------------
     // CASE 1: Voice Note Order Payload (.ogg audio)
     // ----------------------------------------------------
@@ -245,6 +246,7 @@ export async function POST(request: Request) {
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
+      console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSIST_START message_id=${messageId}`);
       // 1. Persist inbound message deterministically
       const { controlMode, controlVersion } = await persistInboundMessage({
         messageId: messageId,
@@ -253,6 +255,7 @@ export async function POST(request: Request) {
         type: 'AUDIO',
         media: { media_id: mediaId }
       });
+      console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSISTED message_id=${messageId} messagePersisted=true conversationUpserted=true`);
 
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
@@ -264,7 +267,7 @@ export async function POST(request: Request) {
             { sender_type: 'AI', expected_control_version: controlVersion }
           );
         }
-        return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
+        return { response: NextResponse.json({ success: true, message: 'Unregistered user aborted' }), processingKind: 'VOICE', expectedConversationId: normalizedFromPhone };
       }
 
       const userData = userDoc.data();
@@ -276,7 +279,7 @@ export async function POST(request: Request) {
           fromPhone,
           "Macha! You don't have an account registered with Ilara yet. Please open our web app and verify your profile first! 🌟"
         );
-        return NextResponse.json({ success: true, message: 'Inactive user aborted' });
+        return { response: NextResponse.json({ success: true, message: 'Inactive user aborted' }), processingKind: 'VOICE', expectedConversationId: normalizedFromPhone };
       }
 
       // Process voice order if AI is in control
@@ -302,7 +305,7 @@ export async function POST(request: Request) {
         }
       });
 
-      return NextResponse.json({ success: true, message: 'Voice order processed' });
+      return { response: NextResponse.json({ success: true, message: 'Voice order processed' }), processingKind: 'VOICE', expectedConversationId: normalizedFromPhone };
     }
 
     // ----------------------------------------------------
@@ -319,13 +322,14 @@ export async function POST(request: Request) {
         await processTextHandshakeInBackground(phoneNumberId, fromPhone, normalizedFromPhone, token)
           .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Handshake processing failed:', err));
 
-        return NextResponse.json({ success: true, message: 'Handshake completed' });
+        return { response: NextResponse.json({ success: true, message: 'Handshake completed' }), processingKind: 'LOGIN_HANDSHAKE', expectedConversationId: normalizedFromPhone };
       } else {
         // --- Gate A: Phone Authentication Lookup for general chat ---
         const usersRef = adminDb.collection('users');
         const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
         // 1. Persist inbound message deterministically
+        console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSIST_START message_id=${messageId}`);
         const { controlMode, controlVersion } = await persistInboundMessage({
           messageId: messageId || `gen_${Date.now()}`,
           fromPhone: fromPhone,
@@ -333,6 +337,7 @@ export async function POST(request: Request) {
           type: 'TEXT',
           text: messageText
         });
+        console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSISTED message_id=${messageId} messagePersisted=true conversationUpserted=true`);
 
         if (!userDoc) {
           console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
@@ -344,7 +349,7 @@ export async function POST(request: Request) {
               { sender_type: 'AI', expected_control_version: controlVersion }
             );
           }
-          return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
+          return { response: NextResponse.json({ success: true, message: 'Unregistered user aborted' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
         }
 
         const userData = userDoc.data();
@@ -359,7 +364,7 @@ export async function POST(request: Request) {
               { sender_type: 'AI', expected_control_version: controlVersion }
             );
           }
-          return NextResponse.json({ success: true, message: 'Inactive user aborted' });
+          return { response: NextResponse.json({ success: true, message: 'Inactive user aborted' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
         }
 
         // Check for explicit language and opt-out commands deterministically
@@ -389,7 +394,7 @@ export async function POST(request: Request) {
           if (controlMode === 'AI') {
             await dispatchWhatsAppMessage(phoneNumberId, fromPhone, "Noted. I won't send you any proactive reminders or promotions anymore.", { sender_type: 'AI', expected_control_version: controlVersion });
           }
-          return NextResponse.json({ success: true, message: 'Opted out of engagement' });
+          return { response: NextResponse.json({ success: true, message: 'Opted out of engagement' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
         }
 
         if (newLang) {
@@ -401,13 +406,13 @@ export async function POST(request: Request) {
           if (controlMode === 'AI') {
             await dispatchWhatsAppMessage(phoneNumberId, fromPhone, confirmMsg, { sender_type: 'AI', expected_control_version: controlVersion });
           }
-          return NextResponse.json({ success: true, message: 'Language updated' });
+          return { response: NextResponse.json({ success: true, message: 'Language updated' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
         }
 
         // Only let AI reply if control mode is AI
         if (controlMode !== 'AI') {
           console.log(`[WHATSAPP WEBHOOK] Text message persisted but skipped AI processing (mode: HUMAN).`);
-          return NextResponse.json({ success: true, message: 'Skipped AI due to HUMAN control' });
+          return { response: NextResponse.json({ success: true, message: 'Skipped AI due to HUMAN control' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
         }
 
         // Process chat message
@@ -436,7 +441,7 @@ export async function POST(request: Request) {
           source: 'webhook'
         });
 
-        return NextResponse.json({ success: true, message: 'Chat message processed' });
+        return { response: NextResponse.json({ success: true, message: 'Chat message processed' }), processingKind: 'CHAT_TEXT', expectedConversationId: normalizedFromPhone };
       }
     }
 
@@ -448,7 +453,7 @@ export async function POST(request: Request) {
       const lat = loc.latitude;
       const lng = loc.longitude;
       if (typeof lat !== 'number' || !Number.isFinite(lat) || typeof lng !== 'number' || !Number.isFinite(lng)) {
-        return NextResponse.json({ error: 'Invalid location payload' }, { status: 400 });
+        return { response: NextResponse.json({ error: 'Invalid location payload' }, { status: 400 }), processingKind: 'LOCATION', expectedConversationId: normalizedFromPhone };
       }
       console.log(`[WHATSAPP WEBHOOK] Location received from ${maskPhone(fromPhone)}`);
 
@@ -456,6 +461,7 @@ export async function POST(request: Request) {
       const usersRef = adminDb.collection('users');
       const userDoc = await findUserByPhone(usersRef, normalizedFromPhone);
 
+      console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSIST_START message_id=${messageId}`);
       // 1. Persist inbound location message deterministically
       const { controlMode, controlVersion } = await persistInboundMessage({
         messageId: messageId || `loc_${Date.now()}`,
@@ -464,6 +470,7 @@ export async function POST(request: Request) {
         type: 'LOCATION',
         media: { url: `geo:${lat},${lng}` }
       });
+      console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSISTED message_id=${messageId} messagePersisted=true conversationUpserted=true`);
 
       if (!userDoc) {
         console.warn(`[WHATSAPP WEBHOOK REJECT] Phone ${maskPhone(fromPhone)} not registered.`);
@@ -475,7 +482,7 @@ export async function POST(request: Request) {
             { sender_type: 'AI', expected_control_version: controlVersion }
           );
         }
-        return NextResponse.json({ success: true, message: 'Unregistered user aborted' });
+        return { response: NextResponse.json({ success: true, message: 'Unregistered user aborted' }), processingKind: 'LOCATION', expectedConversationId: normalizedFromPhone };
       }
 
       // Update user's live_location in Firestore
@@ -506,27 +513,33 @@ export async function POST(request: Request) {
         source: 'webhook'
       });
 
-      return NextResponse.json({ success: true, message: 'Location processed' });
+      return { response: NextResponse.json({ success: true, message: 'Location processed' }), processingKind: 'LOCATION', expectedConversationId: normalizedFromPhone };
     }
 
-      return NextResponse.json({ success: true, message: 'Unhandled webhook event' });
+      return { response: NextResponse.json({ success: true, message: 'Unhandled webhook event' }), processingKind: 'UNSUPPORTED' };
       })();
     } catch (error: any) {
       if (messageId && processingToken) {
+        console.error(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_FAILED message_id=${messageId} error=${error.code}`);
         await failInboundWebhookMessage(messageId, processingToken, error.code || 'INTERNAL_PROCESSING_FAILED');
       }
       throw error;
     }
 
     if (messageId && processingToken) {
-      if (response.status === 200) {
-        await completeInboundWebhookMessage(messageId, processingToken);
+      if (result.response.status === 200) {
+        if (result.processingKind === 'CHAT_TEXT' || result.processingKind === 'VOICE' || result.processingKind === 'LOCATION') {
+           console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_PERSIST_VERIFIED message_id=${messageId}`);
+        }
+        await completeInboundWebhookMessage(messageId, processingToken, result.processingKind, result.expectedConversationId);
+        console.log(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_COMPLETED message_id=${messageId}`);
       } else {
-        await failInboundWebhookMessage(messageId, processingToken, `HTTP_${response.status}`);
+        console.error(`[WHATSAPP WEBHOOK] WHATSAPP_INBOUND_FAILED message_id=${messageId} http_status=${result.response.status}`);
+        await failInboundWebhookMessage(messageId, processingToken, `HTTP_${result.response.status}`);
       }
     }
 
-    return response;
+    return result.response;
 
   } catch (error: unknown) {
     console.error('[WHATSAPP WEBHOOK ERROR] Webhook POST router failed:', error);

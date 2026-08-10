@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 
 export type ClaimDisposition = 'CLAIMED' | 'COMPLETED_DUPLICATE' | 'ACTIVE_PROCESSING';
 
+export type ProcessingKind = 'CHAT_TEXT' | 'VOICE' | 'LOCATION' | 'LOGIN_HANDSHAKE' | 'UNSUPPORTED';
+
 export interface WebhookClaim {
   disposition: ClaimDisposition;
   processingToken?: string;
@@ -87,7 +89,9 @@ export async function claimInboundWebhookMessage(params: {
 
 export async function completeInboundWebhookMessage(
   messageId: string,
-  processingToken: string
+  processingToken: string,
+  processingKind?: ProcessingKind,
+  expectedConversationId?: string
 ): Promise<void> {
   const dupRef = adminDb!.collection('processed_whatsapp_messages').doc(messageId);
 
@@ -106,6 +110,27 @@ export async function completeInboundWebhookMessage(
     if (data.processing_token !== processingToken) {
       // Ownership lost, do not finalize
       return;
+    }
+
+    // Invariant check for inbox persistence
+    const requiresInboxPersistence = processingKind === 'CHAT_TEXT' || processingKind === 'VOICE' || processingKind === 'LOCATION';
+    if (requiresInboxPersistence && expectedConversationId) {
+      const msgRef = adminDb!.collection('whatsapp_messages').doc(messageId);
+      const convRef = adminDb!.collection('whatsapp_conversations').doc(expectedConversationId);
+      
+      const msgSnap = await transaction.get(msgRef);
+      const convSnap = await transaction.get(convRef);
+      
+      if (!msgSnap.exists || !convSnap.exists) {
+        // Invariant failed!
+        transaction.update(dupRef, {
+          status: 'FAILED',
+          failed_at: admin.firestore.FieldValue.serverTimestamp(),
+          last_error_code: 'INBOUND_PERSISTENCE_INVARIANT_FAILED',
+          lease_expires_at: admin.firestore.FieldValue.delete()
+        });
+        return;
+      }
     }
 
     const updates: any = {
