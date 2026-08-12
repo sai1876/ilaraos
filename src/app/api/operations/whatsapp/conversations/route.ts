@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { requireSessionActor, SessionAuthorizationError } from '@/server/auth/requireSessionActor';
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('Failed to fetch whatsapp conversations:', error);
     if (error instanceof SessionAuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

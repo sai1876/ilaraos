@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { markImportantAndRequestArchive } from '@/server/evidence/archiveService';
@@ -58,6 +59,6 @@ export async function POST(request: Request, context: { params: { id: string } }
 
   } catch (error: any) {
     console.error('Mark Important Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

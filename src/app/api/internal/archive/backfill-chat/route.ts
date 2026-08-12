@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { WhatsAppConversation, WhatsAppMessage } from '@/server/whatsapp/inbox/inboxTypes';
@@ -130,6 +131,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
   } catch (error: any) {
     console.error('Backfill error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

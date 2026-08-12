@@ -44,7 +44,7 @@ export default function PurchasesPanel({ outletId }: { outletId?: string }) {
     }
     setIsSubmitting(true);
     try {
-      const data = await operationsApiRequest<any>('/api/purchases', {
+      await operationsApiRequest<any>('/api/purchases', {
         method: 'POST',
         body: JSON.stringify({
           purchase_id: purchaseId,

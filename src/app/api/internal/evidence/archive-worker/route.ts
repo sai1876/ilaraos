@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { getEligibleEvidenceForArchive, getRecoveryEvidenceForArchive, processArchiveItem } from '@/server/evidence/archiveService';
 import { v4 as uuidv4 } from 'uuid';

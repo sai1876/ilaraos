@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { requireSessionActor, SessionAuthorizationError } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
@@ -36,7 +37,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Failed to get conversation:', error);
     if (error instanceof SessionAuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -95,7 +96,7 @@ export async function PATCH(
   } catch (error: any) {
     console.error('Failed to update conversation:', error);
     if (error instanceof SessionAuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

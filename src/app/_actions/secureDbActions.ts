@@ -28,7 +28,7 @@ import {
   type ActorContext,
 } from '@/server/auth/resolveActor';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { requireSessionActor } from '@/server/auth/requireSessionActor';
+import { requireSessionActor, requirePermission, requireOutletAccess } from '@/server/auth/requireSessionActor';
 import { readTotpSecret } from '@/server/auth/totpSecret';
 import {
   persistStaffRecords,
@@ -71,12 +71,17 @@ async function assertCanManageExistingStaff(actor: ActorContext, staffId: string
 }
 
 import { cookies } from 'next/headers';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
-async function verifyTOTP(actorUid: string, totpCode: string | undefined, purpose: 'inventory_sensitive_action' | 'admin_action' = 'admin_action') {
+async function verifyTOTP(actorUid: string, totpCode: string | undefined, purpose: 'inventory_sensitive_action' | 'admin_action' = 'admin_action', validatedOutletId?: string) {
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
   const cookieStore = cookies();
+  const sessionCookie = cookieStore.get('__session')?.value || cookieStore.get('session')?.value;
+  if (!sessionCookie) throw new Error("No active session");
+  
+  const currentSessionBinding = createHash('sha256').update(sessionCookie).digest('hex');
+
   const elevationCookieName = `__elevation_${purpose}`;
   const elevationSessionId = cookieStore.get(elevationCookieName)?.value;
 
@@ -87,8 +92,10 @@ async function verifyTOTP(actorUid: string, totpCode: string | undefined, purpos
       const data = elevationDoc.data()!;
       if (
         data.userId === actorUid &&
+        data.sessionBinding === currentSessionBinding &&
         data.purpose === purpose &&
-        data.expiresAt > Date.now()
+        data.expiresAt > Date.now() &&
+        (!validatedOutletId || data.outletId === validatedOutletId)
       ) {
         return; // Valid server-side session elevation
       }
@@ -124,21 +131,18 @@ async function verifyTOTP(actorUid: string, totpCode: string | undefined, purpos
     throw new Error("Invalid authenticator code.");
   }
 
-  // Fetch full actor to bind tenant metadata to elevation
-  const actor = await getSessionActor();
-
   // Create elevated authorization state
   const newSessionId = randomUUID().replace(/-/g, '');
   const now = Date.now();
   
   await adminDb.collection('actor_elevations').doc(newSessionId).set({
-    sessionId: newSessionId,
+    elevationId: newSessionId,
     userId: actorUid,
-    tenantId: actor.tenantId,
+    sessionBinding: currentSessionBinding,
     purpose,
     verifiedAt: now,
     expiresAt: now + 20 * 60 * 1000,
-    outletId: actor.outletId || 'main'
+    ...(validatedOutletId ? { outletId: validatedOutletId } : {})
   });
 
   // Set HTTP-only cookie
@@ -288,21 +292,48 @@ export async function secureUpdateStaffSchedule(
 
 // --- INVENTORY ACTIONS ---
 export async function secureSaveStockItem(stockItem: StockItem, totpCode: string) {
-  const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
+  const actor = await getSessionActor();
+  requirePermission(actor, 'inventory.adjust');
+
+  if (stockItem.stock_id && adminDb) {
+     const existingSnap = await adminDb.collection('inventory').doc(stockItem.stock_id).get();
+     if (existingSnap.exists) {
+        const existingData = existingSnap.data() as StockItem;
+        if (existingData.outlet_id) {
+           requireOutletAccess(actor, existingData.outlet_id);
+        }
+     }
+  }
+  
+  if (stockItem.outlet_id) {
+    requireOutletAccess(actor, stockItem.outlet_id);
+  }
+
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action', stockItem.outlet_id);
 
   await adminDb!.collection('inventory').doc(stockItem.stock_id).set(canonicalStockRecord(stockItem));
   return { success: true };
 }
 
 export async function secureSaveBulkStockItems(stockItems: StockItem[], totpCode: string) {
-  const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
+  const actor = await getSessionActor();
+  requirePermission(actor, 'inventory.adjust');
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
   const batch = adminDb.batch();
   for (const item of stockItems) {
+    if (item.stock_id) {
+       const existingSnap = await adminDb.collection('inventory').doc(item.stock_id).get();
+       if (existingSnap.exists) {
+          const existingData = existingSnap.data() as StockItem;
+          if (existingData.outlet_id) requireOutletAccess(actor, existingData.outlet_id);
+       }
+    }
+    if (item.outlet_id) {
+      requireOutletAccess(actor, item.outlet_id);
+    }
     const docRef = adminDb.collection('inventory').doc(item.stock_id);
     batch.set(docRef, canonicalStockRecord(item));
   }
@@ -311,10 +342,21 @@ export async function secureSaveBulkStockItems(stockItems: StockItem[], totpCode
 }
 
 export async function secureDeleteStockItem(stockId: string, totpCode: string) {
-  const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
+  const actor = await getSessionActor();
+  requirePermission(actor, 'inventory.delete');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
+  
+  const existingSnap = await adminDb.collection('inventory').doc(stockId).get();
+  if (existingSnap.exists) {
+    const existingData = existingSnap.data() as StockItem;
+    if (existingData.outlet_id) {
+       requireOutletAccess(actor, existingData.outlet_id);
+    }
+  }
+
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
+
   await adminDb.collection('inventory').doc(stockId).delete();
   return { success: true };
 }
@@ -370,10 +412,20 @@ function requireActorOutlet(actor: ActorContext, requestedOutletId: string): str
 }
 
 export async function secureSaveConversionRecipe(recipe: ConversionRecipe, totpCode: string) {
-  const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
-
+  const actor = await getSessionActor();
+  requirePermission(actor, 'inventory.manage');
+  
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
+
+  const existingSnap = await adminDb.collection('inventory').doc(recipe.stock_id).get();
+  if (existingSnap.exists) {
+    const existingData = existingSnap.data() as StockItem;
+    if (existingData.outlet_id) {
+       requireOutletAccess(actor, existingData.outlet_id);
+    }
+  }
+
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
 
   await adminDb.collection('conversion_recipes').doc(recipe.stock_id).set(recipe);
   return { success: true };

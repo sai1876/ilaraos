@@ -7,7 +7,8 @@ import { getInventoryForecastAction } from '@/app/_actions/groqActions';
 import { secureSaveStockItem, secureSaveBulkStockItems, secureDeleteStockItem, secureSaveConversionRecipe, secureStartDoughBatch, secureCompleteDoughBatch } from '@/app/_actions/secureDbActions';
 import TOTPModal from './TOTPModal';
 import { fetchLocalizedWeather, analyzeSmartRefill } from '@/lib/geminiService';
-import { onSnapshot } from 'firebase/firestore';
+import { onSnapshot, query, collection, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { operationsApiRequest } from '@/lib/apiClient';
 
 
@@ -150,11 +151,11 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
       );
     }
     
-    const unsubscribe = onSnapshot(q, (snap) => {
+    const unsubscribe = onSnapshot(q, (snap: any) => {
       const orders: any[] = [];
-      snap.forEach(d => orders.push(d.data()));
+      snap.forEach((d: any) => orders.push(d.data()));
       setRecentOrders(orders);
-    }, (err) => {
+    }, (err: any) => {
       console.error("Failed to stream recent orders for live batch sales count:", err);
     });
     
@@ -224,16 +225,11 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
   };
 
   const handlePendingSecureAction = async (action: PendingAction) => {
-    const lastVerified = localStorage.getItem('inventory_otp_verified_at');
-    if (lastVerified && Date.now() - parseInt(lastVerified, 10) < 20 * 60 * 1000) {
-      try {
-        await executeSecureAction('SESSION_BYPASS', action);
-        return;
-      } catch (err) {
-        localStorage.removeItem('inventory_otp_verified_at');
-      }
+    try {
+      await executeSecureAction('SESSION_BYPASS', action);
+    } catch (err: any) {
+      setPendingAction(action);
     }
-    setPendingAction(action);
   };
 
   const handleLogWastage = async (e: React.FormEvent) => {
@@ -297,7 +293,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
         })
       });
 
-      }
+
 
       const eventId = createData.event_id;
 
@@ -539,10 +535,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
           triggerEmailAlert(updatedItem, updatedItem.current_quantity);
         }
       }
-      // Save OTP session locally on success (if not a bypass)
-      if (totpCode !== 'SESSION_BYPASS') {
-        localStorage.setItem('inventory_otp_verified_at', Date.now().toString());
-      }
+
     } catch (err: any) {
       console.error("Secure action failed:", err);
       throw err; // Let TOTPModal catch and display it
@@ -741,7 +734,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
                   </div>
                 </div>
                 
-                {!currentUser && (
+                {error && error.toLowerCase().includes('offline') && (
                   <div className="border-t border-[#302117]/30 pt-3 flex flex-col gap-2 font-mono text-[10px] uppercase tracking-wider text-[#f8bc51] bg-[#070402]/30 p-3.5 rounded-xl border border-dashed border-[#302117]">
                     <span className="font-bold">🔒 Secure Session Status: Unauthenticated</span>
                     <p className="text-[9px] text-[#d4c4b0]/60 normal-case leading-relaxed font-sans mt-0.5">

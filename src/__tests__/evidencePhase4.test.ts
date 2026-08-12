@@ -1,8 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.mock('server-only', () => ({}));
+process.env.SUPABASE_URL = 'http://mock.supabase';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'mock-key';
+vi.mock('@/server/supabase/storageAdmin', () => ({
+  createUploadIntent: vi.fn(),
+  createPrivateSignedUrl: vi.fn(),
+  verifyObject: vi.fn(),
+}));
 import { GET as getList } from '@/app/api/evidence/route';
 import { GET as getAccess } from '@/app/api/evidence/[id]/access/route';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { NextRequest } from 'next/server';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 vi.mock('@/server/auth/requireSessionActor', () => ({
   requireSessionActor: vi.fn(),
@@ -13,6 +22,7 @@ vi.mock('@/lib/firebaseAdmin', () => ({
     collection: vi.fn().mockReturnThis(),
     doc: vi.fn().mockReturnThis(),
     get: vi.fn(),
+    set: vi.fn().mockResolvedValue({}),
     where: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -36,8 +46,7 @@ describe('Evidence Phase 4 - UI and Access APIs', () => {
     vi.mocked(requireSessionActor).mockResolvedValue({ uid: 'usr1', role: 'owner' } as any);
     const req = new NextRequest('http://localhost:3000/api/evidence/EV-20260810-001/access?purpose=VIEW');
     
-    const { adminDb } = require('@/lib/firebaseAdmin');
-    adminDb.get.mockResolvedValueOnce({
+    (adminDb.get as any).mockResolvedValueOnce({
       exists: true,
       data: () => ({
         outlet_id: 'sys',

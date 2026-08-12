@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';

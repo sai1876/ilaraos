@@ -146,6 +146,39 @@ describe('Static Security Checks', () => {
     }
   });
 
+  test('no legacy auth primitives in /operations code', () => {
+    const checkDir = (dirPath: string) => {
+      const files = getFiles(dirPath);
+      for (const file of files) {
+        if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+          const content = fs.readFileSync(file, 'utf8');
+          // Skip the test file itself
+          if (file.includes('security.test.ts')) continue;
+          
+          if (content.includes('inventory_otp_verified_at')) {
+            throw new Error(`Legacy OTP auth found in ${file}`);
+          }
+          if (content.includes('auth.currentUser?.getIdToken')) {
+            throw new Error(`Legacy auth token found in ${file}`);
+          }
+          if (content.includes('Authorization: Bearer') || content.includes('Authorization: `Bearer')) {
+            throw new Error(`Legacy Bearer token found in ${file}`);
+          }
+          if (content.includes('onAuthStateChanged')) {
+            throw new Error(`Legacy onAuthStateChanged found in ${file}`);
+          }
+        }
+      }
+    };
+    
+    // Check dashboard app dir and components
+    const operationsDir = path.join(process.cwd(), 'src', 'app', 'operations');
+    if (fs.existsSync(operationsDir)) checkDir(operationsDir);
+    
+    const adminComponentsDir = path.join(process.cwd(), 'src', 'components', 'admin');
+    if (fs.existsSync(adminComponentsDir)) checkDir(adminComponentsDir);
+  });
+
   describe('Business Event Logging', () => {
     test('logBusinessEvent file exists and sanitizes PII', () => {
       const helperPath = path.join(process.cwd(), 'src', 'server', 'events', 'logBusinessEvent.ts');

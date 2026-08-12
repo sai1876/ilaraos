@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { adminDb } from '@/lib/firebaseAdmin';
 import { EVIDENCE_COL } from '@/server/evidence/evidenceService';
 import { NextResponse } from 'next/server';

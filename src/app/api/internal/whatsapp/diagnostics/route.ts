@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import * as admin from 'firebase-admin';
@@ -96,7 +97,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('[WHATSAPP DIAGNOSTICS] Failed:', error);
     if (error instanceof SessionAuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status });
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

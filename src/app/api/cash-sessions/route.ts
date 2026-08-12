@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSessionActorApi } from "@/server/auth/requireSessionActor";
+import { requireSessionActorApi, requirePermission, requireOutletAccess } from "@/server/auth/requireSessionActor";
 import { ServerTiming } from "@/lib/performance/serverTiming";
 
 export const dynamic = "force-dynamic";
@@ -13,17 +13,19 @@ export async function GET(req: Request) {
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
     const t0 = Date.now();
-    let query = adminDb.collection("cash_register_sessions").where("tenantId", "==", actor.tenantId);
+    requirePermission(actor, 'cash_sessions.read');
+    
+    let query: any = adminDb.collection("cash_register_sessions");
     if (actor.role !== 'admin' && actor.role !== 'owner') {
       if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
         return timing.applyToResponse(NextResponse.json({ success: true, sessions: [] }));
       }
-      query = query.where("outlet", "in", actor.allowedOutletIds);
+      query = query.where("outlet_id", "in", actor.allowedOutletIds);
     }
     const snap = await query.orderBy("opened_at", "desc").limit(50).get();
     timing.mark('db_read', Date.now() - t0);
 
-    const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const sessions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     const res = NextResponse.json({ success: true, sessions });
     return timing.applyToResponse(res);
   } catch (error) {
@@ -45,16 +47,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "outlet and opening_cash are required" }, { status: 400 });
     }
 
+    requirePermission(actor, 'cash_sessions.create');
+    
+    let canonicalOutletId = outlet;
+    // Attempt to resolve if it's not an ID (e.g. if length is small or doesn't match ID pattern)
+    // Actually, we must resolve canonical outlet ID.
+    const outletsSnap = await adminDb.collection('outlets').get();
+    const outletDoc = outletsSnap.docs.find(d => d.id === outlet || d.data().name === outlet);
+    if (!outletDoc) {
+      return NextResponse.json({ success: false, error: "Outlet not found" }, { status: 400 });
+    }
+    canonicalOutletId = outletDoc.id;
+
+    // Enforce outlet access
+    try {
+      requireOutletAccess(actor, canonicalOutletId);
+    } catch (e: any) {
+      return NextResponse.json({ success: false, error: "Forbidden: Outlet access denied" }, { status: 403 });
+    }
+
     const now = new Date().toISOString();
     const sessionData = {
-      outlet,
+      outlet_id: canonicalOutletId, // Store canonical ID
       shift: shift || "morning",
       opening_cash: Number(opening_cash),
       closing_cash: null,
       staff_id: staff_id || actor.uid,
       opened_at: now,
       created_at: Date.now(),
-      tenantId: actor.tenantId,
     };
 
     const t0 = Date.now();

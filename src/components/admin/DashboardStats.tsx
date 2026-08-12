@@ -169,7 +169,7 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     }
     setIsLoggingExpense(true);
     try {
-      const data = await operationsApiRequest<any>('/api/expenses', {
+      await operationsApiRequest<any>('/api/expenses', {
         method: 'POST',
         body: JSON.stringify({
           expense_id: expenseId,

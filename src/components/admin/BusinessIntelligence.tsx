@@ -8,7 +8,7 @@ import {
 import AgentInsightCard, { AgentInsightData } from './business-intelligence/AgentInsightCard';
 import AgentInsightDrawer from './business-intelligence/AgentInsightDrawer';
 
-import { apiRequest, operationsApiRequest } from '@/lib/apiClient';
+import { operationsApiRequest } from '@/lib/apiClient';
 
 const BI_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -55,44 +55,44 @@ export default function BusinessIntelligence() {
 
     try {
       if (tab === 'overview') {
-        const data = await apiRequest<{ snapshot: any; insights: AgentInsightData[] }>('/api/business-intelligence/overview', {
+        const data = await operationsApiRequest<{ snapshot: any; insights: AgentInsightData[] }>('/api/business-intelligence/overview', {
           cacheKey: 'bi:overview',
           staleTimeMs: 60 * 1000,
         });
         setOverviewData(data.snapshot);
         setInsights(data.insights || []);
       } else if (tab === 'gst') {
-        const data = await apiRequest<any>('/api/business-intelligence/gst', {
+        const data = await operationsApiRequest<any>('/api/business-intelligence/gst', {
           cacheKey: 'bi:gst',
           staleTimeMs: 5 * 60 * 1000,
         });
         setGstData(data);
       } else if (tab === 'revenue') {
-        const data = await apiRequest<{ revenue: any }>('/api/business-intelligence/revenue', {
+        const data = await operationsApiRequest<{ revenue: any }>('/api/business-intelligence/revenue', {
           cacheKey: 'bi:revenue',
           staleTimeMs: 2 * 60 * 1000,
         });
         setRevenueData(data.revenue);
       } else if (tab === 'resource') {
-        const data = await apiRequest<{ resource: any }>('/api/business-intelligence/resource', {
+        const data = await operationsApiRequest<{ resource: any }>('/api/business-intelligence/resource', {
           cacheKey: 'bi:resource',
           staleTimeMs: 2 * 60 * 1000,
         });
         setResourceData(data.resource);
       } else if (tab === 'finance') {
-        const data = await apiRequest<{ finance: any }>('/api/business-intelligence/finance', {
+        const data = await operationsApiRequest<{ finance: any }>('/api/business-intelligence/finance', {
           cacheKey: 'bi:finance',
           staleTimeMs: 2 * 60 * 1000,
         });
         setFinanceData(data.finance);
       } else if (tab === 'compliance') {
-        const data = await apiRequest<{ compliance: any }>('/api/business-intelligence/compliance', {
+        const data = await operationsApiRequest<{ compliance: any }>('/api/business-intelligence/compliance', {
           cacheKey: 'bi:compliance',
           staleTimeMs: 5 * 60 * 1000,
         });
         setComplianceData(data.compliance);
       } else if (tab === 'ca_workspace') {
-        const data = await apiRequest<{ ca_workspace: any }>('/api/business-intelligence/ca-workspace', {
+        const data = await operationsApiRequest<{ ca_workspace: any }>('/api/business-intelligence/ca-workspace', {
           cacheKey: 'bi:ca_workspace',
           staleTimeMs: 5 * 60 * 1000,
         });

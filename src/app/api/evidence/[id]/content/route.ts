@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { EvidenceRecord } from '@/server/evidence/types';

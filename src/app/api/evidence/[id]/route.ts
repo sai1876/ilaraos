@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
@@ -42,6 +43,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   } catch (error: any) {
     console.error('Evidence detail error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

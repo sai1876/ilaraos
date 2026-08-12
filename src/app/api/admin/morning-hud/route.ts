@@ -1,9 +1,13 @@
 // [INTERNAL] - Morning HUD task checklist projection for operational dashboard.
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 
 export async function GET() {
   try {
+    const actor = await requireSessionActorApi(['staff', 'manager', 'admin', 'owner']);
+    if (actor instanceof NextResponse) return actor;
+
     let tasks: any[] = [];
     if (adminDb) {
       const snap = await adminDb.collection('ai_insights').limit(6).get();

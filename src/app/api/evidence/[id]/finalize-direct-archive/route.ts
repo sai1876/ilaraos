@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
@@ -59,7 +60,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         outlet_id: actor.outletId || 'main',
         severity: 'critical',
         source: 'api',
-        metadata: { reason: 'Verify API failed', error: e.message }
+        metadata: { reason: 'Verify API failed', error: 'Internal Server Error' }
       });
       return NextResponse.json({ error: 'Failed to verify file on Google Drive' }, { status: 400 });
     }
@@ -126,6 +127,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   } catch (error: any) {
     console.error('[EVIDENCE] Finalize direct archive failed:', error);
-    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status || 500 });
   }
 }

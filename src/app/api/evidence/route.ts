@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'; // [INTERNAL]
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { EVIDENCE_COL } from '@/server/evidence/evidenceService';
@@ -102,6 +102,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Evidence list error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -7,16 +7,26 @@ vi.mock('@/lib/firebaseAdmin', () => {
   
   docsMap.set('staff/user-owner', { role: 'owner', outlet_id: 'main', status: 'active' });
   docsMap.set('staff/user-manager', { role: 'manager', outlet_id: 'main', status: 'active' });
+  docsMap.set('outlets/main', { name: 'main', active: true });
 
   const createQueryMock = () => ({
     where: vi.fn().mockImplementation(() => createQueryMock()),
     limit: vi.fn().mockImplementation(() => createQueryMock()),
     orderBy: vi.fn().mockImplementation(() => createQueryMock()),
-    get: vi.fn().mockImplementation(async () => ({
-      docs: [],
-      empty: true,
-      forEach: () => {},
-    })),
+    get: vi.fn().mockImplementation(async () => {
+      // Very basic mock to return docs for collections we seeded
+      return {
+        docs: Array.from(docsMap.keys()).map(k => {
+          const parts = k.split('/');
+          return {
+            id: parts[1],
+            data: () => docsMap.get(k)
+          };
+        }),
+        empty: docsMap.size === 0,
+        forEach: () => {},
+      };
+    }),
   });
 
   return {
@@ -28,6 +38,21 @@ vi.mock('@/lib/firebaseAdmin', () => {
       }),
     },
     adminDb: {
+      runTransaction: vi.fn().mockImplementation(async (callback) => {
+        const transaction = {
+          get: vi.fn().mockImplementation(async (ref: any) => ({
+            exists: !!docsMap.get(`${ref.colName}/${ref.docId}`),
+            data: () => docsMap.get(`${ref.colName}/${ref.docId}`)
+          })),
+          set: vi.fn().mockImplementation((ref: any, data: any) => {
+             docsMap.set(`${ref.colName}/${ref.docId}`, data);
+          }),
+          update: vi.fn().mockImplementation((ref: any, data: any) => {
+             docsMap.set(`${ref.colName}/${ref.docId}`, { ...docsMap.get(`${ref.colName}/${ref.docId}`), ...data });
+          })
+        };
+        return callback(transaction);
+      }),
       collection: (colName: string) => ({
         ...createQueryMock(),
         doc: (docId: string) => ({
@@ -40,6 +65,8 @@ vi.mock('@/lib/firebaseAdmin', () => {
             return {
               exists: !!data,
               data: () => data,
+              id: docId,
+              ref: { colName, docId }
             };
           }),
           update: vi.fn().mockImplementation(async (data: any) => {
@@ -87,6 +114,8 @@ import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 
 vi.mock('@/server/auth/requireSessionActor', () => ({
   requireSessionActorApi: vi.fn(),
+  requirePermission: vi.fn(),
+  requireOutletAccess: vi.fn(),
 }));
 
 describe('Document Infrastructure & Evidence System', () => {
@@ -197,7 +226,7 @@ describe('Document Infrastructure & Evidence System', () => {
       outletId: 'main',
       staffId: 'user-manager',
       email: 'manager@example.test',
-      permissions: [],
+      permissions: ['expenses.create'],
       allowedOutletIds: ['main']
     } as any);
 

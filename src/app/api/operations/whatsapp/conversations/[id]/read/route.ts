@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
@@ -27,6 +28,6 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Failed to mark as read:', error);
-    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: error.status || 500 });
   }
 }

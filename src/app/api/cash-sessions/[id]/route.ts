@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
+import { requireSessionActorApi, requirePermission, requireOutletAccess } from '@/server/auth/requireSessionActor';
 
 import { ServerTiming } from '@/lib/performance/serverTiming';
 
@@ -12,6 +12,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const actor = await requireSessionActorApi(['manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 });
+    requirePermission(actor, 'cash_sessions.close');
     const { id } = params;
     const body = await req.json();
     const { closing_cash, expected_cash, cash_note } = body;
@@ -33,8 +34,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
     const sessionData = sessionSnap.data()!;
-    if (sessionData.tenantId !== actor.tenantId) {
-      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+    
+    try {
+       const sessionOutletId = sessionData.outlet_id || sessionData.outlet;
+       let canonicalOutletId = sessionOutletId;
+       const outletsSnap = await adminDb.collection('outlets').get();
+       const outletDoc = outletsSnap.docs.find(d => d.id === sessionOutletId || d.data().name === sessionOutletId);
+       if (outletDoc) {
+           canonicalOutletId = outletDoc.id;
+       }
+       requireOutletAccess(actor, canonicalOutletId);
+    } catch (e: any) {
+       return NextResponse.json({ success: false, error: "Forbidden: Outlet access denied" }, { status: 403 });
     }
 
     const t0 = Date.now();

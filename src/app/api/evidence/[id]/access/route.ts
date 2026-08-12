@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
@@ -87,6 +88,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Evidence binary is not currently available for access.' }, { status: 404 });
   } catch (error: any) {
     console.error('Evidence access error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

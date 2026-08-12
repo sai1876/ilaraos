@@ -37,29 +37,29 @@ const sessionRequestSchema = z.discriminatedUnion('action', [
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5;
 const SESSION_EXPIRES_IN_MS = SESSION_MAX_AGE_SECONDS * 1000;
 
-function clearSessionResponse(): NextResponse {
+export async function DELETE(request: Request) {
+  try {
+    const cookieHeader = request.headers.get('cookie') || '';
+    const cookiesMap = new Map(cookieHeader.split(';').map(c => {
+      const [k, ...v] = c.trim().split('=');
+      return [k, v.join('=')];
+    }));
+    const session = cookiesMap.get('__session') || cookiesMap.get('session');
+    
+    if (session && adminAuth) {
+      const decodedToken = await adminAuth.verifySessionCookie(session, false);
+      await adminAuth.revokeRefreshTokens(decodedToken.uid);
+    }
+  } catch (err) {
+    console.error("Failed to revoke session tokens on logout:", err);
+  }
+  
   const response = NextResponse.json({ success: true, code: 'LOGGED_OUT' });
-  response.cookies.set('__session', '', {
-    maxAge: 0,
-    expires: new Date(0),
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
-  response.cookies.set(PREAUTH_COOKIE_NAME, '', {
-    maxAge: 0,
-    expires: new Date(0),
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
+  response.cookies.set('__session', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  response.cookies.set(PREAUTH_COOKIE_NAME, '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  response.cookies.set('__elevation_inventory_sensitive_action', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  response.cookies.set('__elevation_admin_action', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
   return response;
-}
-
-export async function DELETE() {
-  return clearSessionResponse();
 }
 
 export async function GET() {
@@ -109,7 +109,28 @@ export async function POST(request: Request) {
     }
 
     if (parsed.data.action === 'logout') {
-      return clearSessionResponse();
+      try {
+        const cookieHeader = request.headers.get('cookie') || '';
+        const cookiesMap = new Map(cookieHeader.split(';').map(c => {
+          const [k, ...v] = c.trim().split('=');
+          return [k, v.join('=')];
+        }));
+        const session = cookiesMap.get('__session') || cookiesMap.get('session');
+        
+        if (session && adminAuth) {
+          const decodedToken = await adminAuth.verifySessionCookie(session, false);
+          await adminAuth.revokeRefreshTokens(decodedToken.uid);
+        }
+      } catch (err) {
+        console.error("Failed to revoke session tokens on logout:", err);
+      }
+      
+      const response = NextResponse.json({ success: true, code: 'LOGGED_OUT' });
+      response.cookies.set('__session', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+      response.cookies.set(PREAUTH_COOKIE_NAME, '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+      response.cookies.set('__elevation_inventory_sensitive_action', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+      response.cookies.set('__elevation_admin_action', '', { maxAge: 0, expires: new Date(0), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+      return response;
     }
 
     if (!adminAuth || !adminDb) {

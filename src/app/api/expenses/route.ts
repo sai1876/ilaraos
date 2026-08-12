@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSessionActorApi } from "@/server/auth/requireSessionActor";
+import { requireSessionActorApi, requirePermission, requireOutletAccess } from "@/server/auth/requireSessionActor";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +10,16 @@ export async function GET(req: Request) {
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
-    let query = adminDb.collection("expenses").where("tenantId", "==", actor.tenantId);
+    requirePermission(actor, 'expenses.read');
+    let query: any = adminDb.collection("expenses");
     if (actor.role !== 'admin' && actor.role !== 'owner') {
       if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
         return NextResponse.json({ success: true, expenses: [] });
       }
-      query = query.where("outlet", "in", actor.allowedOutletIds);
+      query = query.where("outlet_id", "in", actor.allowedOutletIds);
     }
     const snap = await query.orderBy("created_at", "desc").limit(100).get();
-    const expenses = snap.docs.map(d => ({ id: d.id, expense_id: d.id, ...d.data() }));
+    const expenses = snap.docs.map((d: any) => ({ id: d.id, expense_id: d.id, ...d.data() }));
     return NextResponse.json({ success: true, expenses });
   } catch (error) {
     console.error("[EXPENSES GET]", error);
@@ -75,6 +76,22 @@ export async function POST(req: Request) {
       );
     }
 
+    requirePermission(actor, 'expenses.create');
+
+    let canonicalOutletId = outlet;
+    const outletsSnap = await adminDb.collection('outlets').get();
+    const outletDoc = outletsSnap.docs.find(d => d.id === outlet || d.data().name === outlet);
+    if (!outletDoc) {
+      return NextResponse.json({ success: false, error: "Outlet not found" }, { status: 400 });
+    }
+    canonicalOutletId = outletDoc.id;
+
+    try {
+      requireOutletAccess(actor, canonicalOutletId);
+    } catch (e: any) {
+      return NextResponse.json({ success: false, error: "Forbidden: Outlet access denied" }, { status: 403 });
+    }
+
     let finalStatus = status;
     if (hasException && status === 'submitted') {
       finalStatus = 'submitted_exception';
@@ -83,7 +100,7 @@ export async function POST(req: Request) {
     const now = Date.now();
     const expenseData: Record<string, any> = {
       expense_id,
-      outlet,
+      outlet_id: canonicalOutletId,
       category,
       amount: finalAmountPaise / 100,
       amount_paise: finalAmountPaise,
@@ -95,7 +112,6 @@ export async function POST(req: Request) {
       status: finalStatus,
       created_at: now,
       updated_at: now,
-      tenantId: actor.tenantId,
     };
 
     if (no_receipt_reason) expenseData.no_receipt_reason = no_receipt_reason;
@@ -130,9 +146,6 @@ export async function POST(req: Request) {
           }
           if (docData.attachment_state !== "pending_entity") {
             throw new Error(`INVALID_EVIDENCE_REFERENCE: Document ${docId} is already attached or not pending.`);
-          }
-          if (docData.tenantId !== actor.tenantId) {
-            throw new Error(`INVALID_EVIDENCE_REFERENCE: Tenant mismatch.`);
           }
           if (docData.pending_owner_uid !== actor.uid) {
             throw new Error(`INVALID_EVIDENCE_REFERENCE: Document ${docId} is not owned by the current user.`);

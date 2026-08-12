@@ -26,7 +26,7 @@ export async function requireSessionActor(allowedRoles: string[]): Promise<Actor
 
   let decodedToken;
   try {
-    decodedToken = await adminAuth.verifySessionCookie(session, false);
+    decodedToken = await adminAuth.verifySessionCookie(session, true);
   } catch (err: any) {
     console.error('[requireSessionActor] Session cookie verification failed:', err?.message || err);
     throw new SessionAuthorizationError('Invalid session', 401);

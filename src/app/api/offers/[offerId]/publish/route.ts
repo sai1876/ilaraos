@@ -1,3 +1,4 @@
+// [INTERNAL]
 import { NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebaseAdmin';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
