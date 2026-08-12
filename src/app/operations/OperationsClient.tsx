@@ -70,7 +70,7 @@ interface OperationsClientProps {
 }
 
 export default function OperationsClient({ actor }: OperationsClientProps) {
-  const [userRole, setUserRole] = useState<string>(actor.role || 'owner');
+  const [userRole] = useState<string>(actor.role || 'owner');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [crmFilter, setCrmFilter] = useState<'all' | 'loyal'>('all');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -148,25 +148,20 @@ export default function OperationsClient({ actor }: OperationsClientProps) {
       setOwnerEmail(localStorage.getItem('ilara_smtp_owner_email') || '');
     }
 
-    // Verify session with server-resolved actor via GET /api/auth/session
-    fetch('/api/auth/session')
-      .then(res => {
-        if (!res.ok) throw new Error('Session verification failed');
-        return res.json();
-      })
-      .then(data => {
-        if (data.actor?.role) {
-          setUserRole(data.actor.role);
-        }
-      })
-      .catch(err => {
-        console.error("Server session verification error:", err);
-      });
+    const onSessionExpired = () => {
+      console.warn('Operations session expired, logging out...');
+      handleLogout();
+    };
+
+    window.addEventListener('operations-session-expired', onSessionExpired);
+    return () => {
+      window.removeEventListener('operations-session-expired', onSessionExpired);
+    };
   }, []);
 
   const handleDownloadBackup = async () => {
     try {
-      const res = await fetch('/api/export-backup');
+      const res = await fetch('/api/export-backup', { credentials: 'include' });
       if (!res.ok) throw new Error('Backup failed');
       
       const blob = await res.blob();
