@@ -66,19 +66,25 @@ export async function GET() {
   try {
     const actor = await requireSessionActor(['staff']);
     return NextResponse.json({
+      authenticated: true,
       actor: {
         uid: actor.uid,
         role: actor.role,
-        staff_id: actor.staffId,
-        outlet_id: actor.outletId,
+        staffId: actor.staffId,
+        outletId: actor.outletId,
       },
     });
   } catch (error) {
     const status = error instanceof SessionAuthorizationError ? error.status : 500;
+    
+    let code = 'AUTHENTICATION_UNAVAILABLE';
+    if (status === 401) code = 'UNAUTHENTICATED';
+    if (status === 403) code = 'FORBIDDEN';
+
     return NextResponse.json(
       {
-        error: status === 500 ? 'Authentication check failed' : error instanceof Error ? error.message : 'Unauthorized',
-        code: status === 401 ? 'UNAUTHORIZED' : 'AUTHENTICATION_UNAVAILABLE',
+        authenticated: false,
+        code,
       },
       { status },
     );

@@ -14,7 +14,10 @@ import {
 function generateTicketToken(bookingId: string, reference: string, uid: string): string {
   const payload = { bookingId, reference, uid, issuedAt: Date.now() };
   const base64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const hmacSecret = process.env.STAFF_PREAUTH_HMAC_KEY || 'ilara_ticket_secret_2026';
+  const hmacSecret = process.env.CRICKET_TICKET_HMAC_KEY;
+  if (!hmacSecret || hmacSecret.length < 32) {
+    throw new Error('System configuration error: Missing ticket signing key');
+  }
   const sig = createHmac('sha256', hmacSecret).update(base64).digest('base64url');
   return `${base64}.${sig}`;
 }

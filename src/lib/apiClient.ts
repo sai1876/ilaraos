@@ -7,6 +7,8 @@ export interface ApiRequestOptions extends RequestInit {
   staleTimeMs?: number;
   dedupe?: boolean;
   retry?: number;
+  authMode?: 'session' | 'firebase' | 'none';
+  /** @deprecated Use authMode: 'none' instead */
   bypassAuth?: boolean;
 }
 
@@ -77,8 +79,14 @@ async function executeRawFetch<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  // Hydrate auth token if not bypassed
-  if (!options.bypassAuth && !headers.has('Authorization')) {
+  // Determine explicit authMode, falling back to bypassAuth if provided
+  const mode = options.authMode || (options.bypassAuth ? 'none' : 'firebase');
+
+  if (mode === 'session') {
+    // For session mode, ensure cookies are included and DO NOT attach Bearer tokens
+    options.credentials = options.credentials || 'include';
+  } else if (mode === 'firebase' && !headers.has('Authorization')) {
+    // Hydrate auth token for Firebase mode
     try {
       const token = await getActionToken(false);
       headers.set('Authorization', `Bearer ${token}`);
@@ -94,13 +102,23 @@ async function executeRawFetch<T>(
       signal: activeSignal,
     });
 
-    // On 401, attempt forced token refresh retry ONCE if not bypassed
-    if (res.status === 401 && !options.bypassAuth && retriesLeft > 0) {
-      try {
-        const freshToken = await getActionToken(true);
-        headers.set('Authorization', `Bearer ${freshToken}`);
-        return executeRawFetch<T>(urlString, { ...options, headers }, parentSignal, retriesLeft - 1, timeoutMs);
-      } catch {}
+    // On 401:
+    if (res.status === 401) {
+      if (mode === 'session') {
+        // Stop polling/caching on 401 for session mode to prevent loops
+        queryCache.clearAll();
+        // Fire custom event to invalidate operations shell and trigger redirect
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('operations-session-expired'));
+        }
+      } else if (mode === 'firebase' && retriesLeft > 0) {
+        // Firebase mode: attempt forced token refresh retry ONCE
+        try {
+          const freshToken = await getActionToken(true);
+          headers.set('Authorization', `Bearer ${freshToken}`);
+          return executeRawFetch<T>(urlString, { ...options, headers }, parentSignal, retriesLeft - 1, timeoutMs);
+        } catch {}
+      }
     }
 
     // Classified retry logic for status codes: 502, 503, 504, 429
@@ -141,3 +159,16 @@ async function executeRawFetch<T>(
   }
 }
 
+export async function operationsApiRequest<T>(
+  url: string | URL,
+  options: Omit<ApiRequestOptions, 'authMode' | 'bypassAuth'> = {}
+): Promise<T> {
+  return apiRequest<T>(url, { ...options, authMode: 'session' });
+}
+
+export async function customerApiRequest<T>(
+  url: string | URL,
+  options: Omit<ApiRequestOptions, 'authMode' | 'bypassAuth'> = {}
+): Promise<T> {
+  return apiRequest<T>(url, { ...options, authMode: 'firebase' });
+}

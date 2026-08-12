@@ -18,7 +18,11 @@ export async function GET(request: Request) {
     }
 
     const [base64, sig] = parts;
-    const hmacSecret = process.env.STAFF_PREAUTH_HMAC_KEY || 'ilara_ticket_secret_2026';
+    const hmacSecret = process.env.CRICKET_TICKET_HMAC_KEY;
+    if (!hmacSecret || hmacSecret.length < 32) {
+      return NextResponse.json({ valid: false, error: 'System configuration error' }, { status: 500 });
+    }
+    
     const expectedSig = createHmac('sha256', hmacSecret).update(base64).digest('base64url');
 
     const sigBuffer = Buffer.from(sig);
@@ -45,23 +49,22 @@ export async function GET(request: Request) {
       return NextResponse.json({
         valid: false,
         error: 'This booking has been cancelled.',
-        booking: b,
+        booking: {
+          reference: b?.booking_reference,
+          status: b?.status,
+        },
       }, { status: 400 });
     }
 
     return NextResponse.json({
       valid: true,
       booking: {
-        bookingId: b?.booking_id,
         reference: b?.booking_reference,
         customerName: b?.customer_name,
-        customerPhone: b?.customer_phone,
         date: b?.business_date,
         displayTime: b?.display_time,
         status: b?.status,
         paymentStatus: b?.payment_status,
-        totalRupees: (b?.total_paise || 0) / 100,
-        paidRupees: (b?.paid_paise || 0) / 100,
         venueId: b?.venue_id || 'box-main',
       },
     });
