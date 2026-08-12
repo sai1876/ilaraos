@@ -82,9 +82,21 @@ export async function requireSessionActorApi(allowedRoles: string[]): Promise<Ac
   try {
     return await requireSessionActor(allowedRoles);
   } catch (error: any) {
-    if (error instanceof SessionAuthorizationError) {
-      return NextResponse.json({ detail: error.message }, { status: error.status as any });
-    }
-    return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
+    return handleApiError(error);
   }
+}
+
+function safeAuthorizationMessage(status: number) {
+  if (status === 401) return 'Unauthorized';
+  if (status === 403) return 'Forbidden';
+  if (status === 404) return 'Not Found';
+  return 'Unauthorized';
+}
+
+export function handleApiError(error: any): NextResponse {
+  if (error instanceof SessionAuthorizationError) {
+    return NextResponse.json({ error: safeAuthorizationMessage(error.status) }, { status: error.status as any });
+  }
+  console.error('[API Authorization Error]', error);
+  return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
 }

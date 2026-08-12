@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireSessionActorApi, requirePermission, requireOutletAccess } from '@/server/auth/requireSessionActor';
+import { requireSessionActorApi, requirePermission, requireOutletAccess, handleApiError } from '@/server/auth/requireSessionActor';
 
 import { ServerTiming } from '@/lib/performance/serverTiming';
 
@@ -35,7 +35,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
     const sessionData = sessionSnap.data()!;
     
-    try {
        const sessionOutletId = sessionData.outlet_id || sessionData.outlet;
        let canonicalOutletId = sessionOutletId;
        const outletsSnap = await adminDb.collection('outlets').get();
@@ -44,9 +43,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
            canonicalOutletId = outletDoc.id;
        }
        requireOutletAccess(actor, canonicalOutletId);
-    } catch (e: any) {
-       return NextResponse.json({ success: false, error: "Forbidden: Outlet access denied" }, { status: 403 });
-    }
 
     const t0 = Date.now();
     await sessionRef.update(updateData);
@@ -58,7 +54,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const res = NextResponse.json({ success: true, session: updatedSession });
     return timing.applyToResponse(res);
   } catch (error) {
-    console.error('[CASH SESSIONS PATCH]', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error);
   }
 }

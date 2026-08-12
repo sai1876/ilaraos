@@ -318,22 +318,42 @@ export async function secureSaveStockItem(stockItem: StockItem, totpCode: string
 export async function secureSaveBulkStockItems(stockItems: StockItem[], totpCode: string) {
   const actor = await getSessionActor();
   requirePermission(actor, 'inventory.adjust');
-  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
+  const outletIds = new Set<string>();
+
+  for (const item of stockItems) {
+    if (!item.outlet_id) {
+      throw new Error("Bulk item missing outlet assignment");
+    }
+    outletIds.add(item.outlet_id);
+
+    if (item.stock_id) {
+      const existingSnap = await adminDb.collection('inventory').doc(item.stock_id).get();
+      if (existingSnap.exists) {
+        const existingData = existingSnap.data() as StockItem;
+        if (existingData.outlet_id && existingData.outlet_id !== item.outlet_id) {
+          throw new Error(`Forbidden: Existing record outlet conflicts with submitted outlet for item ${item.stock_id}`);
+        }
+        if (existingData.outlet_id) {
+          outletIds.add(existingData.outlet_id);
+        }
+      }
+    }
+  }
+
+  if (outletIds.size !== 1) {
+    throw new Error("Forbidden: Bulk operations must target exactly one specific outlet");
+  }
+
+  const targetOutletId = Array.from(outletIds)[0];
+  requireOutletAccess(actor, targetOutletId);
+
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action', targetOutletId);
+
   const batch = adminDb.batch();
   for (const item of stockItems) {
-    if (item.stock_id) {
-       const existingSnap = await adminDb.collection('inventory').doc(item.stock_id).get();
-       if (existingSnap.exists) {
-          const existingData = existingSnap.data() as StockItem;
-          if (existingData.outlet_id) requireOutletAccess(actor, existingData.outlet_id);
-       }
-    }
-    if (item.outlet_id) {
-      requireOutletAccess(actor, item.outlet_id);
-    }
     const docRef = adminDb.collection('inventory').doc(item.stock_id);
     batch.set(docRef, canonicalStockRecord(item));
   }
@@ -348,14 +368,16 @@ export async function secureDeleteStockItem(stockId: string, totpCode: string) {
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
   
   const existingSnap = await adminDb.collection('inventory').doc(stockId).get();
-  if (existingSnap.exists) {
-    const existingData = existingSnap.data() as StockItem;
-    if (existingData.outlet_id) {
-       requireOutletAccess(actor, existingData.outlet_id);
-    }
+  if (!existingSnap.exists) {
+    throw new Error("Stock item not found");
   }
+  const existingData = existingSnap.data() as StockItem;
+  if (!existingData.outlet_id) {
+    throw new Error("Stock item missing outlet assignment");
+  }
+  requireOutletAccess(actor, existingData.outlet_id);
 
-  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action', existingData.outlet_id);
 
   await adminDb.collection('inventory').doc(stockId).delete();
   return { success: true };
@@ -408,14 +430,16 @@ export async function secureSaveConversionRecipe(recipe: ConversionRecipe, totpC
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
   const existingSnap = await adminDb.collection('inventory').doc(recipe.stock_id).get();
-  if (existingSnap.exists) {
-    const existingData = existingSnap.data() as StockItem;
-    if (existingData.outlet_id) {
-       requireOutletAccess(actor, existingData.outlet_id);
-    }
+  if (!existingSnap.exists) {
+    throw new Error("Target stock item not found");
   }
+  const existingData = existingSnap.data() as StockItem;
+  if (!existingData.outlet_id) {
+    throw new Error("Target stock item missing outlet assignment");
+  }
+  requireOutletAccess(actor, existingData.outlet_id);
 
-  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action');
+  await verifyTOTP(actor.uid, totpCode, 'inventory_sensitive_action', existingData.outlet_id);
 
   await adminDb.collection('conversion_recipes').doc(recipe.stock_id).set(recipe);
   return { success: true };

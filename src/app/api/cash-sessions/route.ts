@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSessionActorApi, requirePermission, requireOutletAccess } from "@/server/auth/requireSessionActor";
+import { requireSessionActorApi, requirePermission, requireOutletAccess, handleApiError } from "@/server/auth/requireSessionActor";
 import { ServerTiming } from "@/lib/performance/serverTiming";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +29,7 @@ export async function GET(req: Request) {
     const res = NextResponse.json({ success: true, sessions });
     return timing.applyToResponse(res);
   } catch (error) {
-    console.error("[CASH SESSIONS GET]", error);
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
@@ -85,7 +84,6 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ success: true, id: ref.id, session: createdSession }, { status: 201 });
     return timing.applyToResponse(res);
   } catch (error) {
-    console.error("[CASH SESSIONS POST]", error);
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

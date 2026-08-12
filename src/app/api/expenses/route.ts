@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSessionActorApi, requirePermission, requireOutletAccess } from "@/server/auth/requireSessionActor";
+import { requireSessionActorApi, requirePermission, requireOutletAccess, handleApiError, SessionAuthorizationError } from "@/server/auth/requireSessionActor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,7 @@ export async function GET(req: Request) {
     const expenses = snap.docs.map((d: any) => ({ id: d.id, expense_id: d.id, ...d.data() }));
     return NextResponse.json({ success: true, expenses });
   } catch (error) {
-    console.error("[EXPENSES GET]", error);
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
@@ -86,11 +85,7 @@ export async function POST(req: Request) {
     }
     canonicalOutletId = outletDoc.id;
 
-    try {
       requireOutletAccess(actor, canonicalOutletId);
-    } catch (e: any) {
-      return NextResponse.json({ success: false, error: "Forbidden: Outlet access denied" }, { status: 403 });
-    }
 
     let finalStatus = status;
     if (hasException && status === 'submitted') {
@@ -191,6 +186,9 @@ export async function POST(req: Request) {
     }
     if (error.message === "REQUIRED_EVIDENCE_MISSING") {
       return NextResponse.json({ success: false, error: "Receipt or invoice evidence is required to finalize expense.", code: "REQUIRED_EVIDENCE_MISSING", missing: ["expense_receipt", "expense_invoice"] }, { status: 422 });
+    }
+    if (error instanceof SessionAuthorizationError) {
+      return handleApiError(error);
     }
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }

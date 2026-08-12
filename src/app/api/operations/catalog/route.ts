@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireSessionActor } from '@/server/auth/requireSessionActor';
+import { requireSessionActor, handleApiError } from '@/server/auth/requireSessionActor';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 
 
@@ -84,10 +84,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    if (err instanceof Error && err.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    console.error('[operations/catalog]', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return handleApiError(err);
   }
 }

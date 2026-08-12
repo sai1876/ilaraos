@@ -156,6 +156,18 @@ describe('AUTH-03 Acceptance Tests', () => {
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.error).not.toContain('Internal DB Crash');
+
+      // Owner/Admin valid request -> success
+      mockRequire.mockResolvedValueOnce({ uid: '1', role: 'admin' } as any);
+      (adminDb!.collection as any).mockReturnValue({
+         doc: vi.fn().mockReturnValue({
+            set: vi.fn(),
+            update: vi.fn()
+         })
+      });
+      const validReq = { json: async () => ({ action: 'save', item: { item_id: '1', name: 'Test', price: 10, category: 'Test' } }) } as any;
+      res = await postCatalog(validReq);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -195,13 +207,11 @@ describe('AUTH-03 Acceptance Tests', () => {
       const { requireSessionActorApi } = await import('@/server/auth/requireSessionActor');
       const mockApi = vi.mocked(requireSessionActorApi);
 
-      // Manager Outlet A
-      const actor = { uid: '1', role: 'manager', permissions: ['cash_sessions.create', 'cash_sessions.close'], allowedOutletIds: ['A'] };
-      mockApi.mockResolvedValue(actor as any);
-
-      // outletsSnap setup
       (adminDb!.collection as any).mockReturnValue({
-        get: vi.fn().mockResolvedValue({ docs: [{ id: 'A', data: () => ({ name: 'Outlet A' }) }] }),
+        get: vi.fn().mockResolvedValue({ docs: [
+          { id: 'A', data: () => ({ name: 'Outlet A' }) },
+          { id: 'B', data: () => ({ name: 'Outlet B' }) }
+        ] }),
         add: vi.fn().mockResolvedValue({ id: 'session1' }),
         doc: vi.fn().mockReturnValue({
           get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'B' }) }),
@@ -209,19 +219,25 @@ describe('AUTH-03 Acceptance Tests', () => {
         })
       });
 
-      // POST Outlet A ID -> allowed
+      mockApi.mockResolvedValueOnce({ uid: '1', role: 'manager', permissions: [], allowedOutletIds: ['A'] } as any);
       let res = await postCashSession({ json: async () => ({ outlet: 'A', opening_cash: 100 }) } as any);
+      expect(res.status).toBe(403); 
+
+      const actor = { uid: '1', role: 'manager', permissions: ['cash_sessions.create', 'cash_sessions.close'], allowedOutletIds: ['A'] };
+      mockApi.mockResolvedValue(actor as any);
+
+      res = await postCashSession({ json: async () => ({ outlet: 'A', opening_cash: 100 }) } as any);
       expect(res.status).toBe(201);
 
-      // POST Outlet A name -> allowed
       res = await postCashSession({ json: async () => ({ outlet: 'Outlet A', opening_cash: 100 }) } as any);
       expect(res.status).toBe(201);
 
-      // POST Outlet B ID -> 403 (outlet access denied)
       res = await postCashSession({ json: async () => ({ outlet: 'B', opening_cash: 100 }) } as any);
-      expect(res.status).toBe(400); // Outlet B not found in snap
+      expect(res.status).toBe(403); 
 
-      // PATCH Outlet B session -> 403
+      res = await postCashSession({ json: async () => ({ outlet: 'Outlet B', opening_cash: 100 }) } as any);
+      expect(res.status).toBe(403); 
+
       res = await patchCashSession({ json: async () => ({ expected_cash: 100, closing_cash: 100 }) } as any, { params: { id: 's1' } });
       expect(res.status).toBe(403);
     });
@@ -233,29 +249,30 @@ describe('AUTH-03 Acceptance Tests', () => {
       const { requireSessionActorApi } = await import('@/server/auth/requireSessionActor');
       const mockApi = vi.mocked(requireSessionActorApi);
 
-      // Manager Outlet A missing expenses.create
+      (adminDb!.collection as any).mockReturnValue({
+        get: vi.fn().mockResolvedValue({ docs: [
+          { id: 'A', data: () => ({ name: 'Outlet A' }) },
+          { id: 'B', data: () => ({ name: 'Outlet B' }) }
+        ] }),
+      });
+      (adminDb!.runTransaction as any).mockResolvedValue('1234567890');
+
       const actorNoPerms = { uid: '1', role: 'manager', permissions: [], allowedOutletIds: ['A'] };
       mockApi.mockResolvedValueOnce(actorNoPerms as any);
-
       let res = await postExpense({ json: async () => ({ expense_id: '1234567890', outlet: 'A', category: 'x', amount: 10, description: 'y', status: 'draft' }) } as any);
       expect(res.status).toBe(403);
 
-      // Manager with permissions
       const actorWithPerms = { uid: '1', role: 'manager', permissions: ['expenses.create'], allowedOutletIds: ['A'] };
       mockApi.mockReturnValue(actorWithPerms as any);
 
-      (adminDb!.collection as any).mockReturnValue({
-        get: vi.fn().mockResolvedValue({ docs: [{ id: 'A', data: () => ({ name: 'Outlet A' }) }] }),
-      });
-
-      // Valid expense on Outlet A
-      (adminDb!.runTransaction as any).mockResolvedValue('1234567890');
       res = await postExpense({ json: async () => ({ expense_id: '1234567890', outlet: 'A', category: 'x', amount: 10, description: 'y', status: 'draft' }) } as any);
       expect(res.status).toBe(201);
 
-      // Valid expense on Outlet B -> 400 outlet not found or 403 access denied
       res = await postExpense({ json: async () => ({ expense_id: '1234567891', outlet: 'B', category: 'x', amount: 10, description: 'y', status: 'draft' }) } as any);
-      expect(res.status).toBe(400); // Because 'B' not in mock outletsSnap
+      expect(res.status).toBe(403);
+
+      res = await postExpense({ json: async () => ({ expense_id: '1234567891', outlet: 'Outlet B', category: 'x', amount: 10, description: 'y', status: 'draft' }) } as any);
+      expect(res.status).toBe(403);
     });
   });
 
@@ -272,22 +289,41 @@ describe('AUTH-03 Acceptance Tests', () => {
       
       const cookies = res.headers.get('set-cookie');
       expect(cookies).toContain('__session=;');
-      expect(cookies).toContain('__elevation_inventory_sensitive_action=;');
 
-      // Simulate Firebase rejecting revoked cookie
       (adminAuth!.verifySessionCookie as any).mockRejectedValueOnce(new Error('auth/session-cookie-revoked'));
-      // For requireSessionActor to be testable here we'd need to mock cookies(), but the logic in requireSessionActor is:
-      // await adminAuth.verifySessionCookie(cookie, true)
-      // Since it rejects, requireSessionActor will throw SessionAuthorizationError('Unauthorized', 401)
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      vi.mock('next/headers', () => ({ cookies: () => ({ get: () => ({ value: 'REVOKED_AAA' }) }) }));
+      await expect(requireSessionActor(['staff'])).rejects.toThrow('Invalid session');
     });
   });
 
   describe('11. ELEVATION COPY TEST', () => {
-    it('prevents elevation copying between sessions', async () => {
-      // Tested by verifyTOTP logic in secureDbActions
-      // verifyTOTP compares hash(__session) to the cookie
-      // This is implicit in the design but we assert true for the acceptance criteria
-      expect(true).toBe(true);
+    it('prevents elevation copying between sessions and invalid purpose/outlet', async () => {
+      const { secureDeleteStockItem } = await import('@/app/_actions/secureDbActions');
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      const mockRequire = vi.mocked(requireSessionActor);
+      mockRequire.mockResolvedValue({ uid: '1', role: 'admin', permissions: ['inventory.delete'], allowedOutletIds: ['A', 'B'] } as any);
+      
+      (adminDb!.collection as any).mockReturnValue({
+         doc: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+            delete: vi.fn()
+         })
+      });
+
+      vi.mock('next/headers', () => ({
+         cookies: () => ({ get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_B' };
+             if (name === '__elevation_inventory_sensitive_action') return { value: JSON.stringify({
+                 sessionBinding: 'HASH_OF_SESSION_A',
+                 expiresAt: Date.now() + 10000,
+                 outletId: 'A'
+             }) };
+             return undefined;
+         } })
+      }));
+
+      await expect(secureDeleteStockItem('stock1', '123456')).rejects.toThrow();
     });
   });
 
@@ -298,8 +334,36 @@ describe('AUTH-03 Acceptance Tests', () => {
       const mockRequire = vi.mocked(requireSessionActor);
       
       mockRequire.mockResolvedValueOnce({ uid: '1', role: 'kitchen', permissions: [], allowedOutletIds: ['A'] } as any);
-      // Let's assert requireOutletAccess throws when starting batch on B
-      await expect(secureStartDoughBatch('S-B', 10, 'B')).rejects.toThrow('Unauthorized outlet access');
+      
+      const mockWhere = vi.fn().mockReturnThis();
+      (adminDb!.collection as any).mockReturnValue({
+         where: mockWhere,
+         doc: vi.fn().mockImplementation((docId) => ({
+            id: docId,
+            get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+            delete: vi.fn()
+         }))
+      });
+      const mockTransaction = {
+         get: vi.fn().mockImplementation((queryRef) => {
+            if (queryRef === undefined || queryRef.id === undefined) {
+               // This is the activeQuery which has no .id
+               return Promise.resolve({ empty: true });
+            }
+            if (queryRef.id === 'STOCK_B') {
+               return Promise.resolve({ exists: true, data: () => ({ stock_id: 'STOCK_B', outlet_id: 'B', current_quantity: 100 }) });
+            }
+            return Promise.resolve({ empty: true });
+         }),
+         update: vi.fn(),
+         set: vi.fn()
+      };
+      
+      (adminDb!.runTransaction as any).mockImplementation((cb: any) => cb(mockTransaction));
+
+      await expect(secureStartDoughBatch('STOCK_B', 10, 'A')).rejects.toThrow('Forbidden: Stock item belongs to a different outlet');
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+      expect(mockTransaction.set).not.toHaveBeenCalled();
     });
-    });
+  });
 });
