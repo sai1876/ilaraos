@@ -5,7 +5,6 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { requireSessionActor } from '@/server/auth/requireSessionActor';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
 
-const OPERATIONAL_ROLES = new Set(['manager', 'admin', 'owner']);
 
 const menuItemSchema = z.object({
   item_id: z.string().trim().min(1).max(128),
@@ -36,10 +35,7 @@ export async function POST(req: Request) {
   try {
     if (!adminDb) return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
 
-    const actor = await requireSessionActor(['staff']);
-    if (!OPERATIONAL_ROLES.has(actor.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const actor = await requireSessionActor(['owner', 'admin']);
 
     const parsed = catalogSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
@@ -88,6 +84,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    if (err instanceof Error && err.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    console.error('[operations/catalog]', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -82,14 +82,6 @@ vi.mock('@/lib/firebaseAdmin', () => {
           return { id };
         }),
       }),
-      runTransaction: vi.fn().mockImplementation(async (updateFunction: any) => {
-        const transaction = {
-          get: async (ref: any) => ref.get(),
-          update: (ref: any, data: any) => ref.update(data),
-          set: (ref: any, data: any) => ref.set(data),
-        };
-        return updateFunction(transaction);
-      }),
     },
   };
 });

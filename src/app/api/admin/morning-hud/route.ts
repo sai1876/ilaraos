@@ -5,12 +5,22 @@ import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 
 export async function GET() {
   try {
-    const actor = await requireSessionActorApi(['staff', 'manager', 'admin', 'owner']);
+    const actor = await requireSessionActorApi(['manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
 
     let tasks: any[] = [];
     if (adminDb) {
-      const snap = await adminDb.collection('ai_insights').limit(6).get();
+      let query: FirebaseFirestore.Query = adminDb.collection('ai_insights');
+      
+      if (actor.role === 'manager') {
+        if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
+          // Manager with no allowed outlets cannot see any insights
+          return NextResponse.json({ tasks: [] });
+        }
+        query = query.where('outlet_id', 'in', actor.allowedOutletIds);
+      }
+
+      const snap = await query.limit(6).get();
       if (!snap.empty) {
         tasks = snap.docs.map(doc => {
           const d = doc.data();

@@ -584,6 +584,10 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
   };
 
   const handleSaveRecipeSubmit = async (stockId: string) => {
+    if (userRole === 'manager') {
+      alert("Recipe change requires Owner approval.");
+      return;
+    }
     if (!recipeMenuId || !recipeMin || !recipeMax) {
       alert("Please select a menu item and fill in both min and max yield ranges.");
       return;

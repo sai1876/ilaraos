@@ -14,6 +14,7 @@ import {
   getConfiguredPasscodePepper,
   hashPasscode,
 } from '@/server/crypto/fieldEncryption';
+import { getDefaultPermissionsForRole } from '@/lib/auth/permissions';
 
 const PRIVATE_ENCRYPTED_FIELDS = [
   ['faceDescriptor', 'face_descriptor'],
@@ -39,7 +40,34 @@ export function validateStaffPrivateConfiguration(staff: Staff): void {
 }
 
 async function canonicalOutletId(db: Firestore, source: DataRecord): Promise<string> {
-  return 'main';
+  const requestedOutlet = source.outlet_id || source.outlet;
+  if (!requestedOutlet || typeof requestedOutlet !== 'string') {
+    throw new Error('Outlet resolution failed: missing outlet identifier');
+  }
+
+  // Preserve explicit legacy mapping if requested is exactly 'main'
+  if (requestedOutlet === 'main') {
+    return 'main';
+  }
+
+  const outletsCol = db.collection('outlets');
+  
+  // 1. Try exact document ID match
+  const byId = await outletsCol.doc(requestedOutlet).get();
+  if (byId.exists && byId.data()?.status !== 'inactive') {
+    return byId.id;
+  }
+
+  // 2. Try exact name match
+  const byName = await outletsCol.where('name', '==', requestedOutlet).limit(1).get();
+  if (!byName.empty) {
+    const doc = byName.docs[0];
+    if (doc.data()?.status !== 'inactive') {
+      return doc.id;
+    }
+  }
+
+  throw new Error(`Outlet resolution failed: outlet '${requestedOutlet}' not found`);
 }
 
 function customClaims(
@@ -106,6 +134,8 @@ export async function persistStaffRecords(
     authUser => customClaims(authUser.customClaims, role, outletId, tokenVersion),
   );
 
+  const permissions = getDefaultPermissionsForRole(role);
+
   const sanitizedStaff = { ...source };
   for (const [sourceField] of PRIVATE_ENCRYPTED_FIELDS) delete sanitizedStaff[sourceField];
   delete sanitizedStaff.passcode;
@@ -113,6 +143,8 @@ export async function persistStaffRecords(
     id: staff.id,
     auth_uid: authUid,
     outlet_id: outletId,
+    allowed_outlet_ids: [outletId],
+    permissions,
     token_version: tokenVersion,
     updated_at: Date.now(),
   });
@@ -127,6 +159,8 @@ export async function persistStaffRecords(
     role,
     status,
     outlet_id: outletId,
+    allowed_outlet_ids: [outletId],
+    permissions,
     token_version: tokenVersion,
     updated_at: Date.now(),
   }, { merge: true });

@@ -3,6 +3,7 @@ import type { DocumentData, DocumentSnapshot, Firestore } from 'firebase-admin/f
 import { USERS_COL } from '@/lib/firebase/collections';
 
 import { KITCHEN_ROLES, STAFF_ROLES } from '@/lib/auth/roles';
+import { getDefaultPermissionsForRole } from '@/lib/auth/permissions';
 
 const CUSTOMER_ROLE = 'customer';
 const BLOCKED_STATUSES = new Set(['suspended', 'inactive', 'disabled', 'blacklisted', 'deleted']);
@@ -134,7 +135,7 @@ export async function resolveActorContext(
       tenantId: access?.tenant_id || 'main',
       outletId: access?.outlet_id || 'main',
       allowedOutletIds: Array.isArray(access?.allowed_outlet_ids) ? access.allowed_outlet_ids : [access?.outlet_id || 'main'],
-      permissions: Array.isArray(access?.permissions) ? access.permissions : [],
+      permissions: Array.isArray(access?.permissions) ? access.permissions : getDefaultPermissionsForRole(role),
       tokenVersion,
     };
     ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
@@ -163,7 +164,7 @@ export async function resolveActorContext(
       tenantId: staffData?.tenant_id || 'main',
       outletId: staffData?.outlet_id || 'main',
       allowedOutletIds: Array.isArray(staffData?.allowed_outlet_ids) ? staffData.allowed_outlet_ids : [staffData?.outlet_id || 'main'],
-      permissions: Array.isArray(staffData?.permissions) ? staffData.permissions : [],
+      permissions: Array.isArray(staffData?.permissions) ? staffData.permissions : getDefaultPermissionsForRole(role),
       tokenVersion,
     };
     ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });

@@ -28,7 +28,7 @@ import {
   type ActorContext,
 } from '@/server/auth/resolveActor';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { requireSessionActor, requirePermission, requireOutletAccess } from '@/server/auth/requireSessionActor';
+import { requireSessionActor, requirePermission, requireOutletAccess, requireBatchExecutionAccess } from '@/server/auth/requireSessionActor';
 import { readTotpSecret } from '@/server/auth/totpSecret';
 import {
   persistStaffRecords,
@@ -399,17 +399,7 @@ async function verifyStaffSession(): Promise<ActorContext> {
   return actor;
 }
 
-function requireActorOutlet(actor: ActorContext, requestedOutletId: string): string {
-  if (!requestedOutletId || requestedOutletId.length > 128) {
-    throw new Error("Invalid outlet ID");
-  }
 
-  if (actor.role === 'owner' || actor.role === 'admin') return requestedOutletId;
-  if (!actor.outletId || actor.outletId !== requestedOutletId) {
-    throw new Error("Forbidden: Outlet scope mismatch");
-  }
-  return actor.outletId;
-}
 
 export async function secureSaveConversionRecipe(recipe: ConversionRecipe, totpCode: string) {
   const actor = await getSessionActor();
@@ -436,11 +426,13 @@ export async function secureStartDoughBatch(stockId: string, rawQtyUsed: number,
   if (!dbInstance) throw new Error("Firebase Admin DB not configured");
 
   const actor = await verifyStaffSession();
+  requireBatchExecutionAccess(actor);
   if (!stockId || stockId.length > 128) throw new Error("Invalid stock ID");
   if (!Number.isFinite(rawQtyUsed) || rawQtyUsed <= 0 || rawQtyUsed > 100000) {
     throw new Error("Quantity must be a positive bounded number");
   }
-  const authorizedOutletId = requireActorOutlet(actor, outletId);
+  requireOutletAccess(actor, outletId);
+  const authorizedOutletId = outletId;
 
   await dbInstance.runTransaction(async (transaction) => {
     // 1. One Active Batch Rule
@@ -461,6 +453,9 @@ export async function secureStartDoughBatch(stockId: string, rawQtyUsed: number,
     if (!stockSnap.exists) throw new Error("Stock item not found.");
     
     const stockData = stockSnap.data() as StockItem;
+    if (!stockData.outlet_id || stockData.outlet_id !== authorizedOutletId) {
+      throw new Error("Forbidden: Stock item belongs to a different outlet");
+    }
     if (stockData.current_quantity < rawQtyUsed) {
       throw new Error(`Insufficient stock: Only ${stockData.current_quantity} ${stockData.unit} left.`);
     }
@@ -508,6 +503,7 @@ export async function secureCompleteDoughBatch(batchId: string) {
   if (!dbInstance) throw new Error("Firebase Admin DB not configured");
 
   const actor = await verifyStaffSession();
+  requireBatchExecutionAccess(actor);
   if (!batchId || batchId.length > 128) throw new Error("Invalid batch ID");
 
   // Run the transaction to fetch data, count sales, and update batch
@@ -517,7 +513,7 @@ export async function secureCompleteDoughBatch(batchId: string) {
     if (!batchSnap.exists) throw new Error("Batch not found.");
 
     const batchData = batchSnap.data() as DoughBatch;
-    requireActorOutlet(actor, batchData.outlet_id);
+    requireOutletAccess(actor, batchData.outlet_id);
     if (batchData.batch_status !== 'active') {
       throw new Error("This batch has already been completed.");
     }

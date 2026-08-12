@@ -46,7 +46,7 @@ describe('Evidence Phase 4 - UI and Access APIs', () => {
     vi.mocked(requireSessionActor).mockResolvedValue({ uid: 'usr1', role: 'owner' } as any);
     const req = new NextRequest('http://localhost:3000/api/evidence/EV-20260810-001/access?purpose=VIEW');
     
-    (adminDb.get as any).mockResolvedValueOnce({
+    ((adminDb as any).get as any).mockResolvedValueOnce({
       exists: true,
       data: () => ({
         outlet_id: 'sys',

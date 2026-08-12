@@ -6,6 +6,7 @@ import {
   resolveActorContext,
   type ActorContext,
 } from '@/server/auth/resolveActor';
+import { KITCHEN_ROLES, MANAGEMENT_ROLES } from '@/lib/auth/roles';
 
 export class SessionAuthorizationError extends Error {
   constructor(
@@ -58,6 +59,13 @@ export function requireTenant(actor: ActorContext, tenantId: string): void {
   if (actor.tenantId !== tenantId) {
     // 404 is preferable for cross-tenant object access to avoid confirming resource exists
     throw new SessionAuthorizationError('Resource not found', 404 as any); // use 404, we will allow 404 in SessionAuthorizationError
+  }
+}
+
+export function requireBatchExecutionAccess(actor: ActorContext): void {
+  const allowed = new Set([...MANAGEMENT_ROLES, ...KITCHEN_ROLES]);
+  if (!allowed.has(actor.role)) {
+    throw new SessionAuthorizationError('Batch execution requires kitchen or management role', 403);
   }
 }
 
