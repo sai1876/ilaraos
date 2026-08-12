@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as createWastage } from '@/app/api/wastage-events/create/route';
 import { POST as approveWastage } from '@/app/api/wastage-events/approve/route';
 import { GET as listWastage } from '@/app/api/wastage-events/list/route';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 
 const state = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
@@ -11,7 +11,7 @@ const state = vi.hoisted(() => ({
   readAfterWrite: false,
 }));
 
-vi.mock('@/server/auth/requireRole', () => ({ requireRole: vi.fn() }));
+vi.mock('@/server/auth/requireSessionActor', () => ({ requireSessionActorApi: vi.fn() }));
 vi.mock('@/lib/rateLimit', () => ({
   rateLimitDurable: vi.fn(async () => ({ success: true, source: 'memory', retryAfterMs: 0 })),
 }));
@@ -89,12 +89,13 @@ describe('wastage commands', () => {
   });
 
   it('stores canonical menu data and outlet instead of caller labels and costs', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ uid: 'chef-1', role: 'kitchen', outletId: 'outlet-a' } as never);
-    state.docs.set('menu/menu-1', { name: 'Canonical Burger', station: 'grill' });
+    vi.mocked(requireSessionActorApi).mockResolvedValue({ uid: 'chef-1', role: 'kitchen', outletId: 'outlet-a', tenantId: 'tenant-1' } as never);
+    state.docs.set('menu/menu-1', { name: 'Canonical Burger', station: 'grill', tenantId: 'tenant-1' });
     state.docs.set('documents/doc-1', {
       document_type: 'wastage_photo',
       attachment_state: 'pending_entity',
-      related_entity_id: '11111111-1111-4111-8111-111111111111'
+      related_entity_id: '11111111-1111-4111-8111-111111111111',
+      tenantId: 'tenant-1'
     });
     const response = await createWastage(request({
       idempotency_key: '11111111-1111-4111-8111-111111111111',
@@ -112,12 +113,13 @@ describe('wastage commands', () => {
   });
 
   it('rejects a stock item from another outlet', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
-    state.docs.set('inventory/stock-1', { name: 'Cheese', outlet_id: 'outlet-b', current_quantity: 10 });
+    vi.mocked(requireSessionActorApi).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a', tenantId: 'tenant-1' } as never);
+    state.docs.set('inventory/stock-1', { name: 'Cheese', outlet_id: 'outlet-b', current_quantity: 10, tenantId: 'tenant-1' });
     state.docs.set('documents/doc-2', {
       document_type: 'wastage_photo',
       attachment_state: 'pending_entity',
-      related_entity_id: '22222222-2222-4222-8222-222222222222'
+      related_entity_id: '22222222-2222-4222-8222-222222222222',
+      tenantId: 'tenant-1'
     });
     const response = await createWastage(request({
       idempotency_key: '22222222-2222-4222-8222-222222222222',
@@ -131,15 +133,16 @@ describe('wastage commands', () => {
   });
 
   it('deducts a multi-stock recipe atomically with no read after a write', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
+    vi.mocked(requireSessionActorApi).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a', tenantId: 'tenant-1' } as never);
     state.docs.set('wastage_events/event-1', {
       event_id: 'event-1', outlet_id: 'outlet-a', status: 'reported', deduct_inventory: true,
       deduction_method: 'recipe', event_type: 'remake', reason_category: 'burned',
       items: [{ menu_item_id: 'menu-1', quantity: 2, loss_basis: 'menu_item' }],
+      tenantId: 'tenant-1'
     });
-    state.docs.set('menu/menu-1', { recipe: [{ stock_id: 'stock-1', quantity: 2 }, { stock_id: 'stock-2', quantity: 1 }] });
-    state.docs.set('inventory/stock-1', { outlet_id: 'outlet-a', current_quantity: 10 });
-    state.docs.set('inventory/stock-2', { outlet_id: 'outlet-a', current_quantity: 10 });
+    state.docs.set('menu/menu-1', { recipe: [{ stock_id: 'stock-1', quantity: 2 }, { stock_id: 'stock-2', quantity: 1 }], tenantId: 'tenant-1' });
+    state.docs.set('inventory/stock-1', { outlet_id: 'outlet-a', current_quantity: 10, tenantId: 'tenant-1' });
+    state.docs.set('inventory/stock-2', { outlet_id: 'outlet-a', current_quantity: 10, tenantId: 'tenant-1' });
     const response = await approveWastage(request({ event_id: 'event-1', decision: 'approved' }));
 
     expect(response.status).toBe(200);
@@ -150,13 +153,14 @@ describe('wastage commands', () => {
   });
 
   it('rejects insufficient stock without clamping inventory to zero', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
+    vi.mocked(requireSessionActorApi).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a', tenantId: 'tenant-1' } as never);
     state.docs.set('wastage_events/event-1', {
       event_id: 'event-1', outlet_id: 'outlet-a', status: 'reported', deduct_inventory: true,
       deduction_method: 'stock_direct', event_type: 'spoilage', reason_category: 'expired',
       items: [{ stock_item_id: 'stock-1', quantity: 5, loss_basis: 'stock_item' }],
+      tenantId: 'tenant-1'
     });
-    state.docs.set('inventory/stock-1', { outlet_id: 'outlet-a', current_quantity: 2 });
+    state.docs.set('inventory/stock-1', { outlet_id: 'outlet-a', current_quantity: 2, tenantId: 'tenant-1' });
     const response = await approveWastage(request({ event_id: 'event-1', decision: 'approved' }));
     expect(response.status).toBe(409);
     expect(state.docs.get('inventory/stock-1')).toMatchObject({ current_quantity: 2 });
@@ -164,9 +168,9 @@ describe('wastage commands', () => {
   });
 
   it('lists only the manager outlet with a bounded query', async () => {
-    vi.mocked(requireRole).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a' } as never);
-    state.docs.set('wastage_events/a', { event_id: 'a', outlet_id: 'outlet-a', created_at: 2 });
-    state.docs.set('wastage_events/b', { event_id: 'b', outlet_id: 'outlet-b', created_at: 1 });
+    vi.mocked(requireSessionActorApi).mockResolvedValue({ uid: 'manager-1', role: 'manager', outletId: 'outlet-a', tenantId: 'tenant-1' } as never);
+    state.docs.set('wastage_events/a', { event_id: 'a', outlet_id: 'outlet-a', created_at: 2, tenantId: 'tenant-1' });
+    state.docs.set('wastage_events/b', { event_id: 'b', outlet_id: 'outlet-b', created_at: 1, tenantId: 'tenant-1' });
     const response = await listWastage(new Request('http://localhost/api/wastage-events/list?limit=10'));
     const body = await response.json();
     expect(body.events).toHaveLength(1);

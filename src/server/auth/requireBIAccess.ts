@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireRole, type AuthContext } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
+import { type ActorContext } from '@/server/auth/resolveActor';
 
-export async function requireBIAccess(req: Request): Promise<(AuthContext & { outletId: 'main' }) | NextResponse> {
-  const result = await requireRole(req, ['owner', 'manager', 'admin']);
+export async function requireBIAccess(): Promise<(ActorContext & { outletId: 'main' }) | NextResponse> {
+  const result = await requireSessionActorApi(['owner', 'manager', 'admin']);
   if (result instanceof NextResponse) {
     return result;
   }

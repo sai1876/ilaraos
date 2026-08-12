@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireRole } from "@/server/auth/requireRole";
+import { requireSessionActorApi } from "@/server/auth/requireSessionActor";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireRole(req, ["manager", "admin", "owner"]);
+    const actor = await requireSessionActorApi(["manager", "admin", "owner"]);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
-    const snap = await adminDb.collection("expenses")
-      .orderBy("created_at", "desc").limit(100).get();
+    let query = adminDb.collection("expenses").where("tenantId", "==", actor.tenantId);
+    if (actor.role !== 'admin' && actor.role !== 'owner') {
+      if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
+        return NextResponse.json({ success: true, expenses: [] });
+      }
+      query = query.where("outlet", "in", actor.allowedOutletIds);
+    }
+    const snap = await query.orderBy("created_at", "desc").limit(100).get();
     const expenses = snap.docs.map(d => ({ id: d.id, expense_id: d.id, ...d.data() }));
     return NextResponse.json({ success: true, expenses });
   } catch (error) {
@@ -22,7 +28,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireRole(req, ["manager", "admin", "owner"]);
+    const actor = await requireSessionActorApi(["manager", "admin", "owner"]);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
@@ -89,6 +95,7 @@ export async function POST(req: Request) {
       status: finalStatus,
       created_at: now,
       updated_at: now,
+      tenantId: actor.tenantId,
     };
 
     if (no_receipt_reason) expenseData.no_receipt_reason = no_receipt_reason;
@@ -123,6 +130,9 @@ export async function POST(req: Request) {
           }
           if (docData.attachment_state !== "pending_entity") {
             throw new Error(`INVALID_EVIDENCE_REFERENCE: Document ${docId} is already attached or not pending.`);
+          }
+          if (docData.tenantId !== actor.tenantId) {
+            throw new Error(`INVALID_EVIDENCE_REFERENCE: Tenant mismatch.`);
           }
           if (docData.pending_owner_uid !== actor.uid) {
             throw new Error(`INVALID_EVIDENCE_REFERENCE: Document ${docId} is not owned by the current user.`);

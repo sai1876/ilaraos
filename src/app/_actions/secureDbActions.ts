@@ -70,37 +70,52 @@ async function assertCanManageExistingStaff(actor: ActorContext, staffId: string
   }
 }
 
-async function verifyTOTP(uid: string, totpCode: string) {
+import { cookies } from 'next/headers';
+import { randomUUID } from 'crypto';
+
+async function verifyTOTP(actorUid: string, totpCode: string | undefined, purpose: 'inventory_sensitive_action' | 'admin_action' = 'admin_action') {
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
-  if (totpCode !== 'SESSION_BYPASS') {
-    const attemptLimit = await rateLimitDurable(`privileged-totp:${uid}`, 5, 5 * 60 * 1000);
-    if (!attemptLimit.success) {
-      throw new Error(
-        attemptLimit.source === 'unavailable'
-          ? "Authentication temporarily unavailable"
-          : "Too many authenticator attempts",
-      );
+  const cookieStore = cookies();
+  const elevationCookieName = `__elevation_${purpose}`;
+  const elevationSessionId = cookieStore.get(elevationCookieName)?.value;
+
+  // Try to bypass using valid HTTP-only elevation cookie
+  if ((!totpCode || totpCode === 'SESSION_BYPASS') && elevationSessionId) {
+    const elevationDoc = await adminDb.collection('actor_elevations').doc(elevationSessionId).get();
+    if (elevationDoc.exists) {
+      const data = elevationDoc.data()!;
+      if (
+        data.userId === actorUid &&
+        data.purpose === purpose &&
+        data.expiresAt > Date.now()
+      ) {
+        return; // Valid server-side session elevation
+      }
     }
   }
+
+  // If no code provided and bypass failed, reject
+  if (!totpCode || totpCode === 'SESSION_BYPASS') {
+    throw new Error("2FA session expired. Please enter OTP again.");
+  }
+
+  // Verify new TOTP
+  const attemptLimit = await rateLimitDurable(`privileged-totp:${actorUid}`, 5, 5 * 60 * 1000);
+  if (!attemptLimit.success) {
+    throw new Error(
+      attemptLimit.source === 'unavailable'
+        ? "Authentication temporarily unavailable"
+        : "Too many authenticator attempts",
+    );
+  }
   
-  const secretDoc = await adminDb.collection('admin_secrets').doc(uid).get();
+  const secretDoc = await adminDb.collection('admin_secrets').doc(actorUid).get();
   if (!secretDoc.exists) {
     throw new Error("2FA setup required. Please re-login.");
   }
 
-  if (totpCode === 'SESSION_BYPASS') {
-    const sessionDoc = await adminDb.collection('admin_sessions').doc(uid).get();
-    if (sessionDoc.exists) {
-      const { last_totp_at } = sessionDoc.data()!;
-      if (Date.now() - last_totp_at < 20 * 60 * 1000) {
-        return; // Valid session bypass
-      }
-    }
-    throw new Error("2FA session expired. Please enter OTP again.");
-  }
-
-  const secret = readTotpSecret(uid, secretDoc.data());
+  const secret = readTotpSecret(actorUid, secretDoc.data());
   if (!secret) throw new Error("2FA setup required. Please re-login.");
   authenticator.options = { window: 2 };
   const isValid = authenticator.verify({ token: totpCode, secret });
@@ -109,9 +124,30 @@ async function verifyTOTP(uid: string, totpCode: string) {
     throw new Error("Invalid authenticator code.");
   }
 
-  // Update session on successful verification for bypass
-  await adminDb.collection('admin_sessions').doc(uid).set({
-    last_totp_at: Date.now()
+  // Fetch full actor to bind tenant metadata to elevation
+  const actor = await getSessionActor();
+
+  // Create elevated authorization state
+  const newSessionId = randomUUID().replace(/-/g, '');
+  const now = Date.now();
+  
+  await adminDb.collection('actor_elevations').doc(newSessionId).set({
+    sessionId: newSessionId,
+    userId: actorUid,
+    tenantId: actor.tenantId,
+    purpose,
+    verifiedAt: now,
+    expiresAt: now + 20 * 60 * 1000,
+    outletId: actor.outletId || 'main'
+  });
+
+  // Set HTTP-only cookie
+  cookieStore.set(elevationCookieName, newSessionId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 20 * 60
   });
 }
 
@@ -253,7 +289,7 @@ export async function secureUpdateStaffSchedule(
 // --- INVENTORY ACTIONS ---
 export async function secureSaveStockItem(stockItem: StockItem, totpCode: string) {
   const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode);
+  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
 
   await adminDb!.collection('inventory').doc(stockItem.stock_id).set(canonicalStockRecord(stockItem));
   return { success: true };
@@ -261,7 +297,7 @@ export async function secureSaveStockItem(stockItem: StockItem, totpCode: string
 
 export async function secureSaveBulkStockItems(stockItems: StockItem[], totpCode: string) {
   const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode);
+  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 
@@ -276,7 +312,7 @@ export async function secureSaveBulkStockItems(stockItems: StockItem[], totpCode
 
 export async function secureDeleteStockItem(stockId: string, totpCode: string) {
   const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode);
+  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
   await adminDb.collection('inventory').doc(stockId).delete();
@@ -335,7 +371,7 @@ function requireActorOutlet(actor: ActorContext, requestedOutletId: string): str
 
 export async function secureSaveConversionRecipe(recipe: ConversionRecipe, totpCode: string) {
   const uid = await getAdminUid();
-  await verifyTOTP(uid, totpCode);
+  await verifyTOTP(uid, totpCode, 'inventory_sensitive_action');
 
   if (!adminDb) throw new Error("Firebase Admin DB not configured");
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 
 export const dynamic = 'force-dynamic';
 const exactRoles = new Set(['manager', 'admin', 'owner']);
@@ -14,7 +14,7 @@ const querySchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireRole(req, ['manager', 'admin', 'owner']);
+    const actor = await requireSessionActorApi(['manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
     if (!exactRoles.has(actor.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'Outlet assignment required' }, { status: 403 });
     }
 
-    let query: FirebaseFirestore.Query = adminDb.collection('wastage_events');
+    let query: FirebaseFirestore.Query = adminDb.collection('wastage_events').where('tenantId', '==', actor.tenantId);
     if (outletId) query = query.where('outlet_id', '==', outletId);
     if (parsed.data.status) query = query.where('status', '==', parsed.data.status);
     const snapshot = await query.orderBy('created_at', 'desc').limit(parsed.data.limit).get();

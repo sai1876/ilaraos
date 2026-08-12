@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Clock, MapPin, DollarSign, ShoppingBag, Users, TrendingUp, Calendar } from 'lucide-react';
 import PendingEntityDocuments from '@/components/documents/PendingEntityDocuments';
 import { streamTelemetryData, fetchOutlets, fetchStaffList } from '@/lib/dbService';
-import { auth } from '@/lib/firebase';
+import { operationsApiRequest } from '@/lib/apiClient';
 import { Outlet } from '@/lib/types';
 import { markStart, markEnd } from '@/lib/performance/perf';
 
@@ -79,37 +79,16 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     loadCashAndExpenses();
   }, [outletId, userRole]);
 
-  const getToken = async () => {
-    let user = auth.currentUser;
-    if (!user) {
-      await new Promise<void>((resolve) => {
-        const unsubscribe = auth.onAuthStateChanged(() => {
-          unsubscribe();
-          resolve();
-        });
-      });
-      user = auth.currentUser;
-    }
-    if (!user) throw new Error('Not authenticated');
-    return user.getIdToken();
-  };
+
 
   const loadCashAndExpenses = async () => {
     try {
-      const token = await getToken();
       const isGlobal = userRole === 'admin' || userRole === 'owner';
       const queryString = !isGlobal && outletId ? `?outlet_id=${encodeURIComponent(outletId)}` : '';
-      const [sessRes, expRes] = await Promise.all([
-        fetch(`/api/cash-sessions${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`/api/expenses${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      const [sessData, expData] = await Promise.all([
+        operationsApiRequest<any>(`/api/cash-sessions${queryString}`),
+        operationsApiRequest<any>(`/api/expenses${queryString}`),
       ]);
-      
-      if (sessRes.status === 401 || expRes.status === 401) {
-        window.location.href = '/login';
-        return;
-      }
-
-      const [sessData, expData] = await Promise.all([sessRes.json(), expRes.json()]);
       const sessions = sessData.success ? sessData.sessions : [];
       const expensesData = expData.success ? expData.expenses : [];
       setCashSessions(sessions);
@@ -130,10 +109,8 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     setIsOpeningTill(true);
     const startMark = markStart('open_till_total');
     try {
-      const token = await getToken();
-      const res = await fetch('/api/cash-sessions', {
+      const data = await operationsApiRequest<any>('/api/cash-sessions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           outlet: selectedOutlet === 'All' ? 'Oasis College Hatch' : selectedOutlet,
           shift: cashShift,
@@ -141,8 +118,6 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
           staff_id: cashStaffId,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Till session opened successfully!', 'success');
       setOpeningCash('');
       if (data.session) {
@@ -163,18 +138,14 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     setIsClosingTill(true);
     const startMark = markStart('close_till_total');
     try {
-      const token = await getToken();
-      const res = await fetch(`/api/cash-sessions/${activeSession.id}`, {
+      const data = await operationsApiRequest<any>(`/api/cash-sessions/${activeSession.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           closing_cash: parseFloat(closingCash),
           expected_cash: parseFloat(expectedCash),
           cash_note: cashNote,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Till session closed successfully!', 'success');
       setClosingCash(''); setExpectedCash(''); setCashNote('');
       if (data.session) {
@@ -198,10 +169,8 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
     }
     setIsLoggingExpense(true);
     try {
-      const token = await getToken();
-      const res = await fetch('/api/expenses', {
+      const data = await operationsApiRequest<any>('/api/expenses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           expense_id: expenseId,
           outlet: selectedOutlet === 'All' ? 'Oasis College Hatch' : selectedOutlet,
@@ -214,8 +183,6 @@ export default function DashboardStats({ onNavigate, outletId, userRole }: Dashb
           status: 'submitted',
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Expense logged successfully!', 'success');
       setExpenseAmount('');
       setExpenseDesc('');

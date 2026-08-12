@@ -13,7 +13,10 @@ export interface ActorContext {
   email?: string;
   role: string;
   staffId?: string;
+  tenantId: string;
   outletId?: string;
+  allowedOutletIds: string[];
+  permissions: string[];
   tokenVersion?: number;
 }
 
@@ -128,7 +131,10 @@ export async function resolveActorContext(
       email: decodedToken.email,
       role,
       staffId: access?.staff_id || uid,
+      tenantId: access?.tenant_id || 'main',
       outletId: access?.outlet_id || 'main',
+      allowedOutletIds: Array.isArray(access?.allowed_outlet_ids) ? access.allowed_outlet_ids : [access?.outlet_id || 'main'],
+      permissions: Array.isArray(access?.permissions) ? access.permissions : [],
       tokenVersion,
     };
     ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
@@ -154,7 +160,10 @@ export async function resolveActorContext(
       email: decodedToken.email,
       role,
       staffId: staffDoc.id,
+      tenantId: staffData?.tenant_id || 'main',
       outletId: staffData?.outlet_id || 'main',
+      allowedOutletIds: Array.isArray(staffData?.allowed_outlet_ids) ? staffData.allowed_outlet_ids : [staffData?.outlet_id || 'main'],
+      permissions: Array.isArray(staffData?.permissions) ? staffData.permissions : [],
       tokenVersion,
     };
     ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });
@@ -172,6 +181,9 @@ export async function resolveActorContext(
     uid,
     email: decodedToken.email,
     role: CUSTOMER_ROLE,
+    tenantId: userData?.tenant_id || 'main',
+    allowedOutletIds: [],
+    permissions: [],
     tokenVersion: userData?.token_version,
   };
   ACTOR_CACHE.set(cacheKey, { actor, cachedAt: Date.now() });

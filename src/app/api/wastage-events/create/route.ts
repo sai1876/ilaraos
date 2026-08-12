@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 import { logBusinessEvent, type ActorType } from '@/server/events/logBusinessEvent';
 import { readCanonicalMoneyPaise } from '@/server/database/canonicalMoney';
 
@@ -48,7 +48,7 @@ const hash = (value: string): string => createHash('sha256').update(value).diges
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireRole(req, ['kitchen', 'manager', 'admin', 'owner']);
+    const actor = await requireSessionActorApi(['kitchen', 'manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
     if (!kitchenRoles.has(actor.role) && !elevatedRoles.has(actor.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
@@ -162,6 +162,7 @@ export async function POST(req: Request) {
         if (!docSnap.exists) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
         const docData = docSnap.data()!;
         if (docData.attachment_state !== 'pending_entity') throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
+        if (docData.tenantId !== actor.tenantId) throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: Tenant mismatch`);
         if (docData.related_entity_id !== eventId && docData.related_entity_id !== input.idempotency_key) {
           throw new WastageCommandError(422, `INVALID_EVIDENCE_REFERENCE: relation mismatch`);
         }
@@ -190,6 +191,7 @@ export async function POST(req: Request) {
         command_hash: hash(JSON.stringify(input)),
         created_at: now,
         updated_at: now,
+        tenantId: actor.tenantId,
       });
 
       for (const docRef of validDocRefs) {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 import { logBusinessEvent, type ActorType } from '@/server/events/logBusinessEvent';
 
 const exactRoles = new Set(['manager', 'admin', 'owner']);
@@ -25,7 +25,7 @@ type EventItem = {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireRole(req, ['manager', 'admin', 'owner']);
+    const actor = await requireSessionActorApi(['manager', 'admin', 'owner']);
     if (actor instanceof NextResponse) return actor;
     if (!exactRoles.has(actor.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
       ]);
       if (!eventSnapshot.exists) throw new WastageApprovalError(404, 'Wastage event not found');
       const event = eventSnapshot.data()!;
+      if (event.tenantId !== actor.tenantId) throw new WastageApprovalError(404, 'Wastage event not found');
       const outletId = String(event.outlet_id || '');
       if (!['admin', 'owner'].includes(actor.role)
           && (!actor.outletId || actor.outletId !== outletId)) {
@@ -145,6 +146,7 @@ export async function POST(req: Request) {
           stock_id: stockIds[index],
           event_id: input.event_id,
           outlet_id: outletId,
+          tenantId: actor.tenantId,
           movement_type: event.event_type === 'missing_item' ? 'wastage' : event.event_type,
           quantity_delta: -requiredQuantity,
           quantity_before: currentQuantity,

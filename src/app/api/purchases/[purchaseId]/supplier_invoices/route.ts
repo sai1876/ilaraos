@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request, { params }: { params: { purchaseId: string } }) {
   try {
-    const actor = await requireRole(req, ['admin', 'owner', 'manager']);
+    const actor = await requireSessionActorApi(['admin', 'owner', 'manager']);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
@@ -44,6 +44,7 @@ export async function POST(req: Request, { params }: { params: { purchaseId: str
       const purchaseRef = adminDb!.collection('purchases').doc(purchaseId);
       const pSnap = await t.get(purchaseRef);
       if (!pSnap.exists) throw new Error('Purchase order not found');
+      if (pSnap.data()?.tenantId !== actor.tenantId) throw new Error('Purchase order not found'); // Enforce tenant isolation
 
       const invRef = adminDb!.collection('supplier_invoices').doc(invoiceId);
       
@@ -56,6 +57,7 @@ export async function POST(req: Request, { params }: { params: { purchaseId: str
         if (!docSnap.exists) throw new Error(`INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
         
         const docData = docSnap.data()!;
+        if (docData.tenantId !== actor.tenantId) throw new Error(`INVALID_EVIDENCE_REFERENCE: Tenant mismatch`);
         if (docData.attachment_state !== 'pending_entity') throw new Error(`INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
         if (docData.related_entity_id !== invoiceId) throw new Error(`INVALID_EVIDENCE_REFERENCE: relation mismatch`);
         

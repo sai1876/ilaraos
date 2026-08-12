@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
-import { requireRole } from '@/server/auth/requireRole';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
 import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireRole(req, ['admin', 'owner', 'manager']);
+    const actor = await requireSessionActorApi(['admin', 'owner', 'manager']);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       created_by_role: actor.role,
       created_at: now,
       updated_at: now,
+      tenantId: actor.tenantId,
     };
 
     await adminDb.runTransaction(async (t) => {
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
         if (!docSnap.exists) throw new Error(`INVALID_EVIDENCE_REFERENCE: ${docId} not found`);
         
         const docData = docSnap.data()!;
+        if (docData.tenantId !== actor.tenantId) throw new Error(`INVALID_EVIDENCE_REFERENCE: Tenant mismatch`);
         if (docData.attachment_state !== 'pending_entity') throw new Error(`INVALID_EVIDENCE_REFERENCE: ${docId} not pending`);
         if (docData.related_entity_id !== purchaseId) throw new Error(`INVALID_EVIDENCE_REFERENCE: relation mismatch`);
         
@@ -83,11 +85,21 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const actor = await requireRole(req, ['admin', 'owner', 'manager']);
+    const actor = await requireSessionActorApi(['admin', 'owner', 'manager']);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
-    const snap = await adminDb.collection('purchases').orderBy('created_at', 'desc').limit(50).get();
+    let query = adminDb.collection('purchases').where('tenantId', '==', actor.tenantId);
+    
+    // Only fetch for allowed outlets if not global
+    if (actor.role !== 'admin' && actor.role !== 'owner') {
+      if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
+        return NextResponse.json({ success: true, purchases: [] });
+      }
+      query = query.where('outlet', 'in', actor.allowedOutletIds);
+    }
+    
+    const snap = await query.orderBy('created_at', 'desc').limit(50).get();
     const purchases = snap.docs.map(d => d.data());
     
     return NextResponse.json({ success: true, purchases });

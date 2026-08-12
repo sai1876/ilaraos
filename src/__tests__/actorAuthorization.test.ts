@@ -95,6 +95,9 @@ describe('server-authoritative actor resolution', () => {
         role: 'manager',
         staffId: 'manager1',
         outletId: 'outlet-a',
+        tenantId: 'main',
+        permissions: [],
+        allowedOutletIds: ['outlet-a'],
         tokenVersion: undefined,
       },
     });

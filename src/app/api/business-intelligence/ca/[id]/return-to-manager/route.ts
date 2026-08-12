@@ -8,7 +8,7 @@ export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireBIAccess(req);
+  const authResult = await requireBIAccess();
   if (authResult instanceof NextResponse) return authResult;
 
   if (!adminDb) {

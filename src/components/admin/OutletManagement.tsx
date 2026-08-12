@@ -6,8 +6,7 @@ import { Outlet, Staff } from '@/lib/types';
 import { fetchOutlets, fetchStaffList } from '@/lib/dbService';
 import { secureSaveOutlet, secureDeleteOutlet } from '@/app/_actions/secureDbActions';
 import TOTPModal from './TOTPModal';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { operationsApiRequest } from '@/lib/apiClient';
 
 interface HUDItem {
   id: string;
@@ -74,29 +73,14 @@ export default function OutletManagement({ userRole = 'admin', outletId }: { use
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        loadOutlets();
-        fetchAIInsights();
-      } else {
-        loadOutlets();
-        fetchAIInsights();
-      }
-    });
-    return () => unsubscribe();
+    loadOutlets();
+    fetchAIInsights();
   }, []);
 
   const fetchAIInsights = async () => {
     setLoadingHud(true);
     try {
-      const user = auth.currentUser;
-      const token = user ? await user.getIdToken() : null;
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const res = await fetch('/api/admin/morning-hud', { headers });
-      const data = await res.json();
+      const data = await operationsApiRequest<any>('/api/admin/morning-hud');
       if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
         setHudItems(data.tasks);
       } else {

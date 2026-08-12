@@ -25,6 +25,9 @@ export default async function OperationsPage() {
     uid: actor.uid,
     role: actor.role,
     staffId: actor.staffId,
+    tenantId: actor.tenantId,
     outletId: actor.outletId,
+    allowedOutletIds: actor.allowedOutletIds,
+    permissions: actor.permissions,
   }} />;
 }

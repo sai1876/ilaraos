@@ -8,9 +8,7 @@ import {
 import AgentInsightCard, { AgentInsightData } from './business-intelligence/AgentInsightCard';
 import AgentInsightDrawer from './business-intelligence/AgentInsightDrawer';
 
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { apiRequest } from '@/lib/apiClient';
+import { apiRequest, operationsApiRequest } from '@/lib/apiClient';
 
 const BI_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -49,28 +47,7 @@ export default function BusinessIntelligence() {
   // CA note input state
   const [caNoteText, setCaNoteText] = useState<Record<string, string>>({});
 
-  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    let user = auth.currentUser;
-    if (!user && typeof window !== 'undefined') {
-      user = await new Promise((resolve) => {
-        const unsub = onAuthStateChanged(auth, (u) => {
-          unsub();
-          resolve(u);
-        });
-        setTimeout(() => resolve(null), 2000);
-      });
-    }
-    if (user) {
-      try {
-        const token = await user.getIdToken();
-        headers['Authorization'] = `Bearer ${token}`;
-      } catch (err) {
-        console.warn('Failed to get Firebase token:', err);
-      }
-    }
-    return headers;
-  }, []);
+
 
   const fetchTabData = useCallback(async (tab: string) => {
     setLoading(true);
@@ -152,11 +129,10 @@ export default function BusinessIntelligence() {
   // Actions
   const handleMarkGstCaReview = async (id: string) => {
     try {
-      const res = await fetch(`/api/business-intelligence/gst/reconciliations/${id}/mark-ca-review`, {
-        method: 'POST',
-        headers: await getAuthHeaders()
+      const data = await operationsApiRequest<any>(`/api/business-intelligence/gst/reconciliations/${id}/mark-ca-review`, {
+        method: 'POST'
       });
-      if (res.ok) fetchTabData('gst');
+      if (data) fetchTabData('gst');
     } catch (err) {
       console.error(err);
     }
@@ -164,11 +140,10 @@ export default function BusinessIntelligence() {
 
   const handleReviewCompliance = async (id: string) => {
     try {
-      const res = await fetch(`/api/business-intelligence/compliance/${id}/review`, {
-        method: 'POST',
-        headers: await getAuthHeaders()
+      const data = await operationsApiRequest<any>(`/api/business-intelligence/compliance/${id}/review`, {
+        method: 'POST'
       });
-      if (res.ok) fetchTabData('compliance');
+      if (data) fetchTabData('compliance');
     } catch (err) {
       console.error(err);
     }
@@ -178,12 +153,11 @@ export default function BusinessIntelligence() {
     const note = caNoteText[id];
     if (!note) return;
     try {
-      const res = await fetch(`/api/business-intelligence/ca/${id}/note`, {
+      const data = await operationsApiRequest<any>(`/api/business-intelligence/ca/${id}/note`, {
         method: 'POST',
-        headers: await getAuthHeaders(),
         body: JSON.stringify({ ca_note: note })
       });
-      if (res.ok) {
+      if (data) {
         setCaNoteText(prev => ({ ...prev, [id]: '' }));
         fetchTabData('ca_workspace');
       }
@@ -194,11 +168,10 @@ export default function BusinessIntelligence() {
 
   const handleCaAction = async (id: string, action: 'request-document' | 'mark-reviewed' | 'return-to-manager') => {
     try {
-      const res = await fetch(`/api/business-intelligence/ca/${id}/${action}`, {
-        method: 'POST',
-        headers: await getAuthHeaders()
+      const data = await operationsApiRequest<any>(`/api/business-intelligence/ca/${id}/${action}`, {
+        method: 'POST'
       });
-      if (res.ok) fetchTabData('ca_workspace');
+      if (data) fetchTabData('ca_workspace');
     } catch (err) {
       console.error(err);
     }

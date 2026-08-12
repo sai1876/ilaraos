@@ -7,8 +7,6 @@ import { MenuItem, StockItem, IngredientRecipe, ModGroup, Outlet } from '@/lib/t
 import { fetchMenuItems, saveMenuItem, deleteMenuItem, fetchStocks, fetchOutlets } from '@/lib/dbService';
 import { generateMenuDescription } from '@/lib/geminiService';
 import Image from 'next/image';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { uploadFileViaIntent } from '@/features/documents/documentService';
 
 interface MenuManagementProps {
@@ -62,9 +60,7 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
 
   // Load menu items and stocks on mount
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      loadMenuAndStocks();
-    });
+    loadMenuAndStocks();
 
     if (typeof window !== "undefined") {
       const persisted = localStorage.getItem("ilara_pause_durations");
@@ -74,8 +70,6 @@ export default function MenuManagement({ userRole, outletId }: MenuManagementPro
         } catch (e) {}
       }
     }
-
-    return () => unsubscribe();
   }, []);
 
   const loadMenuAndStocks = async () => {

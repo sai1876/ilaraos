@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { requireBIAccess } from '@/server/auth/requireBIAccess';
 
 export async function GET(req: Request) {
-  const authResult = await requireBIAccess(req);
+  const authResult = await requireBIAccess();
   if (authResult instanceof NextResponse) return authResult;
 
   if (!adminDb) {

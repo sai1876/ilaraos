@@ -7,9 +7,8 @@ import { getInventoryForecastAction } from '@/app/_actions/groqActions';
 import { secureSaveStockItem, secureSaveBulkStockItems, secureDeleteStockItem, secureSaveConversionRecipe, secureStartDoughBatch, secureCompleteDoughBatch } from '@/app/_actions/secureDbActions';
 import TOTPModal from './TOTPModal';
 import { fetchLocalizedWeather, analyzeSmartRefill } from '@/lib/geminiService';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, query, collection, where, onSnapshot } from 'firebase/firestore';
+import { onSnapshot } from 'firebase/firestore';
+import { operationsApiRequest } from '@/lib/apiClient';
 
 
 interface InventoryManagementProps {
@@ -23,7 +22,7 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   const [_managerOutletId, setManagerOutletId] = useState(outletId || '');
 
   // Form states
@@ -90,37 +89,16 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
 
   // Load stocks and listen to Auth on mount
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        if (outletId) {
-          setManagerOutletId(outletId);
-          setSelectedOutletIdForBatches(outletId);
-        } else {
-          try {
-            const accessSnap = await getDoc(doc(db, 'staff_access', user.uid));
-            if (accessSnap.exists()) {
-              const accessData = accessSnap.data();
-              const myOutletId = accessData.outlet_id;
-              if (myOutletId) {
-                setManagerOutletId(myOutletId);
-                setSelectedOutletIdForBatches(myOutletId);
-              }
-            }
-          } catch (e) {
-            console.error("Failed to load staff assigned outlet access:", e);
-          }
-        }
-      }
-    });
-    return () => unsubscribe();
+    if (outletId) {
+      setManagerOutletId(outletId);
+      setSelectedOutletIdForBatches(outletId);
+    }
   }, [outletId]);
 
   // Load stocks whenever auth or outlet parameters change
   useEffect(() => {
-    if (!currentUser) return;
     loadStocksList();
-  }, [currentUser, userRole, outletId, _managerOutletId]);
+  }, [userRole, outletId, _managerOutletId]);
 
   // Live listener for active batches and logs based on selected outlet
   useEffect(() => {
@@ -298,21 +276,9 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
         reasonCategory = 'Customer Return / Rejected';
       }
 
-      const user = auth.currentUser;
-      if (!user) {
-        alert("You must be logged in to record wastage.");
-        return;
-      }
-      const token = await user.getIdToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-
       // 1. Create the wastage event
-      const createRes = await fetch('/api/wastage-events/create', {
+      const createData = await operationsApiRequest<any>('/api/wastage-events/create', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           idempotency_key: crypto.randomUUID(),
           outlet_id: item.outlet_id || undefined,
@@ -331,17 +297,13 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
         })
       });
 
-      const createData = await createRes.json();
-      if (!createData.success) {
-        throw new Error(createData.error || "Failed to create wastage event");
       }
 
       const eventId = createData.event_id;
 
       // 2. Approve the wastage event immediately to deduct inventory and log stock movement
-      const approveRes = await fetch('/api/wastage-events/approve', {
+      const approveData = await operationsApiRequest<any>('/api/wastage-events/approve', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           event_id: eventId,
           decision: 'approved',
@@ -349,7 +311,6 @@ export default function InventoryManagement({ userRole, outletId }: InventoryMan
         })
       });
 
-      const approveData = await approveRes.json();
       if (!approveData.success) {
         throw new Error(approveData.error || "Failed to approve wastage event");
       }

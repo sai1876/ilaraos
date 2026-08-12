@@ -85,6 +85,7 @@ async function executeRawFetch<T>(
   if (mode === 'session') {
     // For session mode, ensure cookies are included and DO NOT attach Bearer tokens
     options.credentials = options.credentials || 'include';
+    headers.delete('Authorization');
   } else if (mode === 'firebase' && !headers.has('Authorization')) {
     // Hydrate auth token for Firebase mode
     try {

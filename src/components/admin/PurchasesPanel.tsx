@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Clock, IndianRupee, RefreshCw, X } from 'lucide-react';
 import PendingEntityDocuments from '@/components/documents/PendingEntityDocuments';
-import { auth } from '@/lib/firebase';
+import { operationsApiRequest } from '@/lib/apiClient';
 
 export default function PurchasesPanel({ outletId }: { outletId?: string }) {
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -21,20 +21,7 @@ export default function PurchasesPanel({ outletId }: { outletId?: string }) {
   const loadPurchases = async () => {
     setLoading(true);
     try {
-      let user = auth.currentUser;
-      if (!user) {
-        await new Promise<void>((resolve) => {
-          const u = auth.onAuthStateChanged(() => {
-            u(); resolve();
-          });
-        });
-        user = auth.currentUser;
-      }
-      const token = await user!.getIdToken();
-      const res = await fetch('/api/purchases', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const data = await operationsApiRequest<any>('/api/purchases');
       if (data.success) {
         setPurchases(data.purchases || []);
       }
@@ -57,13 +44,8 @@ export default function PurchasesPanel({ outletId }: { outletId?: string }) {
     }
     setIsSubmitting(true);
     try {
-      const token = await auth.currentUser!.getIdToken();
-      const res = await fetch('/api/purchases', {
+      const data = await operationsApiRequest<any>('/api/purchases', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
         body: JSON.stringify({
           purchase_id: purchaseId,
           outlet: outletId || 'main',
@@ -74,10 +56,6 @@ export default function PurchasesPanel({ outletId }: { outletId?: string }) {
           document_ids: docs.map(d => d.document_id)
         })
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to create purchase');
-      }
       alert('Purchase request submitted for approval.');
       setShowCreate(false);
       setPurchaseId(typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2));

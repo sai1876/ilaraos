@@ -83,6 +83,11 @@ vi.mock('@/server/events/logBusinessEvent', () => ({
 
 import { POST as uploadIntentHandler } from '@/app/api/files/upload-intent/route';
 import { POST as expensesHandler } from '@/app/api/expenses/route';
+import { requireSessionActorApi } from '@/server/auth/requireSessionActor';
+
+vi.mock('@/server/auth/requireSessionActor', () => ({
+  requireSessionActorApi: vi.fn(),
+}));
 
 describe('Document Infrastructure & Evidence System', () => {
   beforeEach(() => {
@@ -142,11 +147,21 @@ describe('Document Infrastructure & Evidence System', () => {
     const req = new Request('http://localhost/api/expenses', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer manager-token',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
+
+    vi.mocked(requireSessionActorApi).mockResolvedValueOnce({
+      uid: 'user-manager',
+      role: 'manager',
+      tenantId: 'main',
+      outletId: 'main',
+      staffId: 'user-manager',
+      email: 'manager@example.test',
+      permissions: [],
+      allowedOutletIds: ['main']
+    } as any);
 
     const res = await expensesHandler(req);
     console.log('EXPENSE TEST RES', res.status, await res.clone().json().catch(()=>null));
@@ -170,11 +185,21 @@ describe('Document Infrastructure & Evidence System', () => {
     const req = new Request('http://localhost/api/expenses', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer manager-token',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
+
+    vi.mocked(requireSessionActorApi).mockResolvedValueOnce({
+      uid: 'user-manager',
+      role: 'manager',
+      tenantId: 'main',
+      outletId: 'main',
+      staffId: 'user-manager',
+      email: 'manager@example.test',
+      permissions: [],
+      allowedOutletIds: ['main']
+    } as any);
 
     const res = await expensesHandler(req);
     expect(res.status).toBe(201);

@@ -65,7 +65,10 @@ interface OperationsClientProps {
     uid: string;
     role: string;
     staffId?: string;
+    tenantId: string;
     outletId?: string;
+    allowedOutletIds: string[];
+    permissions: string[];
   };
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireRole } from "@/server/auth/requireRole";
+import { requireSessionActorApi } from "@/server/auth/requireSessionActor";
 import { ServerTiming } from "@/lib/performance/serverTiming";
 
 export const dynamic = "force-dynamic";
@@ -8,13 +8,19 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const timing = new ServerTiming();
   try {
-    const actor = await requireRole(req, ["manager", "admin", "owner"]);
+    const actor = await requireSessionActorApi(["manager", "admin", "owner"]);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
     const t0 = Date.now();
-    const snap = await adminDb.collection("cash_register_sessions")
-      .orderBy("opened_at", "desc").limit(50).get();
+    let query = adminDb.collection("cash_register_sessions").where("tenantId", "==", actor.tenantId);
+    if (actor.role !== 'admin' && actor.role !== 'owner') {
+      if (!actor.allowedOutletIds || actor.allowedOutletIds.length === 0) {
+        return timing.applyToResponse(NextResponse.json({ success: true, sessions: [] }));
+      }
+      query = query.where("outlet", "in", actor.allowedOutletIds);
+    }
+    const snap = await query.orderBy("opened_at", "desc").limit(50).get();
     timing.mark('db_read', Date.now() - t0);
 
     const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -29,7 +35,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const timing = new ServerTiming();
   try {
-    const actor = await requireRole(req, ["manager", "admin", "owner"]);
+    const actor = await requireSessionActorApi(["manager", "admin", "owner"]);
     if (actor instanceof NextResponse) return actor;
     if (!adminDb) return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 });
 
@@ -48,6 +54,7 @@ export async function POST(req: Request) {
       staff_id: staff_id || actor.uid,
       opened_at: now,
       created_at: Date.now(),
+      tenantId: actor.tenantId,
     };
 
     const t0 = Date.now();
