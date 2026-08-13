@@ -33,10 +33,10 @@ const TABS = [
 
 export default function DocumentVault({ 
   userRole = 'manager',
-  onOpenRecord
+  onOpenRecordAction
 }: { 
   userRole?: string;
-  onOpenRecord?: (entityType: string, entityId: string) => void;
+  onOpenRecordAction?: (entityType: string, entityId: string) => void;
 }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,7 +243,7 @@ export default function DocumentVault({
                     <td className="p-3 text-[#66554A]">
                       {doc.related_entity_type && doc.related_entity_id ? (
                         <button
-                          onClick={() => onOpenRecord && onOpenRecord(doc.related_entity_type, doc.related_entity_id)}
+                          onClick={() => onOpenRecordAction && onOpenRecordAction(doc.related_entity_type, doc.related_entity_id)}
                           className="hover:underline text-[#9A642C] font-bold text-left flex items-center gap-1"
                         >
                           <span className="uppercase">{doc.related_entity_type}</span>
