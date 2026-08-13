@@ -5,6 +5,10 @@ import { getDefaultPermissionsForRole, PERMISSIONS } from '@/lib/auth/permission
 import { requireBatchExecutionAccess, SessionAuthorizationError, requirePermission, requireOutletAccess } from '@/server/auth/requireSessionActor';
 import { adminDb } from '@/lib/firebaseAdmin';
 
+vi.mock('next/headers', () => ({
+  cookies: vi.fn()
+}));
+
 // Mock everything needed for unit testing authorization behavior
 vi.mock('@/lib/firebaseAdmin', () => {
   return {
@@ -278,52 +282,318 @@ describe('AUTH-03 Acceptance Tests', () => {
 
   describe('10. SESSION REVOCATION ACCEPTANCE TEST', () => {
     it('clears session correctly and blocks revoked cookies', async () => {
-      const { DELETE: logout } = await import('@/app/api/auth/session/route');
+      // Setup deterministic logout replay test
       const { adminAuth } = await import('@/lib/firebaseAdmin');
-
-      const mockReq = { headers: new Headers({ cookie: '__session=AAA;' }) } as any;
+      
+      const mockReq = { headers: new Headers({ cookie: '__session=OLD_SESSION;' }) } as any;
       (adminAuth!.verifySessionCookie as any).mockResolvedValueOnce({ uid: 'user1' });
 
+      // Action: Logout
+      const { DELETE: logout } = await import('@/app/api/auth/session/route');
       const res = await logout(mockReq);
+      
+      // Assert Revocation
       expect(adminAuth!.revokeRefreshTokens).toHaveBeenCalledWith('user1');
       
+      // Assert all cookies cleared
       const cookies = res.headers.get('set-cookie');
       expect(cookies).toContain('__session=;');
+      expect(cookies).toContain('__staff_pre_auth=;');
+      expect(cookies).toContain('__elevation_inventory_sensitive_action=;');
+      expect(cookies).toContain('__elevation_admin_action=;');
 
+      // Assert requireSessionActor blocks revoked session correctly
       (adminAuth!.verifySessionCookie as any).mockRejectedValueOnce(new Error('auth/session-cookie-revoked'));
+      vi.resetModules();
+      
+      const nextHeaders = await import('next/headers');
+      (nextHeaders.cookies as any).mockReturnValue({ get: () => ({ value: 'OLD_SESSION' }) });
+      
       const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
-      vi.mock('next/headers', () => ({ cookies: () => ({ get: () => ({ value: 'REVOKED_AAA' }) }) }));
-      await expect(requireSessionActor(['staff'])).rejects.toThrow('Invalid session');
+      
+      let error: any;
+      try {
+        await requireSessionActor(['staff']);
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.name).toBe('SessionAuthorizationError');
+      expect(error.status).toBe(401);
     });
   });
 
-  describe('11. ELEVATION COPY TEST', () => {
-    it('prevents elevation copying between sessions and invalid purpose/outlet', async () => {
-      const { secureDeleteStockItem } = await import('@/app/_actions/secureDbActions');
+  describe('11. ELEVATION TESTS', () => {
+    const crypto = require('crypto');
+    
+    it('COPIED-ELEVATION ATTACK: prevents elevation copying between sessions', async () => {
       const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
       const mockRequire = vi.mocked(requireSessionActor);
-      mockRequire.mockResolvedValue({ uid: '1', role: 'admin', permissions: ['inventory.delete'], allowedOutletIds: ['A', 'B'] } as any);
+      mockRequire.mockResolvedValue({ uid: 'user1', role: 'manager', permissions: ['inventory.delete'], allowedOutletIds: ['A'] } as any);
       
-      (adminDb!.collection as any).mockReturnValue({
-         doc: vi.fn().mockReturnValue({
-            get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
-            delete: vi.fn()
-         })
+      (adminDb!.collection as any).mockImplementation((col: string) => {
+        if (col === 'inventory') {
+          return {
+             doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+                delete: vi.fn()
+             })
+          }
+        }
+        if (col === 'actor_elevations') {
+          return {
+             doc: vi.fn().mockImplementation((id: string) => {
+               if (id === 'elev_A') {
+                 return {
+                   get: vi.fn().mockResolvedValue({
+                     exists: true,
+                     data: () => ({
+                       elevationId: 'elev_A',
+                       userId: 'user1',
+                       sessionBinding: crypto.createHash('sha256').update('SESSION_A_VALUE').digest('hex'),
+                       purpose: 'inventory_sensitive_action',
+                       outletId: 'A',
+                       verifiedAt: Date.now(),
+                       expiresAt: Date.now() + 60000
+                     })
+                   })
+                 }
+               }
+               return { get: vi.fn().mockResolvedValue({ exists: false }) }
+             })
+          }
+        }
       });
 
-      vi.mock('next/headers', () => ({
-         cookies: () => ({ get: (name: string) => {
-             if (name === '__session') return { value: 'SESSION_B' };
-             if (name === '__elevation_inventory_sensitive_action') return { value: JSON.stringify({
-                 sessionBinding: 'HASH_OF_SESSION_A',
-                 expiresAt: Date.now() + 10000,
-                 outletId: 'A'
-             }) };
+      const { cookies } = await import('next/headers');
+      (cookies as any).mockReturnValue({
+         get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_B_VALUE' }; // Different session!
+             if (name === '__elevation_inventory_sensitive_action') return { value: 'elev_A' };
              return undefined;
-         } })
-      }));
+         }
+      });
 
-      await expect(secureDeleteStockItem('stock1', '123456')).rejects.toThrow();
+      // Await import to ensure mock is picked up
+      const dbActions = await import('@/app/_actions/secureDbActions');
+      await expect(dbActions.secureDeleteStockItem('stock-A', 'SESSION_BYPASS')).rejects.toThrow();
+    });
+
+    it('VALID SAME-SESSION POSITIVE TEST', async () => {
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      const mockRequire = vi.mocked(requireSessionActor);
+      mockRequire.mockResolvedValue({ uid: 'user1', role: 'manager', permissions: ['inventory.delete'], allowedOutletIds: ['A'] } as any);
+      
+      const mockDelete = vi.fn();
+      (adminDb!.collection as any).mockImplementation((col: string) => {
+        if (col === 'inventory') {
+          return {
+             doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+                delete: mockDelete
+             })
+          }
+        }
+        if (col === 'actor_elevations') {
+          return {
+             doc: vi.fn().mockImplementation((id: string) => {
+               if (id === 'elev_A') {
+                 return {
+                   get: vi.fn().mockResolvedValue({
+                     exists: true,
+                     data: () => ({
+                       elevationId: 'elev_A',
+                       userId: 'user1',
+                       sessionBinding: crypto.createHash('sha256').update('SESSION_A_VALUE').digest('hex'),
+                       purpose: 'inventory_sensitive_action',
+                       outletId: 'A',
+                       verifiedAt: Date.now(),
+                       expiresAt: Date.now() + 60000
+                     })
+                   })
+                 }
+               }
+               return { get: vi.fn().mockResolvedValue({ exists: false }) }
+             })
+          }
+        }
+      });
+
+      const { cookies } = await import('next/headers');
+      (cookies as any).mockReturnValue({
+         get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_A_VALUE' };
+             if (name === '__elevation_inventory_sensitive_action') return { value: 'elev_A' };
+             return undefined;
+         }
+      });
+
+      const dbActions = await import('@/app/_actions/secureDbActions');
+      await dbActions.secureDeleteStockItem('stock-A', 'SESSION_BYPASS');
+      expect(mockDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('EXPIRED ELEVATION', async () => {
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      const mockRequire = vi.mocked(requireSessionActor);
+      mockRequire.mockResolvedValue({ uid: 'user1', role: 'manager', permissions: ['inventory.delete'], allowedOutletIds: ['A'] } as any);
+      
+      const mockDelete = vi.fn();
+      (adminDb!.collection as any).mockImplementation((col: string) => {
+        if (col === 'inventory') {
+          return {
+             doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+                delete: mockDelete
+             })
+          }
+        }
+        if (col === 'actor_elevations') {
+          return {
+             doc: vi.fn().mockImplementation((id: string) => {
+               if (id === 'elev_A') {
+                 return {
+                   get: vi.fn().mockResolvedValue({
+                     exists: true,
+                     data: () => ({
+                       elevationId: 'elev_A',
+                       userId: 'user1',
+                       sessionBinding: crypto.createHash('sha256').update('SESSION_A_VALUE').digest('hex'),
+                       purpose: 'inventory_sensitive_action',
+                       outletId: 'A',
+                       verifiedAt: Date.now(),
+                       expiresAt: Date.now() - 1000 // Expired
+                     })
+                   })
+                 }
+               }
+               return { get: vi.fn().mockResolvedValue({ exists: false }) }
+             })
+          }
+        }
+      });
+
+      const { cookies } = await import('next/headers');
+      (cookies as any).mockReturnValue({
+         get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_A_VALUE' };
+             if (name === '__elevation_inventory_sensitive_action') return { value: 'elev_A' };
+             return undefined;
+         }
+      });
+
+      const dbActions = await import('@/app/_actions/secureDbActions');
+      await expect(dbActions.secureDeleteStockItem('stock-A', 'SESSION_BYPASS')).rejects.toThrow();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it('WRONG PURPOSE', async () => {
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      const mockRequire = vi.mocked(requireSessionActor);
+      mockRequire.mockResolvedValue({ uid: 'user1', role: 'manager', permissions: ['inventory.delete'], allowedOutletIds: ['A'] } as any);
+      
+      const mockDelete = vi.fn();
+      (adminDb!.collection as any).mockImplementation((col: string) => {
+        if (col === 'inventory') {
+          return {
+             doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'A' }) }),
+                delete: mockDelete
+             })
+          }
+        }
+        if (col === 'actor_elevations') {
+          return {
+             doc: vi.fn().mockImplementation((id: string) => {
+               if (id === 'elev_A') {
+                 return {
+                   get: vi.fn().mockResolvedValue({
+                     exists: true,
+                     data: () => ({
+                       elevationId: 'elev_A',
+                       userId: 'user1',
+                       sessionBinding: crypto.createHash('sha256').update('SESSION_A_VALUE').digest('hex'),
+                       purpose: 'admin_action', // Wrong purpose
+                       outletId: 'A',
+                       verifiedAt: Date.now(),
+                       expiresAt: Date.now() + 60000
+                     })
+                   })
+                 }
+               }
+               return { get: vi.fn().mockResolvedValue({ exists: false }) }
+             })
+          }
+        }
+      });
+
+      const { cookies } = await import('next/headers');
+      (cookies as any).mockReturnValue({
+         get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_A_VALUE' };
+             if (name === '__elevation_inventory_sensitive_action') return { value: 'elev_A' };
+             return undefined;
+         }
+      });
+
+      const dbActions = await import('@/app/_actions/secureDbActions');
+      await expect(dbActions.secureDeleteStockItem('stock-A', 'SESSION_BYPASS')).rejects.toThrow();
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it('WRONG OUTLET', async () => {
+      const { requireSessionActor } = await import('@/server/auth/requireSessionActor');
+      const mockRequire = vi.mocked(requireSessionActor);
+      mockRequire.mockResolvedValue({ uid: 'user1', role: 'admin', permissions: ['inventory.delete'], allowedOutletIds: ['A', 'B'] } as any);
+      
+      const mockDelete = vi.fn();
+      (adminDb!.collection as any).mockImplementation((col: string) => {
+        if (col === 'inventory') {
+          return {
+             doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ outlet_id: 'B' }) }), // Item is in outlet B
+                delete: mockDelete
+             })
+          }
+        }
+        if (col === 'actor_elevations') {
+          return {
+             doc: vi.fn().mockImplementation((id: string) => {
+               if (id === 'elev_A') {
+                 return {
+                   get: vi.fn().mockResolvedValue({
+                     exists: true,
+                     data: () => ({
+                       elevationId: 'elev_A',
+                       userId: 'user1',
+                       sessionBinding: crypto.createHash('sha256').update('SESSION_A_VALUE').digest('hex'),
+                       purpose: 'inventory_sensitive_action',
+                       outletId: 'A', // Elevation is for outlet A
+                       verifiedAt: Date.now(),
+                       expiresAt: Date.now() + 60000
+                     })
+                   })
+                 }
+               }
+               return { get: vi.fn().mockResolvedValue({ exists: false }) }
+             })
+          }
+        }
+      });
+
+      const { cookies } = await import('next/headers');
+      (cookies as any).mockReturnValue({
+         get: (name: string) => {
+             if (name === '__session') return { value: 'SESSION_A_VALUE' };
+             if (name === '__elevation_inventory_sensitive_action') return { value: 'elev_A' };
+             return undefined;
+         }
+      });
+
+      const dbActions = await import('@/app/_actions/secureDbActions');
+      await expect(dbActions.secureDeleteStockItem('stock-B', 'SESSION_BYPASS')).rejects.toThrow();
+      expect(mockDelete).not.toHaveBeenCalled();
     });
   });
 
