@@ -147,17 +147,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
     }
 
-    if (process.env.WHATSAPP_APP_SECRET) {
-      const signatureResult = verifyMetaWebhookSignature(
-        rawBody,
-        request.headers.get('x-hub-signature-256'),
-        process.env.WHATSAPP_APP_SECRET,
-      );
+    const secret = process.env.WHATSAPP_APP_SECRET;
+    if (!secret) {
+      console.error('[WHATSAPP WEBHOOK] WHATSAPP_APP_SECRET is not configured');
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 });
+    }
 
-      if (!signatureResult.ok) {
-        const status = signatureResult.reason === 'not_configured' ? 503 : 401;
-        return NextResponse.json({ error: 'Webhook authentication failed' }, { status });
-      }
+    const signatureResult = verifyMetaWebhookSignature(
+      rawBody,
+      request.headers.get('x-hub-signature-256'),
+      secret,
+    );
+
+    if (!signatureResult.ok) {
+      const status = signatureResult.reason === 'not_configured' ? 503 : 401;
+      return NextResponse.json({ error: 'Webhook authentication failed' }, { status });
     }
 
     if (!adminDb) {
@@ -313,10 +317,20 @@ export async function POST(request: Request) {
     // ----------------------------------------------------
     if (message.type === 'text' && typeof message.text?.body === 'string' && message.text.body) {
       const messageText = message.text.body;
-      const tokenMatch = messageText.trim().match(/^LOGIN(?:\s+Ref:)?\s*([A-Za-z0-9_-]{8,64})$/i);
+      const authMatch = messageText.trim().match(/^(LOGIN|VERIFY)\s+Ref:\s*([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/i);
+      const legacySignupMatch = messageText.trim().match(/^(?:LOGIN\s+)?Ref:\s*([A-Za-z0-9_-]{8,64})$/i);
 
-      if (tokenMatch) {
-        const token = tokenMatch[1].toUpperCase();
+      if (authMatch) {
+        const purpose = authMatch[1].toUpperCase() === 'LOGIN' ? 'passwordless_login' : 'phone_verification';
+        const challengeId = authMatch[2];
+        const verifier = authMatch[3];
+        
+        await processAuthChallengeInBackground(phoneNumberId, fromPhone, normalizedFromPhone, purpose, challengeId, verifier)
+          .catch(err => console.error('[WHATSAPP WEBHOOK ASYNC ERROR] Auth challenge processing failed:', err));
+
+        return { response: NextResponse.json({ success: true, message: 'Challenge processed' }), processingKind: 'LOGIN_HANDSHAKE', expectedConversationId: normalizedFromPhone };
+      } else if (legacySignupMatch) {
+        const token = legacySignupMatch[1].toUpperCase();
         
         // Process text handshake
         await processTextHandshakeInBackground(phoneNumberId, fromPhone, normalizedFromPhone, token)
@@ -638,6 +652,91 @@ async function processVoiceOrderInBackground(
 }
 
 /**
+ * Background Asynchronous Pipeline: verifies AUTH-04 new tokens
+ */
+async function processAuthChallengeInBackground(
+  phoneNumberId: string,
+  fromPhone: string,
+  normalizedFromPhone: string,
+  purpose: 'passwordless_login' | 'phone_verification',
+  challengeId: string,
+  verifier: string
+) {
+  console.log(`[BACKGROUND TASK] Verifying AUTH-04 Challenge for ${maskPhone(fromPhone)}`);
+  const { verifyPasswordlessChallenge, verifySignupChallenge, canonicalizePhone } = await import('@/server/auth/whatsappChallenge');
+  
+  try {
+    const canonicalPhone = canonicalizePhone(normalizedFromPhone);
+    if (!canonicalPhone) {
+      console.warn(`[WHATSAPP WEBHOOK REJECT] Invalid phone format: ${normalizedFromPhone}`);
+      return;
+    }
+
+    let result;
+    if (purpose === 'passwordless_login') {
+      result = await verifyPasswordlessChallenge(challengeId, verifier, canonicalPhone);
+    } else {
+      result = await verifySignupChallenge(challengeId, verifier, canonicalPhone);
+    }
+
+    if (!result.success) {
+      console.warn(`[BACKGROUND TASK REJECT] Challenge verification failed: ${result.reason}`);
+      
+      // Strict Sender Mismatch: log safe security event, do not verify
+      if (result.reason === 'sender_mismatch') {
+        await logBusinessEvent({
+          event_type: 'whatsapp_auth_sender_mismatch',
+          actor_type: 'webhook',
+          actor_id: 'unknown',
+          target_type: 'system',
+          target_id: challengeId,
+          severity: 'warning',
+          source: 'webhook',
+          metadata: { masked_phone: maskPhone(normalizedFromPhone), reason: result.reason }
+        });
+      }
+
+      await dispatchWhatsAppMessage(
+        phoneNumberId,
+        fromPhone,
+        "Macha! This verification request failed or has expired. Please retry from the web app.",
+        { sender_type: 'SYSTEM' }
+      );
+      return;
+    }
+
+    console.log(`[BACKGROUND TASK SUCCESS] Challenge verified for: ${challengeId}`);
+    if (purpose === 'passwordless_login') {
+      await logBusinessEvent({
+        event_type: 'passwordless_login_verified',
+        actor_type: 'webhook',
+        actor_id: 'unknown',
+        target_type: 'system',
+        target_id: challengeId,
+        severity: 'info',
+        source: 'webhook',
+        metadata: { masked_phone: maskPhone(normalizedFromPhone), challenge_id: challengeId }
+      });
+      await dispatchWhatsAppMessage(
+        phoneNumberId,
+        fromPhone,
+        "Ustaad! Your login is verified. Please return to the web app to continue! 🚀",
+        { sender_type: 'SYSTEM' }
+      );
+    } else {
+      await dispatchWhatsAppMessage(
+        phoneNumberId,
+        fromPhone,
+        "Ustaad! Your phone number is verified. Please return to the web app screen to complete your profile! 🚀",
+        { sender_type: 'SYSTEM' }
+      );
+    }
+  } catch (error) {
+    console.error('[BACKGROUND TASK EXCEPTION] Auth challenge verification error:', error);
+  }
+}
+
+/**
  * Background Asynchronous Pipeline: verifies signup token handshake.
  */
 async function processTextHandshakeInBackground(
@@ -688,68 +787,7 @@ async function processTextHandshakeInBackground(
     const purpose = handshakeData.purpose || 'phone_verification';
 
     if (purpose === 'passwordless_login') {
-      // For passwordless login, we must use the UID to look up the user profile,
-      // because we only store masked_phone in the handshake to avoid leaking PII.
-      const userRef = adminDb.collection('users').doc(handshakeData.uid);
-      const userSnap = await userRef.get();
-      
-      if (!userSnap.exists) {
-        await dispatchWhatsAppMessage(
-          phoneNumberId,
-          fromPhone,
-          "Macha! We couldn't find your account. Please sign up first.",
-          { sender_type: 'SYSTEM' }
-        );
-        return;
-      }
-
-      const userProfile = userSnap.data()!;
-      const registeredPhone = (userProfile.phone || userProfile.phone_number || handshakeData.phone || '').replace(/[^0-9]/g, "");
-      const webhookSuffix = normalizedFromPhone.slice(-10);
-      const registeredSuffix = registeredPhone.slice(-10);
-
-      if (!registeredSuffix) {
-        await userRef.set({ phone: `+${normalizedFromPhone}` }, { merge: true });
-      } else if (webhookSuffix !== registeredSuffix) {
-        await logBusinessEvent({
-          event_type: 'passwordless_login_failed',
-          actor_type: 'webhook',
-          actor_id: handshakeData.uid,
-          target_type: 'user',
-          target_id: handshakeData.uid,
-          severity: 'warning',
-          source: 'webhook',
-          metadata: { masked_phone: maskPhone(normalizedFromPhone), reason: "sender_mismatch" }
-        });
-        console.warn(`[WHATSAPP WEBHOOK] Phone suffix notice (webhook: ${webhookSuffix}, registered: ${registeredSuffix}), proceeding with token verification.`);
-      }
-
-      // Token matches! Update handshake state
-      await handshakeRef.update({
-        is_verified: true,
-        verified_at: Date.now()
-        // Do not mark used: true here, the polling endpoint will consume it and mark it used.
-      });
-
-      console.log(`[BACKGROUND TASK SUCCESS] Passwordless login verified for: ${token.substring(0, 4)}****`);
-      
-      await logBusinessEvent({
-        event_type: 'passwordless_login_verified',
-        actor_type: 'webhook',
-        actor_id: handshakeData.uid,
-        target_type: 'user',
-        target_id: handshakeData.uid,
-        severity: 'info',
-        source: 'webhook',
-        metadata: { masked_phone: maskPhone(normalizedFromPhone), token_id: token.substring(0, 4) + '****' }
-      });
-
-      await dispatchWhatsAppMessage(
-        phoneNumberId,
-        fromPhone,
-        "Ustaad! Your login is verified. Please return to the web app to continue! 🚀",
-        { sender_type: 'SYSTEM' }
-      );
+      console.warn(`[WHATSAPP WEBHOOK REJECT] Legacy passwordless token attempted, but they are disabled in AUTH-04.`);
       return;
     }
 

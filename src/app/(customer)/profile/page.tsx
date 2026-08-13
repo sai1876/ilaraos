@@ -331,6 +331,12 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     setAuthLoading(true);
     try {
+      await fetch('/api/auth/session', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }) 
+      }).catch(console.error);
+      
       await signOut(auth);
       setUser(null);
       setUserProfile(null);

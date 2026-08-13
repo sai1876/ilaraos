@@ -5,6 +5,8 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { USERS_COL } from '@/lib/firebase/collections';
 import { rateLimitDurable } from '@/lib/rateLimit';
 import { logBusinessEvent } from '@/server/events/logBusinessEvent';
+import { cookies } from 'next/headers';
+import { hashPhone, WhatsAppChallenge, canonicalizePhone } from '@/server/auth/whatsappChallenge';
 
 const MAX_BODY_BYTES = 12 * 1024;
 const profileSchema = z.object({
@@ -12,8 +14,11 @@ const profileSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().email().max(254),
   referredBy: z.string().trim().max(64).optional().default(''),
-  handshakeToken: z.string().regex(/^[A-Fa-f0-9]{32}$/),
-}).strict();
+  challengeId: z.string().min(16).max(64).optional(),
+  handshakeToken: z.string().optional(), // For compatibility
+}).strict().refine(data => data.challengeId || data.handshakeToken, {
+  message: "Either challengeId or handshakeToken is required"
+});
 
 class ProfileCreationError extends Error {
   constructor(public status: number, message: string) {
@@ -75,24 +80,34 @@ export async function POST(req: Request) {
 
     const decodedEmail = decodedToken.email?.toLowerCase().trim();
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
-    const normalizedPhone = parsed.data.phone.replace(/\D/g, '');
-    if (!decodedEmail || normalizedEmail !== decodedEmail || normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+    const canonicalPhone = canonicalizePhone(parsed.data.phone);
+    if (!decodedEmail || normalizedEmail !== decodedEmail || !canonicalPhone) {
       return NextResponse.json({ detail: 'Profile verification failed' }, { status: 403 });
     }
+    const normalizedPhone = canonicalPhone.replace(/\\D/g, '');
+
+    const cookieStore = cookies();
+    const bindingSecret = cookieStore.get('__wa_auth_bind')?.value;
+    if (!bindingSecret) {
+      return NextResponse.json({ detail: 'Profile verification failed: Missing binding' }, { status: 403 });
+    }
+    const browserBindingHash = crypto.createHash('sha256').update(bindingSecret).digest('hex');
 
     const userId = decodedToken.uid;
     const db = adminDb;
     const userRef = db.collection(USERS_COL).doc(userId);
-    const handshakeToken = parsed.data.handshakeToken.toUpperCase();
-    const handshakeRef = db.collection('auth_handshakes').doc(handshakeToken);
+    const challengeId = parsed.data.challengeId || parsed.data.handshakeToken;
+    const challengeRef = db.collection('whatsapp_challenges').doc(challengeId!);
+    
     const phoneQuery = db.collection(USERS_COL).where('phone_normalized', '==', normalizedPhone).limit(1);
     const legacyPhoneQuery = db.collection(USERS_COL)
-      .where('phone', 'in', [normalizedPhone, `+${normalizedPhone}`])
+      .where('phone', 'in', [normalizedPhone, `+${normalizedPhone}`, canonicalPhone])
       .limit(1);
     const referralCode = `ILARA_${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+    
     const newProfile = {
       user_id: userId,
-      phone: normalizedPhone,
+      phone: canonicalPhone,
       phone_normalized: normalizedPhone,
       name: parsed.data.name,
       student_email: normalizedEmail,
@@ -109,44 +124,61 @@ export async function POST(req: Request) {
     };
 
     await db.runTransaction(async transaction => {
-      const [handshakeDoc, existingUser, phoneMatches, legacyPhoneMatches] = await Promise.all([
-        transaction.get(handshakeRef),
+      const [challengeDoc, existingUser, phoneMatches, legacyPhoneMatches] = await Promise.all([
+        transaction.get(challengeRef),
         transaction.get(userRef),
         transaction.get(phoneQuery),
         transaction.get(legacyPhoneQuery),
       ]);
+      
       if (existingUser.exists) {
         throw new ProfileCreationError(409, 'Profile already exists');
       }
       if (!phoneMatches.empty || !legacyPhoneMatches.empty) {
         throw new ProfileCreationError(409, 'Profile cannot be created');
       }
-      if (!handshakeDoc.exists) {
+      if (!challengeDoc.exists) {
         throw new ProfileCreationError(403, 'Profile verification failed');
       }
 
-      const handshake = handshakeDoc.data()!;
-      const handshakePhone = typeof handshake.phone === 'string' ? handshake.phone.replace(/\D/g, '') : '';
+      const challenge = challengeDoc.data() as WhatsAppChallenge;
+      
+      // Strict Validations
       if (
-        handshake.purpose !== 'phone_verification'
-        || handshake.is_verified !== true
-        || handshakePhone !== normalizedPhone
-        || typeof handshake.expires_at !== 'number'
-        || handshake.expires_at < Date.now()
-        || handshake.consumed === true
-        || Boolean(handshake.consumed_by)
+        challenge.challengeVersion !== 2 ||
+        challenge.purpose !== 'phone_verification' ||
+        challenge.status !== 'verified' ||
+        Date.now() > challenge.expiresAt
       ) {
-        throw new ProfileCreationError(403, 'Profile verification failed');
+        throw new ProfileCreationError(403, 'Profile verification failed: Invalid state');
       }
 
+      // Browser binding check
+      const storedBindingBuf = Buffer.from(challenge.browserBindingHash, 'hex');
+      const providedBindingBuf = Buffer.from(browserBindingHash, 'hex');
+      if (storedBindingBuf.length !== providedBindingBuf.length || !crypto.timingSafeEqual(storedBindingBuf, providedBindingBuf)) {
+        throw new ProfileCreationError(403, 'Profile verification failed: Binding mismatch');
+      }
+      
+      // Phone binding check
+      const providedPhoneHash = hashPhone(canonicalPhone);
+      const expectedBuf = Buffer.from(challenge.expectedPhoneHash, 'hex');
+      const incomingBuf = Buffer.from(providedPhoneHash, 'hex');
+      if (expectedBuf.length !== incomingBuf.length || !crypto.timingSafeEqual(expectedBuf, incomingBuf)) {
+        throw new ProfileCreationError(403, 'Profile verification failed: Sender mismatch');
+      }
+
+      // Atomic commit
       transaction.set(userRef, newProfile);
-      transaction.update(handshakeRef, {
-        consumed: true,
-        consumed_by: userId,
-        consumed_at: Date.now(),
-        consume_state: 'consumed',
+      transaction.update(challengeRef, {
+        status: 'consumed',
+        consumedBy: userId,
+        consumedAt: Date.now(),
       });
     });
+
+    // Cleanup cookie after successful consume
+    cookieStore.delete('__wa_auth_bind');
 
     await logBusinessEvent({
       event_type: 'profile_created',

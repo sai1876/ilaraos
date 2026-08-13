@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { maskPhone } from '@/lib/security/maskPii';
 import { rateLimitDurable } from '@/lib/rateLimit';
 import crypto from 'node:crypto';
+import { verifyCustomerIdToken, createCustomerSessionCookie } from '@/server/auth/customerSession';
 
 const loginSchema = z.object({
   phone: z.string().min(10, "Invalid phone number format").max(24),
@@ -147,16 +148,26 @@ export async function POST(req: Request) {
     
     const verifyData = await verifyRes.json();
     const uid = verifyData.localId;
+    const idToken = verifyData.idToken;
+    
     if (typeof uid !== 'string' || uid !== userDoc.id) {
       return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401, headers: noStoreHeaders });
     }
+    if (typeof idToken !== 'string') {
+      return NextResponse.json({ success: false, error: "Authentication failed" }, { status: 401, headers: noStoreHeaders });
+    }
 
-    const authUser = await adminAuth.getUser(uid);
-    if (authUser.disabled) {
+    // Verify session requirements (role, recent auth, etc)
+    const verification = await verifyCustomerIdToken(idToken);
+    if (!verification.ok) {
+      console.warn(`[LOGIN BY PHONE] Rejected by customer session logic: ${verification.reason}`);
       return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401, headers: noStoreHeaders });
     }
+
+    // Establish canonical __session directly!
+    await createCustomerSessionCookie(idToken);
     
-    // Generate custom token
+    // Generate custom token for Firebase-client API compatibility (transitional)
     const customToken = await adminAuth.createCustomToken(uid);
     
     await logBusinessEvent({

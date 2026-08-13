@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
 import { useStore } from '@/store/useStore';
 
 export default function CustomerAuthGuard({ children }: { children: React.ReactNode }) {
@@ -13,23 +11,27 @@ export default function CustomerAuthGuard({ children }: { children: React.ReactN
 
   useEffect(() => {
     setAuthLoading(true);
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser) => {
-        if (firebaseUser) {
+    let mounted = true;
+    
+    fetch('/api/auth/customer-session')
+      .then(res => res.json())
+      .then(data => {
+        if (!mounted) return;
+        if (data.isAuthenticated) {
           router.replace('/profile');
           return;
         }
         setResolvedSignedOut(true);
         setAuthLoading(false);
-      },
-      (error) => {
-        console.error('[auth guard] Failed to resolve Firebase authentication:', error);
+      })
+      .catch(error => {
+        if (!mounted) return;
+        console.error('[auth guard] Failed to resolve canonical session:', error);
         setResolvedSignedOut(true);
         setAuthLoading(false);
-      },
-    );
-    return unsubscribe;
+      });
+      
+    return () => { mounted = false; };
   }, [router, setAuthLoading]);
 
   if (authLoading || !resolvedSignedOut) {

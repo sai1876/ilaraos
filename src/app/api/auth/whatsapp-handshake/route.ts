@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { rateLimitDurable } from '@/lib/rateLimit';
+import { createSignupChallenge, canonicalizePhone, generateHighEntropySecret, hashSecret } from '@/server/auth/whatsappChallenge';
+import { cookies } from 'next/headers';
 
 const MAX_BODY_BYTES = 4 * 1024;
 const handshakeSchema = z.object({
@@ -34,15 +36,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: 'Invalid request' }, { status: 400 });
     }
 
-    const normalizedPhone = parsed.data.phone.replace(/\D/g, '');
-    if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+    const canonicalPhone = canonicalizePhone(parsed.data.phone);
+    if (!canonicalPhone) {
       return NextResponse.json({ detail: 'Invalid request' }, { status: 400 });
     }
 
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || req.headers.get('x-real-ip')
       || 'unknown';
-    const phoneHash = crypto.createHash('sha256').update(normalizedPhone).digest('hex');
+    const phoneHash = crypto.createHash('sha256').update(canonicalPhone).digest('hex');
     const [ipLimit, phoneLimit] = await Promise.all([
       rateLimitDurable(`signup-handshake-ip:${ip}`, 10, 15 * 60 * 1000),
       rateLimitDurable(`signup-handshake-phone:${phoneHash}`, 3, 15 * 60 * 1000),
@@ -69,22 +71,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: 'Authentication temporarily unavailable' }, { status: 503 });
     }
 
-    const token = crypto.randomBytes(16).toString('hex').toUpperCase();
-    await adminDb.collection('auth_handshakes').doc(token).create({
-      phone: normalizedPhone,
-      purpose: 'phone_verification',
-      expires_at: Date.now() + 10 * 60 * 1000,
-      is_verified: false,
-      consumed: false,
-      consume_state: 'pending',
-      created_at: Date.now(),
+    // 2. Generate Challenge
+    const browserBindingSecret = generateHighEntropySecret();
+    const browserBindingHash = hashSecret(browserBindingSecret);
+    
+    const { challengeId, verifier } = await createSignupChallenge(canonicalPhone, browserBindingHash);
+    
+    // 3. Set binding cookie
+    const cookieStore = cookies();
+    cookieStore.set('__wa_auth_bind', browserBindingSecret, {
+      maxAge: 10 * 60, // 10 mins matching challenge expiry
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
     });
 
-    const redirectText = `Hey Ilara Cafe! Please verify my new signup session.\n\nRef: ${token}`;
+    const redirectText = `Hey Ilara Cafe! Please verify my new signup session.\n\nVERIFY Ref: ${challengeId}.${verifier}`;
     const redirectUrl = `https://wa.me/${botNumber}?text=${encodeURIComponent(redirectText)}`;
 
     return NextResponse.json({
-      token,
+      token: challengeId, // returned as token for compatibility
       redirect_url: redirectUrl,
       expires_in_seconds: 600,
     });

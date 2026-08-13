@@ -108,16 +108,26 @@ export default function AuthWorkspace({ defaultTab = 'signup', isModal = false, 
               if (data.custom_token) {
                 const { signInWithCustomToken } = await import('firebase/auth');
                 const credential = await signInWithCustomToken(auth, data.custom_token);
+                
+                // Establish AUTH-04 Canonical Session
+                const idToken = await credential.user.getIdToken(true);
+                const sessionRes = await fetch('/api/auth/customer-session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ idToken, challengeId: handshakeToken })
+                });
+
+                if (!sessionRes.ok) {
+                  const errorData = await sessionRes.json().catch(() => ({}));
+                  throw new Error(errorData.error || "Failed to establish secure session.");
+                }
+
                 setUser({ uid: credential.user.uid, phone: data.user_profile?.phone || phone });
                 if (data.user_profile) {
                   setUserProfile(data.user_profile);
                 }
               } else {
-                const mockUser = { uid: "user_" + phone.replace(/\D/g, ""), phone };
-                setUser(mockUser);
-                if (data.user_profile) {
-                  setUserProfile(data.user_profile);
-                }
+                throw new Error("Missing authentication token.");
               }
 
               setTimeout(() => {
